@@ -9,6 +9,9 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Hind+Siliguri:wght@400;500;600;700&family=Roboto+Mono:wght@400;500&display=swap" rel="stylesheet">
     <style>
+        html, body {
+            height: 100%;
+        }
         body {
             font-family: 'Hind Siliguri', sans-serif;
             background-color: #f0f4f8;
@@ -114,9 +117,9 @@
         }
     </style>
 </head>
-<body class="antialiased text-gray-800">
+<body class="antialiased text-gray-800 min-h-screen flex flex-col items-center justify-center">
 
-    <div class="container mx-auto p-4 md:p-8 max-w-6xl">
+    <div class="container w-full p-4 md:p-8 max-w-6xl">
         <header class="text-center mb-8">
             <h1 class="text-4xl md:text-5xl font-bold text-violet-700">Interactive Bangla Typing Tutor</h1>
             <p class="text-lg text-gray-600 mt-2">ধাপে ধাপে টাইপিং শিখুন এবং আপনার দক্ষতা পরীক্ষা করুন</p>
@@ -375,7 +378,7 @@
                 `;
             }
 
-            function loadExercise(exIndex) {
+            function loadExercise(exIndex, keepFocused = false) {
                 currentExerciseIndex = exIndex;
                 const exercise = lessons[currentSlide].exercises[exIndex];
                 const exerciseText = typeof exercise === 'object' ? exercise.text : exercise;
@@ -384,7 +387,7 @@
                 const exerciseTextEl = document.querySelector('.slide.active #exercise-text');
                 exerciseTextEl.innerHTML = exerciseText.split('').map(char => `<span>${char}</span>`).join('');
                 
-                resetState();
+                resetState(keepFocused);
                 updateCursor();
 
                 const repsCard = document.querySelector('.slide.active #reps-card');
@@ -398,7 +401,7 @@
                 updateLockState();
             }
 
-            function resetState() {
+            function resetState(keepFocused = false) {
                 charIndex = 0;
                 mistakes = 0;
                 isTyping = false;
@@ -414,7 +417,9 @@
                     activeSlide.querySelectorAll('#exercise-text span').forEach(span => {
                         span.className = '';
                     });
-                    activeSlide.querySelector('#exercise-text-container').classList.add('unfocused');
+                    if (!keepFocused) {
+                        activeSlide.querySelector('#exercise-text-container').classList.add('unfocused');
+                    }
                 }
             }
             
@@ -497,13 +502,13 @@
                                 messageArea.textContent = 'চমৎকার! আপনি এখন পরবর্তী অনুশীলনে যেতে পারেন।';
                                 updateLockState(); // Unlock
                             } else {
-                                // Reload for next repetition
-                                setTimeout(() => loadExercise(currentExerciseIndex), 1000);
+                                // Reload for next repetition automatically
+                                setTimeout(() => loadExercise(currentExerciseIndex, true), 1000);
                             }
                         } else {
                             messageArea.textContent = `Accuracy কম (${accuracy}%)! অনুগ্রহ করে আবার চেষ্টা করুন।`;
-                            // Reload for another attempt
-                            setTimeout(() => loadExercise(currentExerciseIndex), 2000);
+                            // Reload for another attempt automatically
+                            setTimeout(() => loadExercise(currentExerciseIndex, true), 2000);
                         }
                     }
                 }
