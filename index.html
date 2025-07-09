@@ -19,13 +19,13 @@
         .slide { display: none; animation: fadeIn 0.8s ease-in-out; }
         .slide.active { display: block; }
         @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(20px); }
+            from { opacity: 0; transform: translateY(15px); }
             to { opacity: 1; transform: translateY(0); }
         }
         /* Keyboard Styling */
         .keyboard {
             background: #e2e8f0;
-            padding: 1rem;
+            padding: 0.5rem;
             border-radius: 0.75rem;
             box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1), 0 4px 6px -2px rgba(0,0,0,0.05);
         }
@@ -35,18 +35,18 @@
             justify-content: center;
             font-family: 'Roboto Mono', monospace;
             font-weight: 600;
-            margin: 0.25rem;
+            margin: 0.15rem;
             transition: all 0.1s ease-in-out;
-            border-bottom: 4px solid rgba(0,0,0,0.2);
+            border-bottom: 3px solid rgba(0,0,0,0.2);
             user-select: none;
         }
         .key.pressed {
-            transform: translateY(3px);
+            transform: translateY(2px);
             border-bottom-width: 1px;
             filter: brightness(0.9);
         }
-        .key-char { width: 4rem; height: 4rem; border-radius: 0.5rem; }
-        .key-space { width: 20rem; height: 4rem; border-radius: 0.5rem; }
+        .key-char { width: 3.2rem; height: 3.2rem; border-radius: 0.375rem; font-size: 0.9rem; }
+        .key-space { width: 16rem; height: 3.2rem; border-radius: 0.375rem; }
         .key-left { background-color: #e9d5ff; border-color: #c084fc; color: #581c87; }
         .key-right { background-color: #d9f99d; border-color: #a3e635; color: #3f6212; }
         .key-neutral { background-color: #f1f5f9; border-color: #94a3b8; color: #1e293b; }
@@ -54,11 +54,11 @@
         /* Typing Area Styling */
         #exercise-text-container {
             font-family: 'Roboto Mono', monospace;
-            font-size: 1.5rem;
-            line-height: 2.5rem;
+            font-size: 1.75rem;
+            line-height: 2.75rem;
             background-color: #f8fafc;
             border: 1px solid #e2e8f0;
-            padding: 1rem;
+            padding: 1.25rem;
             border-radius: 0.5rem;
             user-select: none;
             cursor: text;
@@ -94,19 +94,19 @@
         /* Stats & Reps Styling */
         .stat-card {
             background-color: #f1f5f9;
-            padding: 1rem;
+            padding: 0.75rem;
             border-radius: 0.75rem;
             text-align: center;
             box-shadow: inset 0 2px 4px 0 rgba(0,0,0,0.05);
         }
         .stat-value {
             font-family: 'Roboto Mono', monospace;
-            font-size: 2.5rem;
+            font-size: 2rem;
             font-weight: 700;
             color: #4c1d95;
         }
         .stat-label {
-            font-size: 1rem;
+            font-size: 0.875rem;
             font-weight: 600;
             color: #64748b;
         }
@@ -117,20 +117,20 @@
         }
     </style>
 </head>
-<body class="antialiased text-gray-800 min-h-screen flex flex-col items-center justify-center">
+<body class="antialiased text-gray-800 min-h-screen flex flex-col items-center justify-start pt-4 sm:pt-8">
 
-    <div class="container w-full p-4 md:p-8 max-w-6xl">
-        <header class="text-center mb-8">
-            <h1 class="text-4xl md:text-5xl font-bold text-violet-700">Interactive Bangla Typing Tutor</h1>
-            <p class="text-lg text-gray-600 mt-2">ধাপে ধাপে টাইপিং শিখুন এবং আপনার দক্ষতা পরীক্ষা করুন</p>
+    <div class="container w-full p-4 max-w-6xl">
+        <header class="text-center mb-4">
+            <h1 class="text-3xl md:text-4xl font-bold text-violet-700">Interactive Bangla Typing Tutor</h1>
+            <p class="text-base text-gray-600 mt-1">ধাপে ধাপে টাইপিং শিখুন এবং আপনার দক্ষতা পরীক্ষা করুন</p>
         </header>
 
-        <main id="slides-container" class="bg-white p-6 md:p-8 rounded-2xl shadow-xl min-h-[500px]">
+        <main id="slides-container" class="bg-white p-4 md:p-6 rounded-2xl shadow-xl">
             <!-- Slides will be injected here by JS -->
         </main>
 
         <!-- Navigation -->
-        <footer class="mt-8 flex justify-between items-center">
+        <footer class="mt-6 flex justify-between items-center">
             <button id="prevBtn" class="bg-gray-300 hover:bg-gray-400 text-gray-800 font-bold py-2 px-6 rounded-lg transition-colors duration-300 disabled:opacity-50 disabled:cursor-not-allowed">আগের পাঠ</button>
             <div id="step-indicator" class="text-gray-600 font-semibold">
                 <span id="current-step">1</span> / <span id="total-steps">11</span>
@@ -323,7 +323,7 @@
                         if (key === 'Space') displayKey = '';
 
                         keyboardHTML += `<div id="key-${keyInfo.code}" class="key ${keyClass} ${handClass}" data-key="${keyInfo.code}">
-                            <div class="flex flex-col items-center">
+                            <div class="flex flex-col items-center leading-tight">
                                 <span class="text-xs">${upperChar}</span>
                                 <span>${displayKey}</span>
                             </div>
@@ -343,13 +343,13 @@
                 
                 return `
                     <div id="slide-${index}" class="slide">
-                        <h2 class="text-3xl font-bold text-violet-600 mb-2">${lesson.title}</h2>
-                        <p class="mb-4 text-gray-700">${lesson.description}</p>
+                        <h2 class="text-2xl font-bold text-violet-600 mb-2">${lesson.title}</h2>
+                        <p class="mb-4 text-gray-700 text-sm">${lesson.description}</p>
                         
-                        <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
                             <div class="md:col-span-1 bg-violet-50 p-4 rounded-lg">
-                                <h3 class="text-xl font-semibold mb-2">অনুশীলনী</h3>
-                                <ul class="font-mono text-violet-900">${exerciseList}</ul>
+                                <h3 class="text-lg font-semibold mb-2">অনুশীলনী</h3>
+                                <ul class="font-mono text-violet-900 text-sm">${exerciseList}</ul>
                             </div>
                             <div class="md:col-span-2">
                                 <div id="stats" class="grid grid-cols-2 lg:grid-cols-3 gap-4 mb-4">
@@ -417,8 +417,12 @@
                     activeSlide.querySelectorAll('#exercise-text span').forEach(span => {
                         span.className = '';
                     });
+                    const container = activeSlide.querySelector('#exercise-text-container');
                     if (!keepFocused) {
-                        activeSlide.querySelector('#exercise-text-container').classList.add('unfocused');
+                        container.classList.add('unfocused');
+                    } else {
+                        container.classList.remove('unfocused');
+                        inputArea.focus();
                     }
                 }
             }
