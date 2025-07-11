@@ -1,0 +1,19 @@
+Prompt:
+not good at all
+
+
+Prompt:
+continue what is rest.
+
+Prompt:
+Is it completed to implement what I asked for?
+
+Prompt:
+Is it completed to implement what I asked for?
+
+Prompt:
+Okay, but I can see there were many elements in Bengali language, especially the tips are in Bengali. If I switch the language to English, I want that in English mode, everything is in English, each and every single word. And in Bengali, everything will be as it is now. And I can see you added a new option here in the language changing button, there was a 'Content Type' option or something similar, listing 'All Content', 'Bengali Content', and 'English Content'. I want to remove the full section of this setting completely and make it default to 'All Content'. This setting doesn't need to be customizable by the user.
+
+Prompt:
+Okay, but I can see there were many elements in Bengali language, especially the tips are in Bengali. If I switch the language to English, I want that in English mode, everything is in English, each and every single word. And in Bengali, everything will be as it is now. And I can see you added a new option here in the language changing button, there was a 'Content Type' option or something similar, listing 'All Content', 'Bengali Content', and 'English Content'. I want to remove the full section of this setting completely and make it default to 'All Content'. This setting doesn't need to be customizable by the user.
+

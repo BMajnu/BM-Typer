@@ -1,0 +1,196 @@
+### **1. App Brief (Introduction)**
+
+This project is to build a **"Flutter Bangla Typing Tutor,"** a cross-platform application that helps users learn and master touch typing, with a focus on the Bangla language (using Avro-style phonetic or Unijoy layout transliteration, based on the provided English character exercises) and standard English QWERTY layout.
+
+The app will provide a series of structured lessons, starting from the home row and progressing to full sentences and numbers. It will offer real-time feedback on performance, including Words Per Minute (WPM), accuracy, and repetitions completed. A visual on-screen keyboard will guide users by highlighting the keys to be pressed, reinforcing correct finger placement. The goal is to create an intuitive, encouraging, and effective learning tool that works seamlessly on web, desktop, and mobile devices.
+
+-----
+
+### **2. App Developing Plan**
+
+The development can be broken down into the following logical phases:
+
+  * **Phase 1: Project Setup & Foundation**
+
+    1.  Initialize a new Flutter project enabled for Web, Desktop (Windows, macOS, Linux), and Mobile (Android, iOS).
+    2.  Create the core data models in Dart: `Lesson` and `Exercise` to mirror the structure of the `lessons` array in the JavaScript code.
+    3.  Set up a local data source that hardcodes this lesson data, making it readily available within the app.
+    4.  Choose and implement a state management solution. **Riverpod** is highly recommended for its simplicity and power in managing the app's state (e.g., current lesson, exercise index, user input, stats).
+
+  * **Phase 2: Core UI - The Tutor Screen**
+
+    1.  Develop the main screen (`TutorScreen`) which will be the primary interface.
+    2.  Build the static layout: a header with the app title, a footer with "Previous" and "Next" navigation buttons, and a lesson progress indicator.
+    3.  Use a `PageView` or a similar widget to handle the "slide" or "lesson" navigation, allowing users to swipe or click between lessons.
+
+  * **Phase 3: Interactive Widget Development**
+
+    1.  **Typing Area Widget (`TypingArea`):** Create a custom widget to display the exercise text. This widget will use `RichText` with `TextSpan`s to dynamically style each character as:
+          * `correct` (e.g., green color)
+          * `incorrect` (e.g., red background)
+          * `current` (blinking cursor)
+          * `pending` (default color)
+    2.  **Virtual Keyboard Widget (`VirtualKeyboard`):** Design a widget that visually represents a QWERTY keyboard. Each key will be a separate widget that can change its appearance (e.g., show a "pressed" state) when the corresponding physical key is pressed. Keys will be color-coded based on which hand (left/right) should be used.
+    3.  **Stats Display Widget (`StatsDisplay`):** Create a section to show real-time stats like WPM, Accuracy, and Repetitions using distinct `StatCard` widgets.
+
+  * **Phase 4: Logic & State Integration**
+
+    1.  Use a `RawKeyboardListener` to capture all physical keyboard events at the screen level.
+    2.  Implement the core typing logic within the Riverpod provider. This logic will:
+          * Listen to keyboard events from `RawKeyboardListener`.
+          * Compare the typed character with the expected character in the exercise.
+          * Update the state (character index, mistakes, etc.).
+          * Start a timer on the first keypress of an exercise to calculate WPM.
+          * Update WPM and Accuracy in real-time.
+          * Handle exercise completion, check for accuracy thresholds, and manage repetitions.
+          * Lock/unlock the "Next" button and other exercises based on completion status.
+
+  * **Phase 5: Polish & Finalization**
+
+    1.  Implement responsiveness using `LayoutBuilder` and other adaptive widgets so the UI looks great on a wide desktop monitor, a tablet, and a narrow mobile screen.
+    2.  Add animations and transitions (e.g., `AnimatedSwitcher` for changing lessons) to create a smoother user experience.
+    3.  Ensure the on-screen keyboard on mobile devices (`TextField`'s keyboard) is correctly handled or hidden in favor of the custom virtual keyboard for guidance.
+    4.  (Optional) Add a feature to save user progress locally using `shared_preferences`.
+
+-----
+
+### **3. File Directory (Tree)**
+
+Here is a recommended directory structure for your project, following clean architecture principles.
+
+```
+flutter_typing_tutor/
+├── lib/
+│   ├── main.dart                 # App entry point
+│   │
+│   ├── core/                     # Core utilities, constants, and models
+│   │   ├── constants/
+│   │   │   ├── app_colors.dart
+│   │   │   └── app_text_styles.dart
+│   │   ├── models/
+│   │   │   ├── lesson_model.dart
+│   │   │   └── exercise_model.dart
+│   │   └── providers/
+│   │       └── tutor_provider.dart # Riverpod provider for state management
+│   │
+│   ├── data/                     # Data layer
+│   │   └── local_lesson_data.dart  # Hardcoded lesson data
+│   │
+│   └── presentation/             # UI Layer
+│       ├── screens/
+│       │   └── tutor_screen.dart   # The main screen of the app
+│       │
+│       └── widgets/                # Reusable UI components
+│           ├── virtual_keyboard.dart
+│           ├── keyboard_key.dart
+│           ├── typing_area.dart
+│           ├── stats_card.dart
+│           └── lesson_navigation.dart
+│
+├── assets/
+│   └── fonts/
+│       ├── HindSiliguri-Regular.ttf
+│       └── RobotoMono-Regular.ttf
+│
+└── pubspec.yaml
+```
+
+-----
+
+### **4. Detailed Plan of Screens**
+
+The application primarily consists of one complex screen.
+
+#### **Screen: `TutorScreen` (`tutor_screen.dart`)**
+
+This will be a `StatefulWidget` that uses a `Consumer` or `ConsumerWidget` (from Riverpod) to react to state changes.
+
+  * **Root Widget:** `Scaffold`
+  * **Body:** A `RawKeyboardListener` wrapping a central `Column`. The listener will pass key events to the `tutor_provider`.
+      * **Child of Column:**
+        1.  **Header:** `Padding` -\> `Column`
+              * `Text('Interactive Bangla Typing Tutor', style: AppTextStyles.title)`
+              * `Text('ধাপে ধাপে টাইপিং শিখুন...', style: AppTextStyles.subtitle)`
+        2.  **Main Content Area:** `Expanded` -\> `PageView` (controlled by a `PageController`)
+              * **Builder:** Generates a `LessonView` widget for each lesson in the data.
+        3.  **Footer:** `LessonNavigation` widget
+              * `ElevatedButton("আগের পাঠ")`
+              * `Text('${currentPage + 1} / ${totalPages}')`
+              * `ElevatedButton("পরবর্তী পাঠ")`
+
+#### **Widget: `LessonView` (A widget built inside `TutorScreen`'s `PageView`)**
+
+  * **Root Widget:** `Padding` -\> `SingleChildScrollView` to avoid overflow on smaller screens.
+  * **Child:** `Column`
+      * `Text(lesson.title)`
+      * `Text(lesson.description)`
+      * `LayoutBuilder`: To decide whether to show the exercise list and typing area in a `Row` (for wide screens) or a `Column` (for narrow screens).
+          * **Left Pane / Top Pane:**
+              * `Text("অনুশীলনী")`
+              * `ListView.builder`: Builds a list of `TextButton`s for each exercise. The currently active/selected exercise is highlighted. Buttons are disabled if the previous exercise is not completed.
+          * **Right Pane / Bottom Pane:** `Column`
+            1.  **Stats Display:** `Wrap` or `Row` containing multiple `StatsCard` widgets for WPM, Accuracy, and Reps.
+            2.  **Typing Area:** The custom `TypingArea` widget, which receives the text and user input state from the provider.
+            3.  **Virtual Keyboard:** The custom `VirtualKeyboard` widget, which receives the currently required key and shift state from the provider to highlight the correct key.
+
+-----
+
+### **5. UI/UX Plan**
+
+This plan translates the existing web design into Flutter components.
+
+  * **Colors (`app_colors.dart`):**
+
+      * `primary`: `Color(0xFF6D28D9)` (Violet)
+      * `background`: `Color(0xFFF0F4F8)`
+      * `surface`: `Color(0xFFFFFFFF)` (White card background)
+      * `correct`: `Color(0xFF22C55E)` (Green)
+      * `incorrect`: `Color(0xFFEF4444)` (Red)
+      * `leftHandKey`: `Color(0xFFE9D5FF)`
+      * `rightHandKey`: `Color(0xFFD9F99D)`
+      * `neutralKey`: `Color(0xFFF1F5F9)`
+
+  * **Typography (`app_text_styles.dart`):**
+
+      * Define `TextStyle`s for titles, body text, and especially for the mono-spaced typing font.
+      * You will need to add the fonts to `assets/fonts/` and declare them in `pubspec.yaml`.
+
+  * **Responsiveness:**
+
+      * **Mobile:** The exercise list, stats, and typing area will stack vertically. The virtual keyboard might need to scale down.
+      * **Desktop/Web:** Use a two-column layout, with the exercise list on the left and the typing area/stats/keyboard on the right, as seen in the original design. `LayoutBuilder` is the key to achieving this.
+
+  * **Feedback & Animation:**
+
+      * **Key Press:** When a physical key is pressed, the corresponding `KeyboardKey` widget should visually change (e.g., slightly shrink and change color) to mimic the "pressed" effect.
+      * **Lesson Transition:** Use `PageController.animateToPage` for a smooth slide animation between lessons.
+      * **Blinking Cursor:** The `current` character in the `TypingArea` can be made to blink using an `AnimationController` that toggles its background color.
+
+-----
+
+### **6. Refined Prompts for Coding Agents (e.g., Cursor)**
+
+To get the best results from a coding assistant, provide it with targeted, context-aware prompts based on this blueprint.
+
+  * **Prompt 1 (Data Models):**
+
+    > "Act as a Flutter expert. Based on the provided JavaScript `lessons` array, create Dart classes `Lesson` and `Exercise` in a file named `lib/core/models/lesson_model.dart`. The classes should be immutable and include `copyWith`, `toJson`, and `fromJson` methods. Then, create a file `lib/data/local_lesson_data.dart` that contains the full list of lessons as a `List<Lesson>` constant."
+
+  * **Prompt 2 (State Management):**
+
+    > "Using Flutter Riverpod, create a `TutorNotifier` class and a `StateNotifierProvider` in `lib/core/providers/tutor_provider.dart`. The state class should manage `currentLessonIndex`, `currentExerciseIndex`, `typedText`, `charIndex`, `mistakes`, `startTime`, `wpm`, and `accuracy`. Create methods within the notifier to `selectExercise(int index)`, `goToNextLesson()`, and `goToPreviousLesson()`."
+
+  * **Prompt 3 (Typing Logic):**
+
+    > "In the `TutorNotifier`, create a method `handleKeyPress(RawKeyEvent event)`. This method should only handle `RawKeyDownEvent`. It needs to:
+
+    > 1.  Get the typed character from `event.logicalKey.keyLabel`.
+    > 2.  On the first keypress of an exercise, record the `startTime`.
+    > 3.  Compare the typed character to the expected character in the current exercise text.
+    > 4.  Update the state: increment `charIndex`, and if there's a mismatch, increment `mistakes`.
+    > 5.  Recalculate WPM and accuracy and update the state.
+    > 6.  Handle the 'Backspace' key correctly."
+
+  * **Prompt 4 (UI Widget - Typing Area):**
+
+    > "Create a stateless Flutter widget named `TypingArea` in `lib/presentation/widgets/typing_area.dart`. It should accept the full exercise string, the current character index, and a list of indices that are incorrect. Use a `RichText` widget with a list of `TextSpan`s to render the text, applying different `TextStyle`s for correct, incorrect, and the current-cursor characters."
