@@ -1,5 +1,7 @@
 import 'package:bm_typer/core/models/lesson_model.dart';
 import 'package:bm_typer/data/english_paragraph_data.dart';
+import 'package:bm_typer/data/bangla_lesson_data.dart';
+import 'package:bm_typer/data/phonetic_lesson_data.dart';
 // ignore_for_file: prefer_const_constructors
 
 // Bangla lessons
@@ -217,5 +219,10 @@ final List<Lesson> banglaLessons = [
   ),
 ];
 
-// Combined lessons (Bangla + English)
-final List<Lesson> lessons = [...banglaLessons, ...englishLessons];
+// Combined lessons (Real Bangla + Keyboard Practice + English)
+final List<Lesson> lessons = [
+  ...realBanglaLessons, // প্রকৃত বাংলা টাইপিং lessons
+  ...phoneticBanglaLessons, // Phonetic Typing lessons
+  ...banglaLessons, // Keyboard drill lessons (English keys)
+  ...englishLessons, // English paragraph lessons
+];

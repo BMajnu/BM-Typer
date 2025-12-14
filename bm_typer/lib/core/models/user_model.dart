@@ -52,7 +52,7 @@ class UserModel {
   @HiveField(14)
   final double goalAccuracy;
 
-  // NEW: List to keep recent typing session summaries (not persisted by Hive for now)
+  @HiveField(15)
   final List<TypingSession> typingSessions;
 
   UserModel({

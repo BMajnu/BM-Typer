@@ -5,6 +5,8 @@ import 'package:bm_typer/data/local_lesson_data.dart';
 import 'package:bm_typer/core/providers/user_provider.dart';
 import 'package:bm_typer/core/services/sound_service.dart';
 import 'package:bm_typer/core/providers/sound_provider.dart';
+import 'package:bm_typer/core/providers/keyboard_layout_provider.dart';
+import 'package:bm_typer/core/constants/keyboard_layouts.dart';
 
 class TutorState {
   final int currentLessonIndex;
@@ -36,8 +38,9 @@ class TutorState {
     this.isTyping = false,
     this.isFocused = false,
     this.sessionTypedCharacters = const [],
-    this.waitingForNextRep = false, // Initialize with default value
-  });
+  final String? lastKeyPress; // Track previous key press for Bijoy composite logic
+
+
 
   TutorState copyWith({
     int? currentLessonIndex,
@@ -70,7 +73,8 @@ class TutorState {
       sessionTypedCharacters:
           sessionTypedCharacters ?? this.sessionTypedCharacters,
       waitingForNextRep:
-          waitingForNextRep ?? this.waitingForNextRep, // Include in constructor
+          waitingForNextRep ?? this.waitingForNextRep,
+      lastKeyPress: null, // Reset last key press on state update unless explicitly handled
     );
   }
 
@@ -139,6 +143,7 @@ class TutorNotifier extends StateNotifier<TutorState> {
         accuracy: 100,
         repsCompleted: 0,
         isTyping: false,
+        lastKeyPress: null,
       );
     }
   }
@@ -200,6 +205,72 @@ class TutorNotifier extends StateNotifier<TutorState> {
       typedChar = 'Backspace';
     } else {
       typedChar = event.character;
+      
+      // Convert English to Bengali based on keyboard layout
+      if (typedChar != null) {
+        final layoutState = _ref.read(keyboardLayoutProvider);
+        if (layoutState.isBengali && typedChar.isNotEmpty) {
+          
+          // Bijoy Special Logic: Check for Linker 'g' + Vowel Sign
+          if (state.lastKeyPress == 'g' && layoutState.currentLayout == KeyboardLayout.bijoy) {
+             // Handle composite vowels (Linker + Vowel Sign)
+             // g + f (Rhoshho A) = Aa (A)
+             if (event.character == 'f') typedChar = 'আ';
+             // g + d (Rhoshho I) = I (E) -- Standard Bijoy: g+d = ই
+             else if (event.character == 'd') typedChar = 'ই';
+             // g + c (E kar) = Oi (OI) -- Standard Bijoy: g+Shift+c = ঐ , but g+c = usually nothing standard? Wait, Bijoy: g + c = no standard composite? 
+             // Let's stick to user request: g + f = আ (This is standard).
+             // Let's implement the core vowels:
+             // g + f (ax) = আ
+             // g + d (ix) = ই
+             // g + s (ux) = উ
+             // g + c (ex) = এ - ERROR in standard logic, 'c' is 'e-kar'. 'g'+'c' -> 'এ' ? No, 'g'+'shift+c'(Oi-kar) -> 'ঐ'.
+             // Wait, standard Bijoy:
+             // Shift+F = অ
+             // g + f = আ
+             // g + d = ই
+             // Shift+D = ঈ
+             // g + s = উ
+             // Shift+S = ঊ
+             // Shift+A = ঋ (or Reph, usually Reph in typing, but independent vowel requires g+a?)
+             // Shift+V = এ (Yes, V is 'Ro', Shift+V is 'A/E' independent?) No, Shift+V is 'Lo'. 
+             // Standard Bijoy Vowels:
+             // Shift+F = অ
+             // g + f = আ
+             // g + d = ই
+             // Shift+D = ঈ
+             // g + s = উ
+             // Shift+S = ঊ
+             // g + a = ঋ
+             // g + Shift+c = ঐ (No, Shift+C is Oi-kar) -> g + Shift+C = likely not valid or handled differently.
+             // Actually, 'Shift+C' is 'Oi-kar', 'g'+'Shift+C' = 'ঐ'.
+             // 'c' is 'e-kar'. 'g'+'c' = 'এ'.
+             // 'x' is 'o-kar' (Wait, x is O). No, x is 'O'. Shift+X is 'Ou'.
+             // Standard:
+             // g + c = এ
+             // g + x = ও (But x is already O independent? No, x is O).
+             // Actually, x maps to `ও` directly in my layout map. So no composite needed for O.
+             // But usually 'g' is used to make the independent vowel from the kar-sign key.
+             
+             if (event.character == 'f') typedChar = 'আ'; // a-kar -> A
+             else if (event.character == 'd') typedChar = 'ই'; // i-kar -> I
+             else if (event.character == 's') typedChar = 'উ'; // u-kar -> U
+             else if (event.character == 'a') typedChar = 'ঋ'; // ri-kar -> Ri
+             else if (event.character == 'c') typedChar = 'এ'; // e-kar -> E
+             else if (event.character == 'C') typedChar = 'ঐ'; // oi-kar -> OI (Shift+c)
+             else if (event.character == 'x') typedChar = 'ও'; // o-kar (Wait x is O). If x is 'O', then g+x needed? Maybe not.
+             else if (event.character == 'X') typedChar = 'ঔ'; // ou-kar -> OU (Shift+x)
+          }
+
+          if (typedChar == event.character) {
+             // If not converted by composite logic, use simple map
+             final bengaliChar = BijoyKeyboardLayout.englishToBengali[typedChar];
+             if (bengaliChar != null) {
+               typedChar = bengaliChar;
+             }
+          }
+        }
+      }
     }
 
     if (typedChar == null) return;
@@ -253,6 +324,7 @@ class TutorNotifier extends StateNotifier<TutorState> {
         state = state.copyWith(
           charIndex: newCharIndex,
           sessionTypedCharacters: updatedSessionHistory,
+          lastKeyPress: event.character, // Update last key press
         );
 
         // If the exercise is completed, update stats

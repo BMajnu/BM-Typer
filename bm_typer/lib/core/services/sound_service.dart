@@ -2,7 +2,11 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:audioplayers/audioplayers.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'dart:html' as html;
+
+// Conditional import: use stub on non-web, dart:html on web
+import 'sound_service_stub.dart'
+    if (dart.library.html) 'sound_service_web.dart' as web_audio;
+
 
 enum SoundType {
   keyPress,
@@ -25,7 +29,7 @@ class SoundService {
 
   AudioPlayer? _audioPlayer;
   // For web platform
-  Map<String, html.AudioElement> _webAudioElements = {};
+  Map<String, web_audio.AudioElement> _webAudioElements = {};
   bool _isSoundEnabled = true;
   double _volume = 0.5;
   KeyboardSoundTheme _currentTheme = KeyboardSoundTheme.soft;
@@ -73,13 +77,13 @@ class SoundService {
     if (path.isEmpty) return;
 
     if (!_webAudioElements.containsKey(path)) {
-      final audio = html.AudioElement();
+      final audio = web_audio.createAudioElement();
       audio.src = path;
       audio.preload = 'auto';
       // Set volume
       audio.volume = _volume;
       // Add to document to allow preloading
-      html.document.body?.append(audio);
+      web_audio.document.body?.append(audio);
       // Hide the element
       audio.style.display = 'none';
       // Store for later use

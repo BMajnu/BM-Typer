@@ -12,6 +12,7 @@ import 'package:bm_typer/core/providers/theme_provider.dart';
 import 'package:bm_typer/core/providers/language_provider.dart';
 import 'package:bm_typer/presentation/screens/user_registration_screen.dart';
 import 'package:bm_typer/core/models/user_model.dart';
+import 'package:bm_typer/core/models/typing_session.dart';
 import 'package:bm_typer/core/services/sound_service.dart';
 import 'package:bm_typer/core/services/tts_service.dart';
 import 'package:bm_typer/core/services/accessibility_service.dart';
@@ -27,6 +28,7 @@ void main() async {
 
   // Register Hive adapters
   Hive.registerAdapter(LeaderboardEntryAdapter());
+  Hive.registerAdapter(TypingSessionAdapter());
 
   // Check for and run migrations if needed
   await MigrationService.checkAndMigrateIfNeeded();

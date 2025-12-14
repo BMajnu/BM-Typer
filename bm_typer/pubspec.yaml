@@ -84,7 +84,6 @@ flutter:
   assets:
     - assets/fonts/
     - assets/sounds/
-    - bm_typer/assets/badges/
 
   # Custom font declaration for widgets that explicitly use GoogleFonts.notoSans.
   fonts:

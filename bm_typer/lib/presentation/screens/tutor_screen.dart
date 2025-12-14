@@ -4,36 +4,32 @@ import 'package:flutter/services.dart';
 import 'dart:math';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:bm_typer/core/constants/app_colors.dart';
 import 'package:bm_typer/core/constants/app_text_styles.dart';
 import 'package:bm_typer/core/providers/tutor_provider.dart';
 import 'package:bm_typer/core/providers/user_provider.dart';
 import 'package:bm_typer/core/providers/theme_provider.dart';
 import 'package:bm_typer/core/providers/language_provider.dart';
 import 'package:bm_typer/core/models/achievement_model.dart';
-import 'package:bm_typer/core/models/user_model.dart';
-import 'package:bm_typer/core/services/achievement_service.dart';
+
 import 'package:bm_typer/core/services/notification_service.dart';
 import 'package:bm_typer/core/services/reminder_service.dart';
 import 'package:bm_typer/core/services/leaderboard_service.dart';
 import 'package:bm_typer/data/local_lesson_data.dart';
 import 'package:bm_typer/presentation/screens/profile_screen.dart';
-import 'package:bm_typer/presentation/screens/achievements_screen.dart';
+
 import 'package:bm_typer/presentation/screens/leaderboard_screen.dart';
 import 'package:bm_typer/presentation/screens/level_details_screen.dart';
-import 'package:bm_typer/presentation/screens/theme_settings_screen.dart';
-import 'package:bm_typer/presentation/screens/audio_settings_screen.dart';
-import 'package:bm_typer/presentation/screens/accessibility_settings_screen.dart';
+
 import 'package:bm_typer/presentation/widgets/lesson_navigation.dart';
 import 'package:bm_typer/presentation/widgets/progress_indicator_widget.dart';
 import 'package:bm_typer/presentation/widgets/stats_card.dart';
 import 'package:bm_typer/presentation/widgets/typing_area.dart';
 import 'package:bm_typer/presentation/widgets/typing_guide.dart';
 import 'package:bm_typer/presentation/widgets/typing_session_history.dart';
-import 'package:bm_typer/presentation/widgets/virtual_keyboard.dart';
+import 'package:bm_typer/presentation/widgets/bangla_virtual_keyboard.dart';
 import 'package:bm_typer/presentation/widgets/xp_gain_animation.dart';
-import 'package:bm_typer/presentation/widgets/xp_progress_bar.dart';
-import 'package:bm_typer/presentation/screens/export_screen.dart';
+
+import 'package:bm_typer/presentation/widgets/tutor_floating_actions.dart';
 
 class TutorScreen extends ConsumerStatefulWidget {
   const TutorScreen({super.key});
@@ -295,210 +291,7 @@ class _TutorScreenState extends ConsumerState<TutorScreen> {
           const SizedBox(width: 8),
         ],
       ),
-      floatingActionButton: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          FloatingActionButton(
-            heroTag: 'theme_btn',
-            mini: true,
-            onPressed: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => const ThemeSettingsScreen(),
-                ),
-              );
-            },
-            backgroundColor: colorScheme.primaryContainer,
-            foregroundColor: colorScheme.onPrimaryContainer,
-            tooltip: 'Theme Settings',
-            child: AnimatedSwitcher(
-              duration: const Duration(milliseconds: 300),
-              transitionBuilder: (Widget child, Animation<double> animation) {
-                return RotationTransition(
-                  turns: animation,
-                  child: ScaleTransition(
-                    scale: animation,
-                    child: child,
-                  ),
-                );
-              },
-              child: Icon(
-                isDarkMode ? Icons.dark_mode : Icons.light_mode,
-                key: ValueKey<bool>(isDarkMode),
-              ),
-            ),
-          ),
-          const SizedBox(height: 8),
-          FloatingActionButton(
-            heroTag: 'audio_btn',
-            mini: true,
-            onPressed: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => const AudioSettingsScreen(),
-                ),
-              );
-            },
-            backgroundColor: colorScheme.primaryContainer,
-            foregroundColor: colorScheme.onPrimaryContainer,
-            tooltip: 'Audio Settings',
-            child: const Icon(Icons.volume_up),
-          ),
-          const SizedBox(height: 8),
-          FloatingActionButton(
-            heroTag: 'accessibility_btn',
-            mini: true,
-            onPressed: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => const AccessibilitySettingsScreen(),
-                ),
-              );
-            },
-            backgroundColor: colorScheme.tertiaryContainer,
-            foregroundColor: colorScheme.onTertiaryContainer,
-            tooltip: 'Accessibility Settings',
-            child: const Icon(Icons.accessibility_new),
-          ),
-          const SizedBox(height: 8),
-          FloatingActionButton(
-            heroTag: 'language_btn',
-            mini: true,
-            onPressed: () {
-              showDialog(
-                context: context,
-                builder: (context) {
-                  final appLanguage = ref.watch(appLanguageProvider);
-                  return AlertDialog(
-                    title: Text(
-                        ref.watch(translationProvider('select_language')),
-                        style: TextStyle(color: colorScheme.onSurface)),
-                    content: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        // Interface language selection only
-                        ListTile(
-                          title: const Text('বাংলা'),
-                          onTap: () {
-                            ref
-                                .read(appLanguageProvider.notifier)
-                                .changeLanguage(AppLanguage.bengali);
-                            Navigator.pop(context);
-                          },
-                          selected: appLanguage == AppLanguage.bengali,
-                          leading: Radio<AppLanguage>(
-                            value: AppLanguage.bengali,
-                            groupValue: appLanguage,
-                            onChanged: (value) {
-                              if (value != null) {
-                                ref
-                                    .read(appLanguageProvider.notifier)
-                                    .changeLanguage(value);
-                                Navigator.pop(context);
-                              }
-                            },
-                          ),
-                        ),
-                        ListTile(
-                          title: const Text('English'),
-                          onTap: () {
-                            ref
-                                .read(appLanguageProvider.notifier)
-                                .changeLanguage(AppLanguage.english);
-                            Navigator.pop(context);
-                          },
-                          selected: appLanguage == AppLanguage.english,
-                          leading: Radio<AppLanguage>(
-                            value: AppLanguage.english,
-                            groupValue: appLanguage,
-                            onChanged: (value) {
-                              if (value != null) {
-                                ref
-                                    .read(appLanguageProvider.notifier)
-                                    .changeLanguage(value);
-                                Navigator.pop(context);
-                              }
-                            },
-                          ),
-                        ),
-                      ],
-                    ),
-                  );
-                },
-              );
-            },
-            backgroundColor: colorScheme.secondaryContainer,
-            foregroundColor: colorScheme.onSecondaryContainer,
-            tooltip: ref.watch(translationProvider('select_language')),
-            child: const Icon(Icons.language),
-          ),
-          const SizedBox(height: 8),
-          FloatingActionButton(
-            heroTag: 'achievements_btn',
-            mini: true,
-            onPressed: () {
-              Navigator.push(
-                context,
-                PageRouteBuilder(
-                  pageBuilder: (context, animation, secondaryAnimation) =>
-                      const AchievementsScreen(),
-                  transitionsBuilder:
-                      (context, animation, secondaryAnimation, child) {
-                    const begin = Offset(1.0, 0.0);
-                    const end = Offset.zero;
-                    const curve = Curves.easeInOutCubic;
-                    var tween = Tween(begin: begin, end: end).chain(
-                      CurveTween(curve: curve),
-                    );
-                    return SlideTransition(
-                      position: animation.drive(tween),
-                      child: child,
-                    );
-                  },
-                ),
-              );
-            },
-            backgroundColor: colorScheme.tertiaryContainer,
-            foregroundColor: colorScheme.onTertiaryContainer,
-            tooltip: 'Achievements',
-            child: const Icon(Icons.emoji_events),
-          ),
-          const SizedBox(height: 8),
-          FloatingActionButton(
-            heroTag: 'export_btn',
-            mini: true,
-            onPressed: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => const ExportScreen(),
-                ),
-              );
-            },
-            backgroundColor: colorScheme.secondaryContainer,
-            foregroundColor: colorScheme.onSecondaryContainer,
-            tooltip: 'Export & Share',
-            child: const Icon(Icons.ios_share),
-          ),
-          const SizedBox(height: 8),
-          FloatingActionButton(
-            heroTag: 'speedtest_btn',
-            mini: true,
-            onPressed: () {
-              Navigator.pushNamed(context, '/typing_test');
-            },
-            backgroundColor: colorScheme.primaryContainer,
-            foregroundColor: colorScheme.onPrimaryContainer,
-            tooltip: 'Typing Speed Test',
-            child: const Icon(Icons.speed),
-          ),
-          const SizedBox(height: 8),
-        ],
-      ),
+      floatingActionButton: const TutorFloatingActions(),
       body: Container(
         decoration: BoxDecoration(
           gradient: LinearGradient(
@@ -1050,7 +843,7 @@ class _TutorScreenState extends ConsumerState<TutorScreen> {
                   child: SizedBox(
                     width: constraints.maxWidth,
                     height: constraints.maxHeight,
-                    child: VirtualKeyboard(
+                    child: BanglaVirtualKeyboard(
                       pressedKeys: _pressedKeys,
                     ),
                   ),
