@@ -1,7 +1,8 @@
 import 'package:bm_typer/core/models/lesson_model.dart';
 import 'package:bm_typer/data/english_paragraph_data.dart';
-import 'package:bm_typer/data/bangla_lesson_data.dart';
-import 'package:bm_typer/data/phonetic_lesson_data.dart';
+import 'package:bm_typer/data/bangla_lesson_data.dart' show realBanglaLessons;
+import 'package:bm_typer/data/phonetic_lesson_data.dart' show phoneticBanglaLessons;
+
 // ignore_for_file: prefer_const_constructors
 
 // Bangla lessons

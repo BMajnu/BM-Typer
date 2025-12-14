@@ -59,6 +59,7 @@ final List<Lesson> realBanglaLessons = [
         type: ExerciseType.drill,
         difficultyLevel: 1,
       ),
+      Exercise(
         text: "অ । র্ ূ ী",
         repetitions: 10,
         type: ExerciseType.drill,
