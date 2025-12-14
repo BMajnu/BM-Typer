@@ -24,6 +24,7 @@ class TutorState {
       sessionTypedCharacters; // Track all typed characters in the session
   final bool
       waitingForNextRep; // Add this field to track if waiting for next repetition
+  final String? lastKeyPress; // Track previous key press for Bijoy composite logic
 
   TutorState({
     this.currentLessonIndex = 0,
@@ -38,7 +39,9 @@ class TutorState {
     this.isTyping = false,
     this.isFocused = false,
     this.sessionTypedCharacters = const [],
-  final String? lastKeyPress; // Track previous key press for Bijoy composite logic
+    this.waitingForNextRep = false,
+    this.lastKeyPress,
+  });
 
 
 
@@ -56,7 +59,8 @@ class TutorState {
     bool? isTyping,
     bool? isFocused,
     List<String>? sessionTypedCharacters,
-    bool? waitingForNextRep, // Add to copyWith
+    bool? waitingForNextRep,
+    String? lastKeyPress, // Add to copyWith
   }) {
     return TutorState(
       currentLessonIndex: currentLessonIndex ?? this.currentLessonIndex,
@@ -74,7 +78,9 @@ class TutorState {
           sessionTypedCharacters ?? this.sessionTypedCharacters,
       waitingForNextRep:
           waitingForNextRep ?? this.waitingForNextRep,
-      lastKeyPress: null, // Reset last key press on state update unless explicitly handled
+
+
+      lastKeyPress: lastKeyPress ?? this.lastKeyPress,
     );
   }
 
@@ -260,6 +266,39 @@ class TutorNotifier extends StateNotifier<TutorState> {
              else if (event.character == 'C') typedChar = 'ঐ'; // oi-kar -> OI (Shift+c)
              else if (event.character == 'x') typedChar = 'ও'; // o-kar (Wait x is O). If x is 'O', then g+x needed? Maybe not.
              else if (event.character == 'X') typedChar = 'ঔ'; // ou-kar -> OU (Shift+x)
+
+             // BACKTRACKING LOGIC:
+             // If a composite was formed, we must "undo" the previous key press (the Linker 'g')
+             // because we want the user to type "g + f" and have it count as ONE valid character 'আ'.
+             if (typedChar != null && typedChar != event.character) {
+                int currentMistakes = state.mistakes;
+                List<int> currentIncorrect = List.from(state.incorrectIndices);
+                int currentCharIndex = state.charIndex;
+                List<String> currentSessionChars = List.from(state.sessionTypedCharacters);
+
+                if (currentCharIndex > 0) {
+                     int prevIndex = currentCharIndex - 1;
+                     // If the previous 'g' was marked as incorrect, remove the penalty
+                     if (currentIncorrect.contains(prevIndex)) {
+                         currentMistakes = currentMistakes > 0 ? currentMistakes - 1 : 0;
+                         currentIncorrect.remove(prevIndex);
+                     }
+                     // Remove the 'g' from session history
+                     if (currentSessionChars.isNotEmpty) {
+                         currentSessionChars.removeLast();
+                     }
+                     // Step back the cursor
+                     currentCharIndex--;
+
+                     // Update state immediately so the subsequent check uses the corrected position
+                     state = state.copyWith(
+                         mistakes: currentMistakes,
+                         incorrectIndices: currentIncorrect,
+                         charIndex: currentCharIndex,
+                         sessionTypedCharacters: currentSessionChars,
+                     );
+                }
+             }
           }
 
           if (typedChar == event.character) {
