@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -32,7 +33,7 @@ class _TypingSpeedTestScreenState extends ConsumerState<TypingSpeedTestScreen> {
   bool _isTestActive = false;
   bool _isTestComplete = false;
 
-  int _remainingSeconds = 60; // Default to 1 minute
+  int _remainingSeconds = 60;
   Timer? _timer;
 
   double _currentWpm = 0;
@@ -40,7 +41,6 @@ class _TypingSpeedTestScreenState extends ConsumerState<TypingSpeedTestScreen> {
   int _correctChars = 0;
   int _incorrectChars = 0;
 
-  // Results data
   Map<String, dynamic> _testResults = {};
 
   @override
@@ -58,9 +58,7 @@ class _TypingSpeedTestScreenState extends ConsumerState<TypingSpeedTestScreen> {
   }
 
   void _loadTestText() {
-    // Select text based on difficulty
     List<String> paragraphs;
-
     switch (_selectedDifficulty) {
       case TestDifficulty.easy:
         paragraphs = EnglishParagraphData.easyParagraphs;
@@ -72,11 +70,7 @@ class _TypingSpeedTestScreenState extends ConsumerState<TypingSpeedTestScreen> {
         paragraphs = EnglishParagraphData.hardParagraphs;
         break;
     }
-
-    // Randomly select a paragraph
-    final random =
-        paragraphs[DateTime.now().millisecondsSinceEpoch % paragraphs.length];
-
+    final random = paragraphs[DateTime.now().millisecondsSinceEpoch % paragraphs.length];
     setState(() {
       _targetText = random;
       _typedText = '';
@@ -85,7 +79,6 @@ class _TypingSpeedTestScreenState extends ConsumerState<TypingSpeedTestScreen> {
   }
 
   void _startTest() {
-    // Set test duration
     switch (_selectedDuration) {
       case TestDuration.oneMinute:
         _remainingSeconds = 60;
@@ -110,7 +103,6 @@ class _TypingSpeedTestScreenState extends ConsumerState<TypingSpeedTestScreen> {
       _testResults = {};
     });
 
-    // Start the timer
     _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
       setState(() {
         if (_remainingSeconds > 0) {
@@ -122,7 +114,6 @@ class _TypingSpeedTestScreenState extends ConsumerState<TypingSpeedTestScreen> {
       });
     });
 
-    // Focus the text field
     _focusNode.requestFocus();
   }
 
@@ -135,11 +126,9 @@ class _TypingSpeedTestScreenState extends ConsumerState<TypingSpeedTestScreen> {
       return;
     }
 
-    // Calculate WPM: (characters typed / 5) / time in minutes
     final elapsedMinutes = _getDurationInMinutes() - (_remainingSeconds / 60);
     if (elapsedMinutes <= 0) return;
 
-    // Count correct and incorrect characters
     _correctChars = 0;
     _incorrectChars = 0;
 
@@ -151,11 +140,7 @@ class _TypingSpeedTestScreenState extends ConsumerState<TypingSpeedTestScreen> {
       }
     }
 
-    // Calculate WPM based on correct characters
-    final grossWpm = (_typedText.length / 5) / elapsedMinutes;
     final netWpm = ((_typedText.length - _incorrectChars) / 5) / elapsedMinutes;
-
-    // Calculate accuracy
     final totalChars = _correctChars + _incorrectChars;
     final accuracyValue = totalChars > 0 ? _correctChars / totalChars : 0;
 
@@ -167,11 +152,8 @@ class _TypingSpeedTestScreenState extends ConsumerState<TypingSpeedTestScreen> {
 
   void _completeTest() {
     _timer?.cancel();
-
-    // Calculate final stats
     _calculateStats();
 
-    // Store results
     _testResults = {
       'wpm': _currentWpm,
       'accuracy': _accuracy,
@@ -183,22 +165,17 @@ class _TypingSpeedTestScreenState extends ConsumerState<TypingSpeedTestScreen> {
       'timestamp': DateTime.now(),
     };
 
-    // Update state
     setState(() {
       _isTestActive = false;
       _isTestComplete = true;
     });
 
-    // Save results to user history (to be implemented)
     _saveResults();
   }
 
   void _saveResults() {
-    // TODO: Save results to user history
     final user = ref.read(currentUserProvider);
     if (user == null) return;
-
-    // This will be implemented in a future step
   }
 
   double _getDurationInMinutes() {
@@ -219,10 +196,8 @@ class _TypingSpeedTestScreenState extends ConsumerState<TypingSpeedTestScreen> {
       _typedText = text;
     });
 
-    // Play sound
     final soundService = ref.read(soundServiceProvider);
 
-    // Check if the user has reached the end of the text
     if (_typedText.length >= _targetText.length) {
       _completeTest();
     }
@@ -233,609 +208,70 @@ class _TypingSpeedTestScreenState extends ConsumerState<TypingSpeedTestScreen> {
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Scaffold(
-      appBar: AppBar(
-        title: Text(
-          'Typing Speed Test',
-          style: GoogleFonts.hindSiliguri(
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-        backgroundColor: colorScheme.surface,
-        foregroundColor: colorScheme.onSurface,
-        elevation: 0,
-      ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            if (!_isTestActive && !_isTestComplete)
-              _buildTestSetupSection(context),
-            if (_isTestActive) _buildActiveTestSection(context),
-            if (_isTestComplete) _buildTestResultsSection(context),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildTestSetupSection(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          'Test Duration',
-          style: GoogleFonts.hindSiliguri(
-            fontSize: 18,
-            fontWeight: FontWeight.bold,
-            color: colorScheme.primary,
-          ),
-        ),
-        const SizedBox(height: 12),
-        Row(
-          children: [
-            _buildDurationOption(context, TestDuration.oneMinute, '1 Minute'),
-            const SizedBox(width: 12),
-            _buildDurationOption(context, TestDuration.twoMinutes, '2 Minutes'),
-            const SizedBox(width: 12),
-            _buildDurationOption(
-                context, TestDuration.fiveMinutes, '5 Minutes'),
-          ],
-        ),
-        const SizedBox(height: 24),
-        Text(
-          'Difficulty Level',
-          style: GoogleFonts.hindSiliguri(
-            fontSize: 18,
-            fontWeight: FontWeight.bold,
-            color: colorScheme.primary,
-          ),
-        ),
-        const SizedBox(height: 12),
-        Row(
-          children: [
-            _buildDifficultyOption(context, TestDifficulty.easy, 'Easy'),
-            const SizedBox(width: 12),
-            _buildDifficultyOption(context, TestDifficulty.medium, 'Medium'),
-            const SizedBox(width: 12),
-            _buildDifficultyOption(context, TestDifficulty.hard, 'Hard'),
-          ],
-        ),
-        const SizedBox(height: 32),
-        Center(
-          child: ElevatedButton(
-            onPressed: _startTest,
-            style: ElevatedButton.styleFrom(
-              backgroundColor: colorScheme.primary,
-              foregroundColor: colorScheme.onPrimary,
-              padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(8),
-              ),
-            ),
-            child: Text(
-              'Start Test',
-              style: GoogleFonts.hindSiliguri(
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-          ),
-        ),
-        const SizedBox(height: 24),
-        Card(
-          elevation: 2,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
-          ),
-          child: Padding(
-            padding: const EdgeInsets.all(16.0),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'How It Works',
-                  style: GoogleFonts.hindSiliguri(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  '1. Select your test duration and difficulty level',
-                  style: GoogleFonts.hindSiliguri(fontSize: 14),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  '2. Click "Start Test" and begin typing the displayed text',
-                  style: GoogleFonts.hindSiliguri(fontSize: 14),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  '3. Your WPM and accuracy are calculated in real-time',
-                  style: GoogleFonts.hindSiliguri(fontSize: 14),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  '4. When the timer ends, you\'ll see your detailed results',
-                  style: GoogleFonts.hindSiliguri(fontSize: 14),
-                ),
-              ],
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildDurationOption(
-      BuildContext context, TestDuration duration, String label) {
-    final colorScheme = Theme.of(context).colorScheme;
-    final isSelected = _selectedDuration == duration;
-
-    return Expanded(
-      child: InkWell(
-        onTap: () {
-          setState(() {
-            _selectedDuration = duration;
-          });
-        },
-        borderRadius: BorderRadius.circular(8),
-        child: Container(
-          padding: const EdgeInsets.symmetric(vertical: 12),
-          decoration: BoxDecoration(
-            color: isSelected
-                ? colorScheme.primaryContainer
-                : colorScheme.surfaceVariant,
-            borderRadius: BorderRadius.circular(8),
-            border: Border.all(
-              color: isSelected
-                  ? colorScheme.primary
-                  : colorScheme.outline.withOpacity(0.2),
-              width: 2,
-            ),
-          ),
-          child: Center(
-            child: Text(
-              label,
-              style: TextStyle(
-                color: isSelected
-                    ? colorScheme.onPrimaryContainer
-                    : colorScheme.onSurfaceVariant,
-                fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-              ),
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildDifficultyOption(
-      BuildContext context, TestDifficulty difficulty, String label) {
-    final colorScheme = Theme.of(context).colorScheme;
-    final isSelected = _selectedDifficulty == difficulty;
-
-    Color getColor() {
-      if (!isSelected) return colorScheme.surfaceVariant;
-
-      switch (difficulty) {
-        case TestDifficulty.easy:
-          return Colors.green.shade100;
-        case TestDifficulty.medium:
-          return Colors.orange.shade100;
-        case TestDifficulty.hard:
-          return Colors.red.shade100;
-      }
-    }
-
-    Color getBorderColor() {
-      if (!isSelected) return colorScheme.outline.withOpacity(0.2);
-
-      switch (difficulty) {
-        case TestDifficulty.easy:
-          return Colors.green;
-        case TestDifficulty.medium:
-          return Colors.orange;
-        case TestDifficulty.hard:
-          return Colors.red;
-      }
-    }
-
-    Color getTextColor() {
-      if (!isSelected) return colorScheme.onSurfaceVariant;
-
-      switch (difficulty) {
-        case TestDifficulty.easy:
-          return Colors.green.shade800;
-        case TestDifficulty.medium:
-          return Colors.orange.shade800;
-        case TestDifficulty.hard:
-          return Colors.red.shade800;
-      }
-    }
-
-    return Expanded(
-      child: InkWell(
-        onTap: () {
-          setState(() {
-            _selectedDifficulty = difficulty;
-          });
-          _loadTestText();
-        },
-        borderRadius: BorderRadius.circular(8),
-        child: Container(
-          padding: const EdgeInsets.symmetric(vertical: 12),
-          decoration: BoxDecoration(
-            color: getColor(),
-            borderRadius: BorderRadius.circular(8),
-            border: Border.all(
-              color: getBorderColor(),
-              width: 2,
-            ),
-          ),
-          child: Center(
-            child: Text(
-              label,
-              style: TextStyle(
-                color: getTextColor(),
-                fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-              ),
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildActiveTestSection(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        // Timer and stats bar
-        Container(
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            color: colorScheme.primaryContainer,
-            borderRadius: BorderRadius.circular(12),
-          ),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceAround,
-            children: [
-              _buildStatItem(
-                context,
-                'Time',
-                _formatTime(_remainingSeconds),
-                Icons.timer,
-              ),
-              _buildStatItem(
-                context,
-                'WPM',
-                _currentWpm.toStringAsFixed(1),
-                Icons.speed,
-              ),
-              _buildStatItem(
-                context,
-                'Accuracy',
-                '${(_accuracy * 100).toStringAsFixed(1)}%',
-                Icons.check_circle_outline,
-              ),
-            ],
-          ),
-        ),
-
-        const SizedBox(height: 24),
-
-        // Target text display
-        Container(
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            color: colorScheme.surfaceVariant.withOpacity(0.5),
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(
-              color: colorScheme.outline.withOpacity(0.2),
-            ),
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'Type this text:',
-                style: TextStyle(
-                  fontSize: 14,
-                  color: colorScheme.onSurfaceVariant,
-                ),
-              ),
-              const SizedBox(height: 8),
-              RichText(
-                text: TextSpan(
-                  children: _buildHighlightedText(),
-                ),
-              ),
-            ],
-          ),
-        ),
-
-        const SizedBox(height: 24),
-
-        // Input field
-        TextField(
-          controller: _textEditingController,
-          focusNode: _focusNode,
-          onChanged: _handleTextChanged,
-          maxLines: 5,
-          decoration: InputDecoration(
-            hintText: 'Start typing here...',
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
-            ),
-            fillColor: colorScheme.surface,
-            filled: true,
-          ),
-          style: const TextStyle(
-            fontSize: 16,
-            height: 1.5,
-          ),
-        ),
-
-        const SizedBox(height: 16),
-
-        // Cancel button
-        Center(
-          child: TextButton.icon(
-            onPressed: () {
-              _timer?.cancel();
-              setState(() {
-                _isTestActive = false;
-                _isTestComplete = false;
-              });
-            },
-            icon: const Icon(Icons.cancel),
-            label: const Text('Cancel Test'),
-            style: TextButton.styleFrom(
-              foregroundColor: colorScheme.error,
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildTestResultsSection(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Center(
-          child: Column(
-            children: [
-              const Icon(
-                Icons.emoji_events,
-                size: 64,
-                color: Colors.amber,
-              ),
-              const SizedBox(height: 8),
-              Text(
-                'Test Complete!',
-                style: GoogleFonts.hindSiliguri(
-                  fontSize: 24,
-                  fontWeight: FontWeight.bold,
-                  color: colorScheme.primary,
-                ),
-              ),
-            ],
-          ),
-        ),
-
-        const SizedBox(height: 24),
-
-        // Results cards
-        Row(
-          children: [
-            Expanded(
-              child: _buildResultCard(
-                context,
-                'WPM',
-                _currentWpm.toStringAsFixed(1),
-                Icons.speed,
-                colorScheme.primary,
-              ),
-            ),
-            const SizedBox(width: 16),
-            Expanded(
-              child: _buildResultCard(
-                context,
-                'Accuracy',
-                '${(_accuracy * 100).toStringAsFixed(1)}%',
-                Icons.check_circle_outline,
-                _accuracy > 0.95
-                    ? Colors.green
-                    : _accuracy > 0.85
-                        ? Colors.orange
-                        : Colors.red,
-              ),
-            ),
-          ],
-        ),
-
-        const SizedBox(height: 16),
-
-        // Detailed stats
-        Card(
-          elevation: 2,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
-          ),
-          child: Padding(
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Detailed Statistics',
-                  style: GoogleFonts.hindSiliguri(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                const SizedBox(height: 16),
-                _buildDetailRow('Total Characters', '${_typedText.length}'),
-                _buildDetailRow('Correct Characters', '$_correctChars'),
-                _buildDetailRow('Incorrect Characters', '$_incorrectChars'),
-                _buildDetailRow(
-                    'Test Duration', '${_getDurationInMinutes()} minutes'),
-                _buildDetailRow('Difficulty',
-                    _selectedDifficulty.toString().split('.').last),
-              ],
-            ),
-          ),
-        ),
-
-        const SizedBox(height: 24),
-
-        // Action buttons
-        Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            ElevatedButton(
-              onPressed: () {
-                _loadTestText();
-                _startTest();
-              },
-              style: ElevatedButton.styleFrom(
-                backgroundColor: colorScheme.primary,
-                foregroundColor: colorScheme.onPrimary,
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-              ),
-              child: const Text('Try Again'),
-            ),
-            const SizedBox(width: 16),
-            OutlinedButton(
-              onPressed: () {
-                setState(() {
-                  _isTestComplete = false;
-                });
-              },
-              style: OutlinedButton.styleFrom(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-              ),
-              child: const Text('New Test'),
-            ),
-          ],
-        ),
-      ],
-    );
-  }
-
-  Widget _buildStatItem(
-      BuildContext context, String label, String value, IconData icon) {
-    final colorScheme = Theme.of(context).colorScheme;
-
-    return Column(
-      children: [
-        Icon(
-          icon,
-          color: colorScheme.onPrimaryContainer,
-        ),
-        const SizedBox(height: 4),
-        Text(
-          value,
-          style: TextStyle(
-            fontSize: 20,
-            fontWeight: FontWeight.bold,
-            color: colorScheme.onPrimaryContainer,
-          ),
-        ),
-        Text(
-          label,
-          style: TextStyle(
-            fontSize: 12,
-            color: colorScheme.onPrimaryContainer.withOpacity(0.8),
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildResultCard(
-    BuildContext context,
-    String label,
-    String value,
-    IconData icon,
-    Color color,
-  ) {
-    final colorScheme = Theme.of(context).colorScheme;
-
-    return Card(
-      elevation: 2,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: Container(
-        padding: const EdgeInsets.all(16),
+      body: Container(
         decoration: BoxDecoration(
-          border: Border(
-            top: BorderSide(
-              color: color,
-              width: 4,
-            ),
+          gradient: LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: isDark
+                ? [const Color(0xFF1a1a2e), const Color(0xFF16213e), const Color(0xFF0f0f1a)]
+                : [colorScheme.primaryContainer.withOpacity(0.3), colorScheme.surface, colorScheme.surface],
           ),
         ),
-        child: Column(
-          children: [
-            Icon(
-              icon,
-              size: 32,
-              color: color,
-            ),
-            const SizedBox(height: 8),
-            Text(
-              value,
-              style: TextStyle(
-                fontSize: 28,
-                fontWeight: FontWeight.bold,
-                color: colorScheme.onSurface,
+        child: SafeArea(
+          child: Column(
+            children: [
+              _buildAppBar(context, colorScheme, isDark),
+              Expanded(
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.all(16),
+                  child: Column(
+                    children: [
+                      if (!_isTestActive && !_isTestComplete)
+                        _buildTestSetupSection(context, colorScheme, isDark),
+                      if (_isTestActive)
+                        _buildActiveTestSection(context, colorScheme, isDark),
+                      if (_isTestComplete)
+                        _buildTestResultsSection(context, colorScheme, isDark),
+                    ],
+                  ),
+                ),
               ),
-            ),
-            Text(
-              label,
-              style: TextStyle(
-                fontSize: 14,
-                color: colorScheme.onSurfaceVariant,
-              ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
   }
 
-  Widget _buildDetailRow(String label, String value) {
+  Widget _buildAppBar(BuildContext context, ColorScheme colorScheme, bool isDark) {
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 4),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Text(
-            label,
-            style: const TextStyle(
-              fontSize: 14,
+          IconButton(
+            icon: Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: (isDark ? Colors.white : Colors.black).withOpacity(0.1),
+                shape: BoxShape.circle,
+              ),
+              child: Icon(Icons.arrow_back_ios_new_rounded, size: 18, color: isDark ? Colors.white : Colors.black87),
             ),
+            onPressed: () => Navigator.pop(context),
           ),
+          const SizedBox(width: 8),
+          Icon(Icons.speed_rounded, color: colorScheme.primary, size: 28),
+          const SizedBox(width: 12),
           Text(
-            value,
-            style: const TextStyle(
-              fontSize: 14,
+            'টাইপিং স্পিড টেস্ট',
+            style: GoogleFonts.hindSiliguri(
+              fontSize: 22,
               fontWeight: FontWeight.bold,
+              color: isDark ? Colors.white : Colors.black87,
             ),
           ),
         ],
@@ -843,45 +279,530 @@ class _TypingSpeedTestScreenState extends ConsumerState<TypingSpeedTestScreen> {
     );
   }
 
-  List<TextSpan> _buildHighlightedText() {
-    List<TextSpan> spans = [];
-    final colorScheme = Theme.of(context).colorScheme;
-
-    // Show the entire target text
-    for (int i = 0; i < _targetText.length; i++) {
-      Color color;
-
-      if (i < _typedText.length) {
-        // Character has been typed
-        if (_typedText[i] == _targetText[i]) {
-          // Correct character
-          color = Colors.green;
-        } else {
-          // Incorrect character
-          color = Colors.red;
-        }
-      } else if (i == _typedText.length) {
-        // Current position
-        color = colorScheme.primary;
-      } else {
-        // Not yet typed
-        color = colorScheme.onSurfaceVariant;
-      }
-
-      spans.add(
-        TextSpan(
-          text: _targetText[i],
-          style: TextStyle(
-            color: color,
-            fontSize: 16,
-            fontWeight:
-                i == _typedText.length ? FontWeight.bold : FontWeight.normal,
-            backgroundColor: i == _typedText.length
-                ? colorScheme.primaryContainer.withOpacity(0.3)
-                : null,
+  Widget _buildTestSetupSection(BuildContext context, ColorScheme colorScheme, bool isDark) {
+    return Column(
+      children: [
+        // Duration Selection
+        _buildGlassCard(
+          isDark: isDark,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'সময়কাল',
+                style: GoogleFonts.hindSiliguri(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  color: isDark ? Colors.white : Colors.black87,
+                ),
+              ),
+              const SizedBox(height: 16),
+              Row(
+                children: [
+                  _buildDurationOption(context, TestDuration.oneMinute, '১ মিনিট', colorScheme, isDark),
+                  const SizedBox(width: 12),
+                  _buildDurationOption(context, TestDuration.twoMinutes, '২ মিনিট', colorScheme, isDark),
+                  const SizedBox(width: 12),
+                  _buildDurationOption(context, TestDuration.fiveMinutes, '৫ মিনিট', colorScheme, isDark),
+                ],
+              ),
+            ],
           ),
         ),
-      );
+        
+        const SizedBox(height: 16),
+        
+        // Difficulty Selection
+        _buildGlassCard(
+          isDark: isDark,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'কঠিনতার স্তর',
+                style: GoogleFonts.hindSiliguri(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  color: isDark ? Colors.white : Colors.black87,
+                ),
+              ),
+              const SizedBox(height: 16),
+              Row(
+                children: [
+                  _buildDifficultyOption(context, TestDifficulty.easy, 'সহজ', Colors.green, isDark),
+                  const SizedBox(width: 12),
+                  _buildDifficultyOption(context, TestDifficulty.medium, 'মাঝারি', Colors.orange, isDark),
+                  const SizedBox(width: 12),
+                  _buildDifficultyOption(context, TestDifficulty.hard, 'কঠিন', Colors.red, isDark),
+                ],
+              ),
+            ],
+          ),
+        ),
+        
+        const SizedBox(height: 24),
+        
+        // Start Button
+        SizedBox(
+          width: double.infinity,
+          child: Container(
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(16),
+              gradient: LinearGradient(
+                colors: [colorScheme.primary, colorScheme.secondary],
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: colorScheme.primary.withOpacity(0.4),
+                  blurRadius: 15,
+                  offset: const Offset(0, 5),
+                ),
+              ],
+            ),
+            child: ElevatedButton.icon(
+              onPressed: _startTest,
+              icon: const Icon(Icons.play_arrow_rounded, size: 28),
+              label: Text(
+                'টেস্ট শুরু করুন',
+                style: GoogleFonts.hindSiliguri(fontSize: 18, fontWeight: FontWeight.w600),
+              ),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.transparent,
+                shadowColor: Colors.transparent,
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(vertical: 18),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+              ),
+            ),
+          ),
+        ),
+        
+        const SizedBox(height: 24),
+        
+        // How it works
+        _buildGlassCard(
+          isDark: isDark,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Icon(Icons.info_outline_rounded, color: colorScheme.primary),
+                  const SizedBox(width: 8),
+                  Text(
+                    'কিভাবে কাজ করে',
+                    style: GoogleFonts.hindSiliguri(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                      color: isDark ? Colors.white : Colors.black87,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              _buildInfoItem('১. সময়কাল এবং কঠিনতার স্তর বাছাই করুন', isDark),
+              _buildInfoItem('২. "টেস্ট শুরু করুন" বাটনে ক্লিক করুন', isDark),
+              _buildInfoItem('৩. প্রদর্শিত টেক্সট টাইপ করুন', isDark),
+              _buildInfoItem('৪. সময় শেষে বিস্তারিত ফলাফল দেখুন', isDark),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildInfoItem(String text, bool isDark) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Text(
+        text,
+        style: GoogleFonts.hindSiliguri(
+          fontSize: 14,
+          color: (isDark ? Colors.white : Colors.black).withOpacity(0.7),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildDurationOption(BuildContext context, TestDuration duration, String label, ColorScheme colorScheme, bool isDark) {
+    final isSelected = _selectedDuration == duration;
+    
+    return Expanded(
+      child: GestureDetector(
+        onTap: () => setState(() => _selectedDuration = duration),
+        child: Container(
+          padding: const EdgeInsets.symmetric(vertical: 16),
+          decoration: BoxDecoration(
+            color: isSelected ? colorScheme.primary : (isDark ? Colors.white : Colors.black).withOpacity(0.05),
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(
+              color: isSelected ? colorScheme.primary : (isDark ? Colors.white : Colors.black).withOpacity(0.1),
+            ),
+          ),
+          child: Center(
+            child: Text(
+              label,
+              style: GoogleFonts.hindSiliguri(
+                fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                color: isSelected ? Colors.white : (isDark ? Colors.white70 : Colors.black54),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildDifficultyOption(BuildContext context, TestDifficulty difficulty, String label, Color color, bool isDark) {
+    final isSelected = _selectedDifficulty == difficulty;
+    
+    return Expanded(
+      child: GestureDetector(
+        onTap: () {
+          setState(() => _selectedDifficulty = difficulty);
+          _loadTestText();
+        },
+        child: Container(
+          padding: const EdgeInsets.symmetric(vertical: 16),
+          decoration: BoxDecoration(
+            color: isSelected ? color.withOpacity(0.2) : (isDark ? Colors.white : Colors.black).withOpacity(0.05),
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: isSelected ? color : (isDark ? Colors.white : Colors.black).withOpacity(0.1), width: 2),
+          ),
+          child: Center(
+            child: Text(
+              label,
+              style: GoogleFonts.hindSiliguri(
+                fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                color: isSelected ? color : (isDark ? Colors.white70 : Colors.black54),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildActiveTestSection(BuildContext context, ColorScheme colorScheme, bool isDark) {
+    return Column(
+      children: [
+        // Stats bar
+        _buildGlassCard(
+          isDark: isDark,
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceAround,
+            children: [
+              _buildStatItem('সময়', _formatTime(_remainingSeconds), Icons.timer_rounded, Colors.blue, isDark),
+              _buildStatItem('WPM', _currentWpm.toStringAsFixed(0), Icons.speed_rounded, Colors.green, isDark),
+              _buildStatItem('নির্ভুলতা', '${(_accuracy * 100).toStringAsFixed(0)}%', Icons.check_circle_rounded, Colors.orange, isDark),
+            ],
+          ),
+        ),
+        
+        const SizedBox(height: 20),
+        
+        // Target text
+        _buildGlassCard(
+          isDark: isDark,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'এই টেক্সট টাইপ করুন:',
+                style: GoogleFonts.hindSiliguri(
+                  fontSize: 14,
+                  color: (isDark ? Colors.white : Colors.black).withOpacity(0.6),
+                ),
+              ),
+              const SizedBox(height: 12),
+              RichText(
+                text: TextSpan(children: _buildHighlightedText(isDark, colorScheme)),
+              ),
+            ],
+          ),
+        ),
+        
+        const SizedBox(height: 20),
+        
+        // Input field
+        Container(
+          decoration: BoxDecoration(
+            color: (isDark ? Colors.white : Colors.black).withOpacity(0.05),
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: colorScheme.primary.withOpacity(0.3)),
+          ),
+          child: TextField(
+            controller: _textEditingController,
+            focusNode: _focusNode,
+            onChanged: _handleTextChanged,
+            maxLines: 5,
+            style: GoogleFonts.jetBrainsMono(
+              fontSize: 16,
+              color: isDark ? Colors.white : Colors.black87,
+            ),
+            decoration: InputDecoration(
+              hintText: 'এখানে টাইপ শুরু করুন...',
+              hintStyle: GoogleFonts.hindSiliguri(
+                color: (isDark ? Colors.white : Colors.black).withOpacity(0.3),
+              ),
+              border: InputBorder.none,
+              contentPadding: const EdgeInsets.all(16),
+            ),
+          ),
+        ),
+        
+        const SizedBox(height: 16),
+        
+        TextButton.icon(
+          onPressed: () {
+            _timer?.cancel();
+            setState(() {
+              _isTestActive = false;
+              _isTestComplete = false;
+            });
+          },
+          icon: Icon(Icons.cancel_rounded, color: Colors.red.shade400),
+          label: Text('টেস্ট বাতিল', style: GoogleFonts.hindSiliguri(color: Colors.red.shade400)),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildStatItem(String label, String value, IconData icon, Color color, bool isDark) {
+    return Column(
+      children: [
+        Icon(icon, color: color, size: 28),
+        const SizedBox(height: 8),
+        Text(
+          value,
+          style: GoogleFonts.poppins(
+            fontSize: 24,
+            fontWeight: FontWeight.bold,
+            color: isDark ? Colors.white : Colors.black87,
+          ),
+        ),
+        Text(
+          label,
+          style: GoogleFonts.hindSiliguri(
+            fontSize: 12,
+            color: (isDark ? Colors.white : Colors.black).withOpacity(0.6),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildTestResultsSection(BuildContext context, ColorScheme colorScheme, bool isDark) {
+    return Column(
+      children: [
+        // Trophy icon
+        Container(
+          padding: const EdgeInsets.all(24),
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            color: Colors.amber.withOpacity(0.2),
+          ),
+          child: Icon(Icons.emoji_events_rounded, size: 64, color: Colors.amber),
+        ),
+        const SizedBox(height: 16),
+        Text(
+          'টেস্ট সম্পন্ন!',
+          style: GoogleFonts.hindSiliguri(
+            fontSize: 28,
+            fontWeight: FontWeight.bold,
+            color: isDark ? Colors.white : Colors.black87,
+          ),
+        ),
+        const SizedBox(height: 24),
+        
+        // Result cards
+        Row(
+          children: [
+            Expanded(child: _buildResultCard('WPM', _currentWpm.toStringAsFixed(0), Icons.speed_rounded, colorScheme.primary, isDark)),
+            const SizedBox(width: 16),
+            Expanded(child: _buildResultCard(
+              'নির্ভুলতা',
+              '${(_accuracy * 100).toStringAsFixed(0)}%',
+              Icons.check_circle_rounded,
+              _accuracy > 0.95 ? Colors.green : _accuracy > 0.85 ? Colors.orange : Colors.red,
+              isDark,
+            )),
+          ],
+        ),
+        
+        const SizedBox(height: 16),
+        
+        // Detailed stats
+        _buildGlassCard(
+          isDark: isDark,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'বিস্তারিত পরিসংখ্যান',
+                style: GoogleFonts.hindSiliguri(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  color: isDark ? Colors.white : Colors.black87,
+                ),
+              ),
+              const SizedBox(height: 16),
+              _buildDetailRow('মোট অক্ষর', '${_typedText.length}', isDark),
+              _buildDetailRow('সঠিক অক্ষর', '$_correctChars', isDark),
+              _buildDetailRow('ভুল অক্ষর', '$_incorrectChars', isDark),
+              _buildDetailRow('সময়কাল', '${_getDurationInMinutes().toInt()} মিনিট', isDark),
+              _buildDetailRow('কঠিনতা', _getDifficultyName(), isDark),
+            ],
+          ),
+        ),
+        
+        const SizedBox(height: 24),
+        
+        // Action buttons
+        Row(
+          children: [
+            Expanded(
+              child: ElevatedButton.icon(
+                onPressed: () {
+                  _loadTestText();
+                  _startTest();
+                },
+                icon: const Icon(Icons.replay_rounded),
+                label: Text('আবার চেষ্টা', style: GoogleFonts.hindSiliguri()),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: colorScheme.primary,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(vertical: 16),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                ),
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: OutlinedButton.icon(
+                onPressed: () => setState(() => _isTestComplete = false),
+                icon: const Icon(Icons.add_rounded),
+                label: Text('নতুন টেস্ট', style: GoogleFonts.hindSiliguri()),
+                style: OutlinedButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(vertical: 16),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  Widget _buildResultCard(String label, String value, IconData icon, Color color, bool isDark) {
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(16),
+      child: BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 5, sigmaY: 5),
+        child: Container(
+          padding: const EdgeInsets.all(20),
+          decoration: BoxDecoration(
+            color: color.withOpacity(0.15),
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: color.withOpacity(0.3)),
+          ),
+          child: Column(
+            children: [
+              Icon(icon, color: color, size: 32),
+              const SizedBox(height: 12),
+              Text(
+                value,
+                style: GoogleFonts.poppins(
+                  fontSize: 32,
+                  fontWeight: FontWeight.bold,
+                  color: isDark ? Colors.white : Colors.black87,
+                ),
+              ),
+              Text(
+                label,
+                style: GoogleFonts.hindSiliguri(
+                  fontSize: 14,
+                  color: (isDark ? Colors.white : Colors.black).withOpacity(0.6),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildDetailRow(String label, String value, bool isDark) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 6),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(
+            label,
+            style: GoogleFonts.hindSiliguri(
+              color: (isDark ? Colors.white : Colors.black).withOpacity(0.7),
+            ),
+          ),
+          Text(
+            value,
+            style: GoogleFonts.poppins(
+              fontWeight: FontWeight.bold,
+              color: isDark ? Colors.white : Colors.black87,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildGlassCard({required bool isDark, required Widget child}) {
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(20),
+      child: BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+        child: Container(
+          width: double.infinity,
+          padding: const EdgeInsets.all(20),
+          decoration: BoxDecoration(
+            color: (isDark ? Colors.white : Colors.black).withOpacity(isDark ? 0.1 : 0.05),
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(color: (isDark ? Colors.white : Colors.black).withOpacity(0.1)),
+          ),
+          child: child,
+        ),
+      ),
+    );
+  }
+
+  List<TextSpan> _buildHighlightedText(bool isDark, ColorScheme colorScheme) {
+    List<TextSpan> spans = [];
+    
+    for (int i = 0; i < _targetText.length; i++) {
+      Color color;
+      FontWeight weight = FontWeight.normal;
+      Color? bgColor;
+
+      if (i < _typedText.length) {
+        color = _typedText[i] == _targetText[i] ? Colors.green : Colors.red;
+      } else if (i == _typedText.length) {
+        color = colorScheme.primary;
+        weight = FontWeight.bold;
+        bgColor = colorScheme.primary.withOpacity(0.2);
+      } else {
+        color = (isDark ? Colors.white : Colors.black).withOpacity(0.5);
+      }
+
+      spans.add(TextSpan(
+        text: _targetText[i],
+        style: GoogleFonts.jetBrainsMono(
+          color: color,
+          fontSize: 16,
+          fontWeight: weight,
+          backgroundColor: bgColor,
+        ),
+      ));
     }
 
     return spans;
@@ -891,5 +812,16 @@ class _TypingSpeedTestScreenState extends ConsumerState<TypingSpeedTestScreen> {
     final minutes = seconds ~/ 60;
     final remainingSeconds = seconds % 60;
     return '$minutes:${remainingSeconds.toString().padLeft(2, '0')}';
+  }
+
+  String _getDifficultyName() {
+    switch (_selectedDifficulty) {
+      case TestDifficulty.easy:
+        return 'সহজ';
+      case TestDifficulty.medium:
+        return 'মাঝারি';
+      case TestDifficulty.hard:
+        return 'কঠিন';
+    }
   }
 }

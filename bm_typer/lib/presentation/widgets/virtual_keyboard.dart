@@ -1,173 +1,132 @@
+import 'dart:ui';
 import 'package:flutter/material.dart';
-import 'package:flutter/foundation.dart';
+import 'package:bm_typer/core/theme/theme.dart';
 import 'package:bm_typer/presentation/widgets/keyboard_key.dart';
 
+/// আধুনিক ভার্চুয়াল কীবোর্ড
+/// 
+/// গ্লাসমরফিজম এবং হ্যান্ড-ভিত্তিক কালার কোডিং সহ।
 class VirtualKeyboard extends StatelessWidget {
   final Set<String> pressedKeys;
+  final String? highlightedKey;
 
   const VirtualKeyboard({
-    Key? key,
+    super.key,
     required this.pressedKeys,
-  }) : super(key: key);
+    this.highlightedKey,
+  });
 
   @override
   Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
+    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
 
-    // Make key height responsive to container height
-    final keyHeight = 35.0; // Fixed height for keys
-    final rowSpacing = 4.0;
-    final keySpacing = 4.0;
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final keyboardWidth = constraints.maxWidth;
+        final keyboardHeight = constraints.maxHeight;
 
-    return LayoutBuilder(builder: (context, constraints) {
-      final keyboardWidth = constraints.maxWidth;
-      final keyboardHeight = constraints.maxHeight;
+        // Calculate responsive key sizes
+        final baseKeyWidth = (keyboardWidth - 60) / 14;
+        final keyHeight = (keyboardHeight - 40) / 4.5;
 
-      // Calculate row heights
-      final totalRowHeight = keyHeight * 4 + rowSpacing * 3;
-
-      // If totalRowHeight is greater than keyboardHeight, we need to adjust
-      final heightScale = totalRowHeight > keyboardHeight
-          ? keyboardHeight / totalRowHeight
-          : 1.0;
-      final scaledKeyHeight = keyHeight * heightScale;
-
-      return Container(
-        width: keyboardWidth,
-        height: keyboardHeight,
-        padding: EdgeInsets.symmetric(vertical: 4.0, horizontal: keySpacing),
-        decoration: BoxDecoration(
-          color: colorScheme.surfaceVariant.withOpacity(0.7),
-          borderRadius: BorderRadius.circular(16),
-        ),
-        child: FittedBox(
-          fit: BoxFit.contain,
-          child: SizedBox(
-            width: keyboardWidth,
-            child: Column(
-              mainAxisSize: MainAxisSize.min, // Use minimum space needed
-              crossAxisAlignment: CrossAxisAlignment.center,
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                _buildTopRow(context, scaledKeyHeight, keySpacing),
-                SizedBox(height: rowSpacing * heightScale),
-                _buildMiddleRow(context, scaledKeyHeight, keySpacing),
-                SizedBox(height: rowSpacing * heightScale),
-                _buildBottomRow(context, scaledKeyHeight, keySpacing),
-                SizedBox(height: rowSpacing * heightScale),
-                _buildSpaceRow(context, scaledKeyHeight, keySpacing),
-              ],
+        return ClipRRect(
+          borderRadius: BorderRadius.circular(AppSizes.radiusLg),
+          child: BackdropFilter(
+            filter: ImageFilter.blur(sigmaX: 8, sigmaY: 8),
+            child: Container(
+              width: keyboardWidth,
+              height: keyboardHeight,
+              padding: EdgeInsets.all(AppSpacing.sm),
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: isDarkMode
+                      ? [
+                          AppColors.glassWhiteDark.withOpacity(0.1),
+                          AppColors.glassWhiteDark.withOpacity(0.05),
+                        ]
+                      : [
+                          Colors.white.withOpacity(0.8),
+                          Colors.white.withOpacity(0.6),
+                        ],
+                ),
+                borderRadius: BorderRadius.circular(AppSizes.radiusLg),
+                border: Border.all(
+                  color: isDarkMode
+                      ? AppColors.glassBorderDark
+                      : AppColors.glassBorder,
+                ),
+                boxShadow: [
+                  BoxShadow(
+                    color: isDarkMode
+                        ? AppColors.glassShadowDark
+                        : AppColors.glassShadow,
+                    blurRadius: 16,
+                    offset: const Offset(0, 4),
+                  ),
+                ],
+              ),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                children: [
+                  _buildTopRow(baseKeyWidth, keyHeight),
+                  _buildHomeRow(baseKeyWidth, keyHeight),
+                  _buildBottomRow(baseKeyWidth, keyHeight),
+                  _buildSpaceRow(baseKeyWidth, keyHeight),
+                ],
+              ),
             ),
           ),
-        ),
-      );
-    });
+        );
+      },
+    );
   }
 
-  Widget _buildTopRow(
-      BuildContext context, double keyHeight, double keySpacing) {
-    final characters = [
-      '`',
-      '1',
-      '2',
-      '3',
-      '4',
-      '5',
-      '6',
-      '7',
-      '8',
-      '9',
-      '0',
-      '-',
-      '=',
-      '⌫'
-    ];
-    return _buildKeyboardRow(context, characters, keyHeight, keySpacing);
+  Widget _buildTopRow(double keyWidth, double keyHeight) {
+    final characters = ['`','1','2','3','4','5','6','7','8','9','0','-','=','⌫'];
+    return _buildKeyboardRow(characters, keyWidth, keyHeight);
   }
 
-  Widget _buildMiddleRow(
-      BuildContext context, double keyHeight, double keySpacing) {
-    final characters = [
-      'q',
-      'w',
-      'e',
-      'r',
-      't',
-      'y',
-      'u',
-      'i',
-      'o',
-      'p',
-      '[',
-      ']',
-      '\\'
-    ];
-    return _buildKeyboardRow(context, characters, keyHeight, keySpacing);
+  Widget _buildHomeRow(double keyWidth, double keyHeight) {
+    final characters = ['q','w','e','r','t','y','u','i','o','p','[',']','\\'];
+    return _buildKeyboardRow(characters, keyWidth, keyHeight);
   }
 
-  Widget _buildBottomRow(
-      BuildContext context, double keyHeight, double keySpacing) {
-    final characters = ['a', 's', 'd', 'f', 'g', 'h', 'j', 'k', 'l', ';', '\''];
-    return _buildKeyboardRow(context, characters, keyHeight, keySpacing,
-        leftPadding: 20);
+  Widget _buildBottomRow(double keyWidth, double keyHeight) {
+    final characters = ['a','s','d','f','g','h','j','k','l',';','\''];
+    return Padding(
+      padding: EdgeInsets.only(left: keyWidth * 0.5),
+      child: _buildKeyboardRow(characters, keyWidth, keyHeight),
+    );
   }
 
-  Widget _buildSpaceRow(
-      BuildContext context, double keyHeight, double keySpacing) {
-    final characters = [
-      'shift',
-      'z',
-      'x',
-      'c',
-      'v',
-      'b',
-      'n',
-      'm',
-      ',',
-      '.',
-      '/',
-      'shift'
-    ];
-    return _buildKeyboardRow(context, characters, keyHeight, keySpacing);
+  Widget _buildSpaceRow(double keyWidth, double keyHeight) {
+    final characters = ['shift','z','x','c','v','b','n','m',',','.','/','shift'];
+    return _buildKeyboardRow(characters, keyWidth, keyHeight);
   }
 
-  Widget _buildKeyboardRow(BuildContext context, List<String> keys,
-      double keyHeight, double keySpacing,
-      {double leftPadding = 0}) {
-    final keyWidgets = <Widget>[];
-
-    if (leftPadding > 0) {
-      keyWidgets.add(SizedBox(width: leftPadding));
-    }
-
-    for (int i = 0; i < keys.length; i++) {
-      final char = keys[i];
-
-      // Special handling for wider keys
-      double widthMultiplier = 1.0;
-      if (char == '⌫') widthMultiplier = 2.0;
-      if (char == 'shift') widthMultiplier = 1.5;
-
-      final isPressed = pressedKeys.contains(char);
-
-      keyWidgets.add(
-        Flexible(
-          flex: (widthMultiplier * 10).toInt(),
-          child: Padding(
-            padding: EdgeInsets.symmetric(horizontal: keySpacing / 2),
-            child: KeyboardKey(
-              character: char,
-              isPressed: isPressed,
-              height: keyHeight,
-            ),
-          ),
-        ),
-      );
-    }
-
+  Widget _buildKeyboardRow(List<String> keys, double keyWidth, double keyHeight) {
     return Row(
       mainAxisAlignment: MainAxisAlignment.center,
-      children: keyWidgets,
+      children: keys.map((char) {
+        // Special key widths
+        double width = keyWidth;
+        if (char == '⌫') width = keyWidth * 1.8;
+        if (char == 'shift') width = keyWidth * 1.5;
+        if (char == '\\') width = keyWidth * 1.2;
+
+        final isPressed = pressedKeys.contains(char);
+        final isHighlighted = highlightedKey?.toLowerCase() == char.toLowerCase();
+
+        return KeyboardKey(
+          character: char,
+          isPressed: isPressed,
+          isHighlighted: isHighlighted,
+          height: keyHeight,
+          width: width,
+        );
+      }).toList(),
     );
   }
 }

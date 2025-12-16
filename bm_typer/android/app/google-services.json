@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "121426968554",
+    "project_id": "bm-typer-app",
+    "storage_bucket": "bm-typer-app.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:121426968554:android:0b0d5850c9ede54e2e7c93",
+        "android_client_info": {
+          "package_name": "com.example.bm_typer"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAdQTo2z4p19AEhHrq7RiVZ7RW_IFmT2nU"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

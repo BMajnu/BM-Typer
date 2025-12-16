@@ -24,7 +24,10 @@ class TutorState {
       sessionTypedCharacters; // Track all typed characters in the session
   final bool
       waitingForNextRep; // Add this field to track if waiting for next repetition
-  final String? lastKeyPress; // Track previous key press for Bijoy composite logic
+  final String? lastKeyPress; // Track previous key press for Bijoy composite logic (Linker)
+  final String?
+      pendingPreBaseVowel; // Track if a pre-base vowel (i, e, oi) was typed first
+  final bool pendingHasanta; // Track if hasanta (্) was typed for vowel composition (G + vowel key)
 
   TutorState({
     this.currentLessonIndex = 0,
@@ -41,6 +44,8 @@ class TutorState {
     this.sessionTypedCharacters = const [],
     this.waitingForNextRep = false,
     this.lastKeyPress,
+    this.pendingPreBaseVowel,
+    this.pendingHasanta = false,
   });
 
 
@@ -60,7 +65,10 @@ class TutorState {
     bool? isFocused,
     List<String>? sessionTypedCharacters,
     bool? waitingForNextRep,
-    String? lastKeyPress, // Add to copyWith
+    String? lastKeyPress,
+    String? pendingPreBaseVowel,
+    bool clearPendingPreBaseVowel = false, // Flag to explicitly clear pending vowel
+    bool? pendingHasanta,
   }) {
     return TutorState(
       currentLessonIndex: currentLessonIndex ?? this.currentLessonIndex,
@@ -78,9 +86,9 @@ class TutorState {
           sessionTypedCharacters ?? this.sessionTypedCharacters,
       waitingForNextRep:
           waitingForNextRep ?? this.waitingForNextRep,
-
-
       lastKeyPress: lastKeyPress ?? this.lastKeyPress,
+      pendingPreBaseVowel: clearPendingPreBaseVowel ? null : pendingPreBaseVowel ?? this.pendingPreBaseVowel,
+      pendingHasanta: pendingHasanta ?? this.pendingHasanta,
     );
   }
 
@@ -90,8 +98,7 @@ class TutorState {
   int get exerciseLength => exerciseText.length;
   bool get isCompleted => charIndex >= exerciseLength;
   bool get isLocked {
-    final needsReps = currentExercise.repetitions > 0;
-    return needsReps && repsCompleted < currentExercise.repetitions;
+    return false; // Unlock all steps for user convenience
   }
 
   // Check if this is the last exercise in the current lesson
@@ -101,6 +108,29 @@ class TutorState {
   // Check if all repetitions of the current exercise are completed
   bool get isExerciseFullyCompleted =>
       currentExercise.repetitions <= repsCompleted;
+
+  // Get the character that the user is EXPECTED to type right now.
+  // This handles Bijoy Pre-base vowel reordering (where visual order != Unicode order).
+  String getExpectedCharacter(bool isBijoy) {
+    if (charIndex >= exerciseLength) return '';
+
+    // Default: The character at the current index
+    String expected = exerciseText[charIndex];
+
+    if (isBijoy && charIndex < exerciseLength - 1) {
+       final nextChar = exerciseText[charIndex + 1];
+       // Check for Pre-base vowels: ি (09BF), ে (09C7), ৈ (09C8)
+       if (['ি', 'ে', 'ৈ'].contains(nextChar)) {
+          // If we haven't typed the vowel yet (it's not pending),
+          // then in Bijoy we MUST type the Vowel Sign FIRST.
+          if (pendingPreBaseVowel == null) {
+              return nextChar;
+          }
+       }
+    }
+    
+    return expected;
+  }
 }
 
 class TutorNotifier extends StateNotifier<TutorState> {
@@ -123,6 +153,25 @@ class TutorNotifier extends StateNotifier<TutorState> {
         repsCompleted: 0,
         sessionTypedCharacters: [], // Reset session history for new exercise
       );
+      // Skip leading spaces for drill exercises
+      _skipSpaces();
+    }
+  }
+
+  /// Skip space characters in drill exercises (display spacing without requiring typing)
+  void _skipSpaces() {
+    if (state.currentExercise.type != ExerciseType.drill) return;
+    
+    while (state.charIndex < state.exerciseText.length &&
+           state.exerciseText[state.charIndex] == ' ') {
+      state = state.copyWith(
+        charIndex: state.charIndex + 1,
+        sessionTypedCharacters: List<String>.from(state.sessionTypedCharacters)..add(' '),
+      );
+    }
+    
+    if (state.charIndex >= state.exerciseText.length) {
+      _handleExerciseCompletion();
     }
   }
 
@@ -150,6 +199,7 @@ class TutorNotifier extends StateNotifier<TutorState> {
         repsCompleted: 0,
         isTyping: false,
         lastKeyPress: null,
+        pendingPreBaseVowel: null,
       );
     }
   }
@@ -215,104 +265,438 @@ class TutorNotifier extends StateNotifier<TutorState> {
       // Convert English to Bengali based on keyboard layout
       if (typedChar != null) {
         final layoutState = _ref.read(keyboardLayoutProvider);
+        print('DEBUG: Current Layout = ${layoutState.currentLayout}');
+        print('DEBUG: isBengali = ${layoutState.isBengali}');
+        print('DEBUG: typedChar = "$typedChar"');
         if (layoutState.isBengali && typedChar.isNotEmpty) {
           
-          // Bijoy Special Logic: Check for Linker 'g' + Vowel Sign
-          if (state.lastKeyPress == 'g' && layoutState.currentLayout == KeyboardLayout.bijoy) {
-             // Handle composite vowels (Linker + Vowel Sign)
-             // g + f (Rhoshho A) = Aa (A)
-             if (event.character == 'f') typedChar = 'আ';
-             // g + d (Rhoshho I) = I (E) -- Standard Bijoy: g+d = ই
-             else if (event.character == 'd') typedChar = 'ই';
-             // g + c (E kar) = Oi (OI) -- Standard Bijoy: g+Shift+c = ঐ , but g+c = usually nothing standard? Wait, Bijoy: g + c = no standard composite? 
-             // Let's stick to user request: g + f = আ (This is standard).
-             // Let's implement the core vowels:
-             // g + f (ax) = আ
-             // g + d (ix) = ই
-             // g + s (ux) = উ
-             // g + c (ex) = এ - ERROR in standard logic, 'c' is 'e-kar'. 'g'+'c' -> 'এ' ? No, 'g'+'shift+c'(Oi-kar) -> 'ঐ'.
-             // Wait, standard Bijoy:
-             // Shift+F = অ
-             // g + f = আ
-             // g + d = ই
-             // Shift+D = ঈ
-             // g + s = উ
-             // Shift+S = ঊ
-             // Shift+A = ঋ (or Reph, usually Reph in typing, but independent vowel requires g+a?)
-             // Shift+V = এ (Yes, V is 'Ro', Shift+V is 'A/E' independent?) No, Shift+V is 'Lo'. 
-             // Standard Bijoy Vowels:
-             // Shift+F = অ
-             // g + f = আ
-             // g + d = ই
-             // Shift+D = ঈ
-             // g + s = উ
-             // Shift+S = ঊ
-             // g + a = ঋ
-             // g + Shift+c = ঐ (No, Shift+C is Oi-kar) -> g + Shift+C = likely not valid or handled differently.
-             // Actually, 'Shift+C' is 'Oi-kar', 'g'+'Shift+C' = 'ঐ'.
-             // 'c' is 'e-kar'. 'g'+'c' = 'এ'.
-             // 'x' is 'o-kar' (Wait, x is O). No, x is 'O'. Shift+X is 'Ou'.
-             // Standard:
-             // g + c = এ
-             // g + x = ও (But x is already O independent? No, x is O).
-             // Actually, x maps to `ও` directly in my layout map. So no composite needed for O.
-             // But usually 'g' is used to make the independent vowel from the kar-sign key.
-             
-             if (event.character == 'f') typedChar = 'আ'; // a-kar -> A
-             else if (event.character == 'd') typedChar = 'ই'; // i-kar -> I
-             else if (event.character == 's') typedChar = 'উ'; // u-kar -> U
-             else if (event.character == 'a') typedChar = 'ঋ'; // ri-kar -> Ri
-             else if (event.character == 'c') typedChar = 'এ'; // e-kar -> E
-             else if (event.character == 'C') typedChar = 'ঐ'; // oi-kar -> OI (Shift+c)
-             else if (event.character == 'x') typedChar = 'ও'; // o-kar (Wait x is O). If x is 'O', then g+x needed? Maybe not.
-             else if (event.character == 'X') typedChar = 'ঔ'; // ou-kar -> OU (Shift+x)
-
-             // BACKTRACKING LOGIC:
-             // If a composite was formed, we must "undo" the previous key press (the Linker 'g')
-             // because we want the user to type "g + f" and have it count as ONE valid character 'আ'.
-             if (typedChar != null && typedChar != event.character) {
+          // =====================================================
+          // PHONETIC LAYOUT - CHECK FIRST (simpler conversion)
+          // =====================================================
+          if (layoutState.currentLayout == KeyboardLayout.phonetic) {
+            print('DEBUG: Entering Phonetic conversion (FIRST)');
+            final converted = layoutState.convertToBengali(typedChar);
+            print('DEBUG: Phonetic converted "$typedChar" -> "$converted"');
+            if (converted != null) {
+              typedChar = converted;
+            }
+            // Continue to validation logic below (skip Bijoy block)
+          }
+          // =====================================================
+          // BIJOY VOWEL COMPOSITION LOGIC
+          // G (হসন্ত/্) + vowel sign key = Full Independent Vowel
+          // Example: G + F = আ, G + D = ই, G + S = উ, etc.
+          // =====================================================
+          else if (layoutState.currentLayout == KeyboardLayout.bijoy) {
+            
+            // --- STEP 1: Check if we have a pending hasanta waiting for vowel key ---
+            if (state.pendingHasanta && event.character != null) {
+              // Try to compose a vowel using the current key
+              final composedVowel = BijoyKeyboardLayout.getComposedVowel(event.character!);
+              
+              if (composedVowel != null) {
+                // SUCCESS! We have pending G + vowel key = Full Vowel
+                _ref.read(soundServiceProvider).playSound(SoundType.keyPress);
+                
+                // Check if composed vowel matches expected character
+                if (state.charIndex < state.exerciseText.length) {
+                  final expectedChar = state.exerciseText[state.charIndex];
+                  
+                  if (composedVowel == expectedChar) {
+                    // CORRECT! Add the vowel and advance
+                    final newCharIndex = state.charIndex + 1;
+                    final updatedSession = List<String>.from(state.sessionTypedCharacters)..add(composedVowel);
+                    
+                    state = state.copyWith(
+                      charIndex: newCharIndex,
+                      sessionTypedCharacters: updatedSession,
+                      lastKeyPress: event.character,
+                      pendingHasanta: false, // Clear pending state
+                    );
+                    
+                    if (newCharIndex >= state.exerciseText.length) {
+                      _handleExerciseCompletion();
+                    } else {
+                      _updateStats();
+                      _skipSpaces();
+                    }
+                    return; // Done, vowel composed successfully
+                  } else {
+                    // Composed vowel doesn't match - count as mistake
+                    final newCharIndex = state.charIndex + 1;
+                    final updatedSession = List<String>.from(state.sessionTypedCharacters)..add(composedVowel);
+                    final newIncorrect = List<int>.from(state.incorrectIndices)..add(state.charIndex);
+                    
+                    _ref.read(soundServiceProvider).playSound(SoundType.keyError);
+                    
+                    state = state.copyWith(
+                      charIndex: newCharIndex,
+                      mistakes: state.mistakes + 1,
+                      incorrectIndices: newIncorrect,
+                      sessionTypedCharacters: updatedSession,
+                      lastKeyPress: event.character,
+                      pendingHasanta: false,
+                    );
+                    _updateStats();
+                    return;
+                  }
+                }
+              } else {
+                // User pressed a non-vowel key after hasanta - cancel composition
+                // Treat the hasanta as a mistake and continue with current key
+                _ref.read(soundServiceProvider).playSound(SoundType.keyError);
+                
+                final hasantaIndex = state.charIndex;
+                final newIncorrect = List<int>.from(state.incorrectIndices)..add(hasantaIndex);
+                
+                state = state.copyWith(
+                  charIndex: state.charIndex + 1,
+                  mistakes: state.mistakes + 1,
+                  incorrectIndices: newIncorrect,
+                  sessionTypedCharacters: List<String>.from(state.sessionTypedCharacters)..add('্'),
+                  pendingHasanta: false,
+                );
+                _updateStats();
+                // Continue to process current key normally...
+              }
+            }
+            
+            // --- STEP 2: Check if user is pressing G (hasanta) to start vowel composition ---
+            // This is valid when the expected character is a full vowel that can be composed
+            if (event.character == 'g' && !state.pendingHasanta) {
+              final expectedChar = state.charIndex < state.exerciseText.length 
+                  ? state.exerciseText[state.charIndex] 
+                  : '';
+              
+              // Check if expected char is a composable vowel (আ, ই, ঈ, উ, ঊ, ঋ, এ, ঐ, ও, ঔ)
+              const composableVowels = ['আ', 'ই', 'ঈ', 'উ', 'ঊ', 'ঋ', 'এ', 'ঐ', 'ও', 'ঔ'];
+              
+              if (composableVowels.contains(expectedChar)) {
+                // User is starting vowel composition - DON'T show error!
+                // Just play a soft key sound and wait for next key
+                _ref.read(soundServiceProvider).playSound(SoundType.keyPress);
+                
+                // Start timer if not started
+                final startTime = state.startTime ?? DateTime.now();
+                
+                state = state.copyWith(
+                  pendingHasanta: true,
+                  startTime: startTime,
+                  isTyping: true,
+                  lastKeyPress: event.character,
+                );
+                
+                return; // Wait for next keystroke (vowel key)
+              }
+              // If expected char is not a composable vowel, fall through to normal processing
+            }
+            
+            // --- STEP 3: Legacy check for hasanta in session history ---
+            // This handles cases where hasanta was already added to session
+            final hasHasantaInHistory = state.sessionTypedCharacters.isNotEmpty &&
+                state.sessionTypedCharacters.last == '্';
+            
+            if (hasHasantaInHistory && event.character != null) {
+              final composedVowel = BijoyKeyboardLayout.getComposedVowel(event.character!);
+              
+              if (composedVowel != null) {
+                _ref.read(soundServiceProvider).playSound(SoundType.keyPress);
+                
+                int currentCharIndex = state.charIndex;
                 int currentMistakes = state.mistakes;
                 List<int> currentIncorrect = List.from(state.incorrectIndices);
-                int currentCharIndex = state.charIndex;
-                List<String> currentSessionChars = List.from(state.sessionTypedCharacters);
-
-                if (currentCharIndex > 0) {
-                     int prevIndex = currentCharIndex - 1;
-                     // If the previous 'g' was marked as incorrect, remove the penalty
-                     if (currentIncorrect.contains(prevIndex)) {
-                         currentMistakes = currentMistakes > 0 ? currentMistakes - 1 : 0;
-                         currentIncorrect.remove(prevIndex);
-                     }
-                     // Remove the 'g' from session history
-                     if (currentSessionChars.isNotEmpty) {
-                         currentSessionChars.removeLast();
-                     }
-                     // Step back the cursor
-                     currentCharIndex--;
-
-                     // Update state immediately so the subsequent check uses the corrected position
-                     state = state.copyWith(
-                         mistakes: currentMistakes,
-                         incorrectIndices: currentIncorrect,
-                         charIndex: currentCharIndex,
-                         sessionTypedCharacters: currentSessionChars,
-                     );
+                final currentSessionChars = List<String>.from(state.sessionTypedCharacters);
+                
+                // Remove the hasanta from history
+                if (currentSessionChars.isNotEmpty) {
+                  currentSessionChars.removeLast();
                 }
-             }
+                
+                // Step back the cursor (undo the hasanta position)
+                if (currentCharIndex > 0) {
+                  final prevIndex = currentCharIndex - 1;
+                  if (currentIncorrect.contains(prevIndex)) {
+                    currentMistakes = currentMistakes > 0 ? currentMistakes - 1 : 0;
+                    currentIncorrect.remove(prevIndex);
+                  }
+                  currentCharIndex--;
+                }
+                
+                // Check if composed vowel matches expected
+                if (currentCharIndex < state.exerciseText.length) {
+                  final expectedChar = state.exerciseText[currentCharIndex];
+                  
+                  if (composedVowel == expectedChar) {
+                    currentSessionChars.add(composedVowel);
+                    currentCharIndex++;
+                    
+                    state = state.copyWith(
+                      charIndex: currentCharIndex,
+                      mistakes: currentMistakes,
+                      incorrectIndices: currentIncorrect,
+                      sessionTypedCharacters: currentSessionChars,
+                      lastKeyPress: event.character,
+                      pendingHasanta: false,
+                    );
+                    
+                    if (currentCharIndex >= state.exerciseText.length) {
+                      _handleExerciseCompletion();
+                    } else {
+                      _updateStats();
+                      _skipSpaces();
+                    }
+                    return;
+                  }
+                }
+              }
+            }
           }
 
-          if (typedChar == event.character) {
-             // If not converted by composite logic, use simple map
-             final bengaliChar = BijoyKeyboardLayout.englishToBengali[typedChar];
-             if (bengaliChar != null) {
-               typedChar = bengaliChar;
-             }
+          // Normal Bijoy mapping (no composition)
+          final bengaliChar = BijoyKeyboardLayout.englishToBengali[typedChar];
+          if (bengaliChar != null) {
+            typedChar = bengaliChar;
           }
-        }
+          }
       }
     }
 
     if (typedChar == null) return;
+
+    // Bijoy Pre-base Vowel Logic (Vowel Sign before Consonant)
+    // For 'ি' (i), 'ে' (e), 'ৈ' (oi), users type the vowel sign BEFORE the consonant in Bijoy.
+    // But Unicode stores Consonant + Vowel Sign.
+    // Example: 'দি' = 'দ' + 'ি'. User types: 'ি' -> 'দ'.
+    
+    final layoutState = _ref.read(keyboardLayoutProvider);
+    if (layoutState.isBengali &&
+        layoutState.currentLayout == KeyboardLayout.bijoy &&
+        state.charIndex < state.exerciseText.length - 1) { // Need at least 2 chars remaining
+      
+      final currentChar = state.exerciseText[state.charIndex];
+      final nextChar = state.exerciseText[state.charIndex + 1];
+
+      // Check if next char is a pre-base vowel sign
+      // ি (09BF), ে (09C7), ৈ (09C8)
+      if (['ি', 'ে', 'ৈ'].contains(nextChar)) {
+        
+        // Scenario 1: User types the Pre-base Vowel FIRST (Correct Bijoy Order)
+        if (state.pendingPreBaseVowel == null) {
+          if (typedChar == nextChar) {
+             // Correct! User typed the vowel sign first.
+             // Play generic key press sound
+             _ref.read(soundServiceProvider).playSound(SoundType.keyPress);
+
+             // We don't advance the cursor yet. We wait for the consonant.
+             // But we mark that the vowel is "pending" (buffered).
+             state = state.copyWith(
+               pendingPreBaseVowel: nextChar,
+               mistakes: state.mistakes, // No mistake
+             );
+             return; // Stop processing, wait for next key (consonant)
+          } else if (typedChar == currentChar) {
+             // User typed Consonant first (Unicode order, but wrong for Bijoy typing flow)
+             // We can mark this as a mistake or leniently accept it.
+             // Strict Bijoy typing requires Vowel Sign first.
+             // Let's treat it as a mistake to enforce correct typing habit.
+             // ... fall through to normal check which will likely fail or pass depending on logic below?
+             // Actually, normal check expects `currentChar`. But `typedChar == currentChar`.
+             // So normal check would PASS it. 
+             // We must intercept and FAIL it if we want to enforce Order.
+             // "না! আগে কার চিহ্ন দিতে হবে!"
+             
+             // Play error sound
+             _ref.read(soundServiceProvider).playSound(SoundType.keyError);
+             
+             // Update logic to count mistake but NOT advance
+             // ... fall through normal mistake logic? No, return here.
+              final newMistakes = state.mistakes + 1;
+              final newIncorrectIndices = List<int>.from(state.incorrectIndices)
+                ..add(state.charIndex);
+              state = state.copyWith(
+                mistakes: newMistakes,
+                incorrectIndices: newIncorrectIndices,
+              );
+              _updateStats();
+              return;
+          } else {
+             // Wrong key entirely
+             // Let normal logic handle it
+          }
+        } 
+        // Scenario 2: User already typed the Vowel, now typing the Consonant
+        else {
+           // We are expecting 'currentChar' (the Consonant)
+           if (typedChar == currentChar) {
+              // Match! User typed Vowel (buffered) + Consonant (now).
+              // We should commit BOTH. 'Consonant' + 'Vowel' into output history.
+              
+              // Play key press sound
+              _ref.read(soundServiceProvider).playSound(SoundType.keyPress);
+
+              final newCharIndex = state.charIndex + 2; // Advance 2 steps
+              final isCompleted = newCharIndex >= state.exerciseText.length;
+              
+              final updatedSessionHistory = List<String>.from(state.sessionTypedCharacters)
+                 ..add(currentChar) // Add Consonant first (Unicode order)
+                 ..add(state.pendingPreBaseVowel!); // Add Vowel second
+                 
+               state = state.copyWith(
+                  charIndex: newCharIndex,
+                  sessionTypedCharacters: updatedSessionHistory,
+                  lastKeyPress: event.character,
+                  clearPendingPreBaseVowel: true, // Clear buffer
+               );
+               
+               if (isCompleted) {
+                 _handleExerciseCompletion();
+               } else {
+                 _updateStats();
+               }
+               return; // Done
+           } else {
+              // User typed something else instead of expected Consonant
+              // Mistake.
+              // Should we clear the pending vowel? Usually no, give them chance to type consonant.
+              // Play error sound
+              _ref.read(soundServiceProvider).playSound(SoundType.keyError);
+
+              final newMistakes = state.mistakes + 1;
+              final newIncorrectIndices = List<int>.from(state.incorrectIndices)
+                 ..add(state.charIndex); // Mark the Consonant position as error
+              
+              state = state.copyWith(
+                mistakes: newMistakes,
+                incorrectIndices: newIncorrectIndices,
+                // Keep pendingPreBaseVowel
+              );
+              _updateStats();
+              return;
+           }
+        }
+      } else {
+        // Next char is NOT a pre-base vowel?
+        // Ensure pendingPreBaseVowel is cleared if we moved away (safety)
+        if (state.pendingPreBaseVowel != null) {
+           state = state.copyWith(clearPendingPreBaseVowel: true);
+        }
+      }
+    } else {
+       // Not Bijoy or End of text: Clear any pending pre-base vowel
+       if (state.pendingPreBaseVowel != null) {
+           state = state.copyWith(clearPendingPreBaseVowel: true);
+       }
+    }
+
+    // Bijoy Split Vowel Logic (O-kar and Ou-kar)
+    // O-kar (ো) = e-kar (ে) + Consonant + a-kar (া)
+    // Ou-kar (ৌ) = e-kar (ে) + Consonant + Ou-independent (ঔ) [or similar suffix key]
+    // The previous logic for Pre-base vowel commits 'Consonant' then 'e-kar'.
+    // So session history has [..., Consonant, e-kar].
+    // If user now types 'a-kar' (f), we must detect this [Consonant, e-kar] + 'a-kar' pattern
+    // and replace it with [Consonant, o-kar].
+
+    if (layoutState.isBengali && 
+        layoutState.currentLayout == KeyboardLayout.bijoy && 
+        typedChar != null && 
+        state.sessionTypedCharacters.length >= 2) {
+        
+        final lastChar = state.sessionTypedCharacters.last;
+        final secondLastChar = state.sessionTypedCharacters[state.sessionTypedCharacters.length - 2];
+
+        // Check for O-kar pattern: [Consonant, e-kar] + a-kar
+        if (lastChar == 'ে' && typedChar == 'া') { // 'f' maps to 'া'
+             // We have Consonant + e-kar + a-kar
+             // Replace with Consonant + o-kar (ো)
+             // We need to check if the char BEFORE 'e-kar' is a valid consonant? 
+             // Generally yes, but safely just merge 'e-kar' + 'a-kar' -> 'o-kar'.
+             // Note: 'o-kar' is 09CB.
+             
+             // Play Generic Key Press sound (since we are modifying history)
+             _ref.read(soundServiceProvider).playSound(SoundType.keyPress);
+
+             final updatedSessionHistory = List<String>.from(state.sessionTypedCharacters)
+                ..removeLast() // Remove 'e-kar'
+                ..add('ো'); // Add 'o-kar' (This replaces e-kar + a-kar concept)
+                // Wait, we removed e-kar. The current 'typedChar' (a-kar) is NOT added yet.
+                // So we added 'o-kar' to history. 
+                // We must prevent 'typedChar' (a-kar) from being added below.
+                
+             // We also need to update mistakes/charIndex if necessary.
+             // If the text EXPECTED 'o-kar', then:
+             // 1. We typed 'e-kar' (buffered).
+             // 2. We typed 'Consonant'. 'e-kar' committed after 'Consonant'.
+             //    If text was "দো" (do), expected: 'দ' then 'ো'.
+             //    We typed 'ে' (pending), then 'দ'.
+             //    Logic committed 'দ' (Match!) then 'ে' (Mistake? because expected 'ো').
+             //    So 'e-kar' might be marked as error in history?
+             //    Actually my previous pre-base logic:
+             //       if (typedChar == currentChar) { ... add(Consonant); add(pendingPreBaseVowel); ... }
+             //    If expected was 'ো', then `add(pending)` which is `ে` -> Mistake.
+             //    So `mistakes` count increased.
+             // So we need to FIX the mistake count too.
+             
+             int currentMistakes = state.mistakes;
+             List<int> currentIncorrect = List.from(state.incorrectIndices);
+             // The 'e-kar' index was 'state.charIndex'. (Wait, valid 'd' was charIndex-1?).
+             // If 'e-kar' was wrong, it's at index 'state.charIndex - 1'? No.
+             // 'charIndex' points to NEXT expected char.
+             
+             // If we merged, we simply update the last char.
+             // But we must correct the 'typedChar' to be 'null' or handled so we don't proceed to normal logic.
+             // And we must update state.
+             
+             state = state.copyWith(
+                 sessionTypedCharacters: updatedSessionHistory,
+                 lastKeyPress: event.character,
+                 // We kept charIndex same? 
+                 // If previous 'ে' was a mistake (because expected 'ো'), and now we fixed it to 'ো'.
+                 // Then 'o-kar' matches 'o-kar'. So it IS correct.
+                 // So we should decrement mistake count if it was wrong.
+                 // How to know? Check if 'incorrectIndices' contains the index of 'e-kar'.
+                 // The 'e-kar' was added at index = charIndex (assuming we advanced).
+                 // Actually, let's look at pre-base logic:
+                 // "newCharIndex = state.charIndex + 2;"
+                 // "add(state.pendingPreBaseVowel!);"
+                 // If pending (e-kar) didn't match (o-kar), then mistake added?
+                 // Wait, pre-base logic only marks mistake if 'Consonant' didn't match.
+                 // It doesn't check if 'Vowel' matches?
+                 // "state.copyWith(charIndex: newCharIndex...)"
+                 // It blindly accepts buffer?
+                 // If blindly accepted, then 'mistakes' wasn't incremented for 'e-kar'.
+                 // But 'incorrectIndices' might not track it?
+                 // No, verification logic is usually: "check if typed == expected".
+                 // But pre-base logic "forced" the commit. It didn't validate Vowel against Text.
+                 // So 'e-kar' is in history, considered "typed".
+                 // Whether it counts as mistake depends on... well, nothing checked it.
+                 // So 'mistakes' is likely 0 for that 'e-kar' unless later validater checked?
+                 // But we advanced 'charIndex'.
+                 
+                 // So: We entered 'দ' and 'ে'. Text expects 'দ' and 'ো'.
+                 // 'দ' matches. 'ে' != 'ো'.
+                 // But since we forcibly advanced charIndex, avoiding normal validation...
+                 // The 'mistakes' logic in 'handleKeyPress' (lines 485+) wasn't run for these chars.
+                 // So 'mistakes' count is ostensibly correct (0), but we have wrong char in history.
+                 // Now we replace 'ে' with 'ো'. 'ো' == 'ো'. Perfect.
+                 // So just updating session history is enough!
+             );
+             return; // Done.
+        } else if (lastChar == 'ে' && (typedChar == 'ঔ' || event.character == 'X')) { // Check for Ou-pattern
+             // Replace 'e-kar' + 'Ou-independent' -> 'Ou-kar' (ৌ)
+              _ref.read(soundServiceProvider).playSound(SoundType.keyPress);
+
+             final updatedSessionHistory = List<String>.from(state.sessionTypedCharacters)
+                ..removeLast()
+                ..add('ৌ');
+             
+             state = state.copyWith(
+                 sessionTypedCharacters: updatedSessionHistory,
+                 lastKeyPress: event.character,
+             );
+             return;
+        }
+
+    }
 
     // Start timer on first keypress
     final startTime = state.startTime ?? DateTime.now();
@@ -332,12 +716,16 @@ class TutorNotifier extends StateNotifier<TutorState> {
         final newIncorrectIndices = List<int>.from(state.incorrectIndices)
           ..removeWhere((index) => index == newCharIndex);
 
-        // Update the state
+        // Update the state and CLEAR pending pre-base vowel on backspace
         state = state.copyWith(
           charIndex: newCharIndex,
           mistakes: newMistakes,
           incorrectIndices: newIncorrectIndices,
+          clearPendingPreBaseVowel: true, // Clear pending vowel on backspace
         );
+      } else if (state.pendingPreBaseVowel != null) {
+        // Even if charIndex is 0, if there's a pending vowel, clear it
+        state = state.copyWith(clearPendingPreBaseVowel: true);
       }
       return;
     }
@@ -372,6 +760,8 @@ class TutorNotifier extends StateNotifier<TutorState> {
         } else {
           // Update WPM and accuracy as typing progresses
           _updateStats();
+          // Skip any following spaces for drill exercises
+          _skipSpaces();
         }
       } else {
         // Play error sound

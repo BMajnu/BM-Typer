@@ -1,11 +1,15 @@
+import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:bm_typer/core/constants/keyboard_layouts.dart';
 import 'package:bm_typer/core/providers/keyboard_layout_provider.dart';
+import 'package:bm_typer/core/theme/theme.dart';
+import 'package:bm_typer/presentation/widgets/keyboard_key.dart' as common;
 
-/// বাংলা Virtual Keyboard Widget
-/// Supports Bijoy, Probhat, and QWERTY layouts
-/// Cross-platform compatible (Windows, Mac, Linux, Web, Mobile)
+/// আধুনিক বাংলা ভার্চুয়াল কীবোর্ড
+/// 
+/// গ্লাসমরফিজম, হ্যান্ড-বেইজড কালার কোডিং এবং উন্নত লেআউট সহ।
+/// প্রতিটি কী এবং রো Flexible/Expanded উইজেট দিয়ে র‍্যাপ করা হয়েছে যাতে কোনো ওভারফ্লো না হয়।
 class BanglaVirtualKeyboard extends ConsumerWidget {
   final Set<String> pressedKeys;
   final Function(String)? onKeyPressed;
@@ -20,104 +24,97 @@ class BanglaVirtualKeyboard extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final colorScheme = Theme.of(context).colorScheme;
     final layoutState = ref.watch(keyboardLayoutProvider);
-
-    final keyHeight = 38.0;
-    final rowSpacing = 4.0;
-    final keySpacing = 3.0;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return LayoutBuilder(builder: (context, constraints) {
       final keyboardWidth = constraints.maxWidth;
-      final keyboardHeight = constraints.maxHeight;
+      // Use the full available height provided by the parent
+      final keyboardHeight = constraints.maxHeight; 
+      
+      // Only show layout switcher if there is enough vertical space
+      final isSpaceSufficientForSwitcher = keyboardHeight > 180;
 
-      // Calculate row heights including header
-      final headerHeight = showLayoutSwitcher ? 36.0 : 0.0;
-      final availableHeight = keyboardHeight - headerHeight;
-      final totalRowHeight = keyHeight * 4 + rowSpacing * 3;
-
-      final heightScale = totalRowHeight > availableHeight
-          ? availableHeight / totalRowHeight
-          : 1.0;
-      final scaledKeyHeight = keyHeight * heightScale;
-
-      final rows = layoutState.getDisplayRows();
-
-      return Container(
-        width: keyboardWidth,
-        height: keyboardHeight,
-        decoration: BoxDecoration(
-          color: colorScheme.surfaceContainerHighest.withOpacity(0.9),
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(
-            color: colorScheme.outline.withOpacity(0.2),
-          ),
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            // Layout switcher header
-            if (showLayoutSwitcher)
-              _buildLayoutSwitcher(context, ref, layoutState),
-
-            // Keyboard rows
-            Expanded(
-              child: Padding(
-                padding: EdgeInsets.symmetric(
-                  vertical: 4.0,
-                  horizontal: keySpacing,
-                ),
-                child: FittedBox(
-                  fit: BoxFit.contain,
-                  child: SizedBox(
-                    width: keyboardWidth,
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      crossAxisAlignment: CrossAxisAlignment.center,
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        for (int i = 0; i < rows.length; i++) ...[
-                          _buildKeyboardRow(
-                            context,
-                            ref,
-                            rows[i],
-                            scaledKeyHeight,
-                            keySpacing,
-                            isHomeRow: i == 2, // Middle row
-                            layoutState: layoutState,
-                          ),
-                          if (i < rows.length - 1)
-                            SizedBox(height: rowSpacing * heightScale),
+      return ClipRRect(
+        borderRadius: BorderRadius.circular(AppSizes.radiusLg),
+        child: BackdropFilter(
+          filter: ImageFilter.blur(sigmaX: 8, sigmaY: 8),
+          child: Container(
+            width: keyboardWidth,
+            height: keyboardHeight,
+            padding: EdgeInsets.all(AppSpacing.xs), 
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: isDark
+                      ? [
+                          AppColors.glassWhiteDark.withOpacity(0.15),
+                          AppColors.glassWhiteDark.withOpacity(0.05),
+                        ]
+                      : [
+                          Colors.white.withOpacity(0.85),
+                          Colors.white.withOpacity(0.65),
                         ],
-                        // Space bar row
-                        SizedBox(height: rowSpacing * heightScale),
-                        _buildSpaceBarRow(context, ref, scaledKeyHeight, keySpacing),
-                      ],
-                    ),
-                  ),
-                ),
               ),
+              borderRadius: BorderRadius.circular(AppSizes.radiusLg),
+              border: Border.all(
+                color: isDark ? AppColors.glassBorderDark : AppColors.glassBorder,
+              ),
+              boxShadow: [
+                  BoxShadow(
+                    color: isDark
+                        ? AppColors.glassShadowDark
+                        : AppColors.glassShadow,
+                    blurRadius: 16,
+                    offset: const Offset(0, 4),
+                  ),
+                ],
             ),
-          ],
+            child: Column(
+              children: [
+                // Layout switcher header with glass effect
+                if (showLayoutSwitcher && isSpaceSufficientForSwitcher)
+                  SizedBox(
+                    height: 40, // Fixed height for switcher
+                    child: _buildLayoutSwitcher(context, ref, layoutState),
+                  ),
+                
+                if (showLayoutSwitcher && isSpaceSufficientForSwitcher)
+                  SizedBox(height: AppSpacing.xs), // Minimal spacing
+
+                // Keyboard Content - Expanded to fill remaining space
+                Expanded(
+                  child: _buildKeyboardContent(context, ref, layoutState),
+                ),
+              ],
+            ),
+          ),
         ),
       );
     });
   }
 
-  /// Build layout switcher header
   Widget _buildLayoutSwitcher(
     BuildContext context,
     WidgetRef ref,
     KeyboardLayoutState layoutState,
   ) {
-    final colorScheme = Theme.of(context).colorScheme;
-
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    
     return Container(
-      height: 36,
-      padding: const EdgeInsets.symmetric(horizontal: 8),
+      padding: EdgeInsets.symmetric(
+        horizontal: AppSpacing.md,
+        vertical: 2, // Minimal vertical padding
+      ),
       decoration: BoxDecoration(
-        color: colorScheme.primaryContainer.withOpacity(0.5),
-        borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
+        color: isDark 
+            ? AppColors.surfaceDark.withOpacity(0.5) 
+            : AppColors.surfaceLight.withOpacity(0.5),
+        borderRadius: BorderRadius.circular(AppSizes.radiusMd),
+        border: Border.all(
+          color: isDark ? AppColors.dividerDark : AppColors.dividerLight,
+        ),
       ),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -128,21 +125,20 @@ class BanglaVirtualKeyboard extends ConsumerWidget {
               Icon(
                 layoutState.isBengali ? Icons.language : Icons.keyboard,
                 size: 16,
-                color: colorScheme.primary,
+                color: AppColors.primary,
               ),
-              const SizedBox(width: 4),
+              SizedBox(width: AppSpacing.xs),
               Text(
                 layoutState.layoutName,
-                style: TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w600,
-                  color: colorScheme.onPrimaryContainer,
+                style: AppTypography.labelSmall(context).copyWith(
+                  fontWeight: FontWeight.bold,
+                  color: AppColors.primary,
                 ),
               ),
             ],
           ),
 
-          // Layout switch buttons
+          // Layout buttons - 3 layouts: QWERTY, Bijoy, Phonetic
           Row(
             mainAxisSize: MainAxisSize.min,
             children: [
@@ -152,14 +148,22 @@ class BanglaVirtualKeyboard extends ConsumerWidget {
                 'EN',
                 KeyboardLayout.qwerty,
                 layoutState,
+                isFirst: true,
               ),
-              const SizedBox(width: 4),
               _buildLayoutButton(
                 context,
                 ref,
                 'বি',
                 KeyboardLayout.bijoy,
                 layoutState,
+              ),
+              _buildLayoutButton(
+                context,
+                ref,
+                'ফ',
+                KeyboardLayout.phonetic,
+                layoutState,
+                isLast: true,
               ),
             ],
           ),
@@ -168,282 +172,217 @@ class BanglaVirtualKeyboard extends ConsumerWidget {
     );
   }
 
-  /// Build individual layout button
   Widget _buildLayoutButton(
     BuildContext context,
     WidgetRef ref,
     String label,
     KeyboardLayout layout,
-    KeyboardLayoutState currentState,
-  ) {
-    final colorScheme = Theme.of(context).colorScheme;
+    KeyboardLayoutState currentState, {
+    bool isFirst = false,
+    bool isLast = false,
+  }) {
     final isActive = currentState.currentLayout == layout;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return GestureDetector(
       onTap: () {
         ref.read(keyboardLayoutProvider.notifier).setLayout(layout);
       },
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+        padding: EdgeInsets.symmetric(
+          horizontal: AppSpacing.md,
+          vertical: 4,
+        ),
         decoration: BoxDecoration(
           color: isActive
-              ? colorScheme.primary
-              : colorScheme.surfaceContainerHighest,
-          borderRadius: BorderRadius.circular(4),
+              ? AppColors.primary
+              : (isDark ? Colors.grey[800] : Colors.grey[200]),
+          borderRadius: BorderRadius.horizontal(
+            left: isFirst ? Radius.circular(AppSizes.radiusSm) : Radius.zero,
+            right: isLast ? Radius.circular(AppSizes.radiusSm) : Radius.zero,
+          ),
         ),
         child: Text(
           label,
           style: TextStyle(
-            fontSize: 11,
+            fontSize: 12,
             fontWeight: FontWeight.w600,
-            color: isActive
-                ? colorScheme.onPrimary
-                : colorScheme.onSurfaceVariant,
+            color: isActive ? Colors.white : (isDark ? Colors.grey[400] : Colors.grey[600]),
           ),
         ),
       ),
     );
   }
 
-  /// Build keyboard row
-  Widget _buildKeyboardRow(
+  Widget _buildKeyboardContent(
     BuildContext context,
     WidgetRef ref,
-    List<String> keys,
-    double keyHeight,
-    double keySpacing, {
-    bool isHomeRow = false,
-    double leftPadding = 0,
-    required KeyboardLayoutState layoutState,
-  }) {
-    final keyWidgets = <Widget>[];
-
-    if (leftPadding > 0) {
-      keyWidgets.add(SizedBox(width: leftPadding));
-    }
-
-    for (int i = 0; i < keys.length; i++) {
-      final char = keys[i];
-
-      // Special handling for wider keys
-      double widthMultiplier = 1.0;
-      if (char == '⌫') widthMultiplier = 1.8;
-      if (char == 'shift') widthMultiplier = 1.4;
-
-      final isPressed = pressedKeys.contains(char) ||
-          (char == 'shift' && layoutState.isShiftPressed);
-
-      keyWidgets.add(
-        Flexible(
-          flex: (widthMultiplier * 10).toInt(),
-          child: Padding(
-            padding: EdgeInsets.symmetric(horizontal: keySpacing / 2),
-            child: GestureDetector(
-              onTapDown: (_) => _handleKeyPress(ref, char),
-              onTapUp: (_) => _handleKeyRelease(ref, char),
-              onTapCancel: () => _handleKeyRelease(ref, char),
-              child: BanglaKeyboardKey(
-                character: char,
-                isPressed: isPressed,
-                height: keyHeight,
-                isHomeRow: isHomeRow,
-                isBengali: layoutState.isBengali,
-              ),
-            ),
-          ),
-        ),
-      );
-    }
-
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: keyWidgets,
-    );
-  }
-
-  /// Build space bar row
-  Widget _buildSpaceBarRow(
-    BuildContext context,
-    WidgetRef ref,
-    double keyHeight,
-    double keySpacing,
+    KeyboardLayoutState layoutState,
   ) {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.center,
+    final rows = layoutState.getDisplayRows();
+    
+    return Column(
+      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
       children: [
-        // Language toggle key
-        GestureDetector(
-          onTap: () {
-            ref.read(keyboardLayoutProvider.notifier).toggleLayout();
-          },
-          child: Container(
-            width: 50,
-            height: keyHeight,
-            margin: EdgeInsets.symmetric(horizontal: keySpacing),
-            decoration: BoxDecoration(
-              color: Theme.of(context).colorScheme.secondaryContainer,
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: const Center(
-              child: Icon(Icons.language, size: 18),
+          for (int i = 0; i < rows.length; i++)
+          Expanded( // Make each row expand to fill vertical space
+            child: Padding(
+              padding: const EdgeInsets.symmetric(vertical: 2.0),
+              child: _buildKeyboardRow(
+                context,
+                ref,
+                rows[i],
+                layoutState,
+              ),
             ),
           ),
-        ),
-
-        // Space bar
+        
+        // Space bar row also expanded
         Expanded(
-          flex: 5,
-          child: GestureDetector(
-            onTap: () => onKeyPressed?.call(' '),
-            child: Container(
-              height: keyHeight,
-              margin: EdgeInsets.symmetric(horizontal: keySpacing),
-              decoration: BoxDecoration(
-                color: Theme.of(context).colorScheme.surfaceContainerHigh,
-                borderRadius: BorderRadius.circular(8),
-                border: Border.all(
-                  color: Theme.of(context).colorScheme.outline.withOpacity(0.2),
-                ),
-              ),
-              child: const Center(
-                child: Text('Space', style: TextStyle(fontSize: 12)),
-              ),
-            ),
-          ),
-        ),
-
-        // Enter key
-        GestureDetector(
-          onTap: () => onKeyPressed?.call('\n'),
-          child: Container(
-            width: 60,
-            height: keyHeight,
-            margin: EdgeInsets.symmetric(horizontal: keySpacing),
-            decoration: BoxDecoration(
-              color: Theme.of(context).colorScheme.primaryContainer,
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: const Center(
-              child: Icon(Icons.keyboard_return, size: 18),
-            ),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 2.0),
+            child: _buildSpaceRow(context, ref),
           ),
         ),
       ],
     );
   }
 
-  /// Handle key press
-  void _handleKeyPress(WidgetRef ref, String key) {
-    if (key == 'shift') {
-      ref.read(keyboardLayoutProvider.notifier).setShift(true);
-    } else if (key != '⌫') {
-      onKeyPressed?.call(key);
-    }
+  Widget _buildKeyboardRow(
+    BuildContext context,
+    WidgetRef ref,
+    List<String> keys,
+    KeyboardLayoutState layoutState,
+  ) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.center,
+      crossAxisAlignment: CrossAxisAlignment.stretch, // Ensure keys stretch vertically
+      children: keys.map((char) {
+        // Flex factors for different keys
+        int flex = 10;
+        if (char == '⌫') flex = 18; // 1.8x
+        if (char == 'shift') flex = 15; // 1.5x
+        if (char == '\\') flex = 12; // 1.2x
+
+        final isPressed = pressedKeys.contains(char) ||
+            (char == 'shift' && layoutState.isShiftPressed);
+
+        // Get labels for Bengali key
+        String normalLabel = char;
+
+        return Flexible(
+          flex: flex,
+          child: common.BanglaKeyboardKey(
+            normalLabel: normalLabel,
+            shiftLabel: null,
+            isPressed: isPressed,
+            isShiftActive: layoutState.isShiftPressed,
+            height: double.infinity, // Fill the row height
+            // Width is handled by Flexible + Container inside KeyboardKey
+            width: double.infinity, 
+            onTap: () {
+              if (char == 'shift') {
+                ref.read(keyboardLayoutProvider.notifier).setShift(!layoutState.isShiftPressed);
+              } else if (char == '⌫') {
+                onKeyPressed?.call('\b');
+              } else {
+                onKeyPressed?.call(char);
+              }
+            },
+          ),
+        );
+      }).toList(),
+    );
   }
 
-  /// Handle key release
-  void _handleKeyRelease(WidgetRef ref, String key) {
-    if (key == 'shift') {
-      ref.read(keyboardLayoutProvider.notifier).setShift(false);
-    } else if (key == '⌫') {
-      onKeyPressed?.call('\b'); // Backspace
-    }
-  }
-}
+  Widget _buildSpaceRow(
+    BuildContext context, 
+    WidgetRef ref, 
+  ) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.center,
+      crossAxisAlignment: CrossAxisAlignment.stretch, // Ensure keys stretch vertically
+      children: [
+        // Language - Flex 1.5
+         Flexible(
+           flex: 15,
+           child: GestureDetector(
+            onTap: () => ref.read(keyboardLayoutProvider.notifier).toggleLayout(),
+            child: Container(
+              height: double.infinity,
+              margin: EdgeInsets.all(AppSpacing.xxs),
+              decoration: BoxDecoration(
+                color: AppColors.secondary.withOpacity(0.2),
+                borderRadius: BorderRadius.circular(AppSizes.radiusSm),
+                border: Border.all(color: AppColors.secondary.withOpacity(0.5)),
+              ),
+              child: Center(
+                child: Icon(Icons.language, color: AppColors.secondary, size: 18),
+              ),
+            ),
+                   ),
+         ),
 
-/// Bengali Keyboard Key widget
-class BanglaKeyboardKey extends StatelessWidget {
-  final String character;
-  final bool isPressed;
-  final double height;
-  final double? width;
-  final bool isHomeRow;
-  final bool isBengali;
-
-  const BanglaKeyboardKey({
-    super.key,
-    required this.character,
-    this.isPressed = false,
-    this.height = 38.0,
-    this.width,
-    this.isHomeRow = false,
-    this.isBengali = false,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final isDarkMode = theme.brightness == Brightness.dark;
-    final colorScheme = theme.colorScheme;
-
-    // Special keys
-    final isSpecial =
-        character == 'shift' || character == '⌫' || character == ' ';
-
-    // Determine background color
-    Color backgroundColor;
-    if (isPressed) {
-      backgroundColor = colorScheme.primary;
-    } else if (isHomeRow && !isSpecial) {
-      // Highlight home row keys
-      backgroundColor = isDarkMode
-          ? colorScheme.primaryContainer.withOpacity(0.4)
-          : colorScheme.primaryContainer.withOpacity(0.6);
-    } else if (isSpecial) {
-      backgroundColor = colorScheme.secondaryContainer;
-    } else {
-      backgroundColor = isDarkMode
-          ? colorScheme.surfaceContainerHigh
-          : colorScheme.surface;
-    }
-
-    // Calculate width
-    final keyWidth = width ??
-        (character == 'shift' ? 55.0 : (character == '⌫' ? 65.0 : 40.0));
-
-    final textColor = isPressed
-        ? colorScheme.onPrimary
-        : (isDarkMode ? colorScheme.onSurface : colorScheme.onSurfaceVariant);
-
-    // Display text
-    String displayText = character;
-    if (character == 'shift') {
-      displayText = '⇧';
-    }
-
-    return AnimatedContainer(
-      duration: const Duration(milliseconds: 100),
-      width: keyWidth,
-      height: height,
-      margin: const EdgeInsets.all(1),
-      decoration: BoxDecoration(
-        color: backgroundColor,
-        borderRadius: BorderRadius.circular(6),
-        border: Border.all(
-          color: colorScheme.outline.withOpacity(0.15),
-        ),
-        boxShadow: isPressed
-            ? []
-            : [
-                BoxShadow(
-                  color: colorScheme.shadow.withOpacity(0.08),
-                  offset: const Offset(0, 2),
-                  blurRadius: 2,
+        // Space - Flex 6
+        Flexible(
+          flex: 60,
+          child: GestureDetector(
+            onTap: () => onKeyPressed?.call(' '),
+            child: Container(
+              height: double.infinity,
+              margin: EdgeInsets.all(AppSpacing.xxs),
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [
+                    AppColors.surfaceLight,
+                    AppColors.backgroundLight,
+                  ],
                 ),
-              ],
-      ),
-      transform: isPressed ? Matrix4.translationValues(0, 1, 0) : null,
-      transformAlignment: Alignment.center,
-      child: Center(
-        child: Text(
-          displayText,
-          style: TextStyle(
-            fontSize: isBengali && !isSpecial ? 16 : 13,
-            fontWeight: isSpecial || isHomeRow ? FontWeight.w600 : FontWeight.w500,
-            color: textColor,
+                borderRadius: BorderRadius.circular(AppSizes.radiusSm),
+                border: Border.all(color: Colors.grey.withOpacity(0.3)),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.1),
+                    offset: Offset(0, 2),
+                    blurRadius: 4,
+                  ),
+                ],
+              ),
+              child: Center(
+                child: Text(
+                  'SPACE', 
+                  style: TextStyle(
+                    fontSize: 12, 
+                    fontWeight: FontWeight.bold,
+                    color: Colors.grey[600],
+                    letterSpacing: 2,
+                  ),
+                ),
+              ),
+            ),
           ),
         ),
-      ),
+
+        // Enter - Flex 2
+        Flexible(
+          flex: 20,
+          child: GestureDetector(
+            onTap: () => onKeyPressed?.call('\n'),
+            child: Container(
+              height: double.infinity,
+              margin: EdgeInsets.all(AppSpacing.xxs),
+              decoration: BoxDecoration(
+                color: AppColors.primary.withOpacity(0.2),
+                borderRadius: BorderRadius.circular(AppSizes.radiusSm),
+                border: Border.all(color: AppColors.primary.withOpacity(0.5)),
+              ),
+              child: Center(
+                child: Icon(Icons.keyboard_return, color: AppColors.primary, size: 18),
+              ),
+            ),
+          ),
+        ),
+      ],
     );
   }
 }

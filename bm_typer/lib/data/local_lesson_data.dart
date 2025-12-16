@@ -5,225 +5,206 @@ import 'package:bm_typer/data/phonetic_lesson_data.dart' show phoneticBanglaLess
 
 // ignore_for_file: prefer_const_constructors
 
-// Bangla lessons
-final List<Lesson> banglaLessons = [
+// ============================================================
+// LESSON STRUCTURE: 
+// লেসন ১-৬: English Keyboard Mastery
+// লেসন ৭-২৪: Bangla Bijoy Typing (from bangla_lesson_data.dart)
+// লেসন ২৫+: Phonetic Bangla Typing
+// ============================================================
+
+// --- ENGLISH KEYBOARD MASTERY LESSONS (লেসন ১-৬) ---
+final List<Lesson> englishKeyboardLessons = [
   Lesson(
-    title: "lesson_1_1", // Translation key for "পাঠ ১.১: হোম রো (বাম হাত)"
-    description: "home_row_left_hand", // Translation key
-    category: "Bangla",
-    language: "bn",
+    title: "লেসন ১: হোম রো (ASDF-JKL;)",
+    description: "ইংরেজি কীবোর্ডের প্রধান সারি শিখুন - এটি আপনার আঙ্গুলের স্থায়ী অবস্থান",
+    category: "English",
+    language: "en",
     difficultyLevel: 1,
     exercises: [
-      Exercise(
-          text: "asdfg asdfg",
-          repetitions: 10,
-          type: ExerciseType.drill,
-          difficultyLevel: 1),
-      Exercise(
-          text: "sad dad fad gas sag",
-          repetitions: 5,
-          type: ExerciseType.drill,
-          difficultyLevel: 1),
-      Exercise(
-          text: "a sad dad; a glad fad",
-          repetitions: 5,
-          type: ExerciseType.drill,
-          difficultyLevel: 1),
-      Exercise(
-          text: "fads gags dads sags",
-          repetitions: 5,
-          type: ExerciseType.drill,
-          difficultyLevel: 1),
-      Exercise(
-          text: "add a gaff; add a gag",
-          repetitions: 5,
-          type: ExerciseType.drill,
-          difficultyLevel: 1),
+      Exercise(text: "asdf jkl;", repetitions: 10, type: ExerciseType.drill, difficultyLevel: 1),
+      Exercise(text: "aaa sss ddd fff", repetitions: 8, type: ExerciseType.drill, difficultyLevel: 1),
+      Exercise(text: "jjj kkk lll ;;;", repetitions: 8, type: ExerciseType.drill, difficultyLevel: 1),
+      Exercise(text: "sad dad fad gas", repetitions: 6, type: ExerciseType.drill, difficultyLevel: 1),
+      Exercise(text: "ask flask task", repetitions: 6, type: ExerciseType.drill, difficultyLevel: 1),
+      Exercise(text: "a glad lad; a sad dad", repetitions: 5, type: ExerciseType.drill, difficultyLevel: 1),
+      Exercise(text: "all fall hall shall", repetitions: 5, type: ExerciseType.drill, difficultyLevel: 1),
+      Exercise(text: "add salad; fall flask", repetitions: 5, type: ExerciseType.drill, difficultyLevel: 1),
     ],
   ),
   Lesson(
-    title: "lesson_1_2", // Translation key for "পাঠ ১.২: হোম রো (ডান হাত)"
-    description: "home_row_right_hand", // Translation key
-    category: "Bangla",
-    language: "bn",
+    title: "লেসন ২: উপরের সারি (QWERTY)",
+    description: "উপরের সারির কীগুলো শিখুন - দ্রুত টাইপিংয়ের জন্য গুরুত্বপূর্ণ",
+    category: "English",
+    language: "en",
     difficultyLevel: 1,
     exercises: [
-      Exercise(
-          text: "jkl; jkl;",
-          repetitions: 10,
-          type: ExerciseType.drill,
-          difficultyLevel: 1),
-      Exercise(
-          text: "jak lad hal jak",
-          repetitions: 5,
-          type: ExerciseType.drill,
-          difficultyLevel: 1),
-      Exercise(
-          text: "a jak; a lad; a hal",
-          repetitions: 5,
-          type: ExerciseType.drill,
-          difficultyLevel: 1),
-      Exercise(
-          text: "ask flask task flask",
-          repetitions: 5,
-          type: ExerciseType.drill,
-          difficultyLevel: 1),
-      Exercise(
-          text: "all fall hall; all fall",
-          repetitions: 5,
-          type: ExerciseType.drill,
-          difficultyLevel: 1),
+      Exercise(text: "qwert yuiop", repetitions: 10, type: ExerciseType.drill, difficultyLevel: 1),
+      Exercise(text: "qqq www eee rrr ttt", repetitions: 8, type: ExerciseType.drill, difficultyLevel: 1),
+      Exercise(text: "yyy uuu iii ooo ppp", repetitions: 8, type: ExerciseType.drill, difficultyLevel: 1),
+      Exercise(text: "we were wet", repetitions: 6, type: ExerciseType.drill, difficultyLevel: 1),
+      Exercise(text: "quit quiet quip", repetitions: 6, type: ExerciseType.drill, difficultyLevel: 1),
+      Exercise(text: "your type trip", repetitions: 5, type: ExerciseType.drill, difficultyLevel: 1),
+      Exercise(text: "power tower tower", repetitions: 5, type: ExerciseType.drill, difficultyLevel: 1),
+      Exercise(text: "query quite quote", repetitions: 5, type: ExerciseType.drill, difficultyLevel: 1),
     ],
   ),
   Lesson(
-    title: "lesson_2", // Translation key for "পাঠ ২: উপরের সারি"
-    description: "upper_row", // Translation key
-    category: "Bangla",
-    language: "bn",
+    title: "লেসন ৩: নিচের সারি (ZXCVBNM)",
+    description: "নিচের সারির কীগুলো আয়ত্ত করুন - সম্পূর্ণ কীবোর্ড নিয়ন্ত্রণ",
+    category: "English",
+    language: "en",
     difficultyLevel: 1,
     exercises: [
-      Exercise(
-          text: "qwerty qwerty",
-          repetitions: 10,
-          type: ExerciseType.drill,
-          difficultyLevel: 1),
-      Exercise(
-          text: "we were wet; we were wet",
-          repetitions: 5,
-          type: ExerciseType.drill,
-          difficultyLevel: 1),
-      Exercise(
-          text: "quit quiet quip; quit quiet",
-          repetitions: 5,
-          type: ExerciseType.drill,
-          difficultyLevel: 1),
-      Exercise(
-          text: "you your you; you your you",
-          repetitions: 5,
-          type: ExerciseType.drill,
-          difficultyLevel: 1),
-      Exercise(
-          text: "type trip try; type trip try",
-          repetitions: 5,
-          type: ExerciseType.drill,
-          difficultyLevel: 1),
+      Exercise(text: "zxcvb nm,./", repetitions: 10, type: ExerciseType.drill, difficultyLevel: 1),
+      Exercise(text: "zzz xxx ccc vvv bbb", repetitions: 8, type: ExerciseType.drill, difficultyLevel: 1),
+      Exercise(text: "nnn mmm ,,, ... ///", repetitions: 8, type: ExerciseType.drill, difficultyLevel: 1),
+      Exercise(text: "zoo zebra zap", repetitions: 6, type: ExerciseType.drill, difficultyLevel: 1),
+      Exercise(text: "box next mix", repetitions: 6, type: ExerciseType.drill, difficultyLevel: 1),
+      Exercise(text: "car cat cab van", repetitions: 5, type: ExerciseType.drill, difficultyLevel: 1),
+      Exercise(text: "come become welcome", repetitions: 5, type: ExerciseType.drill, difficultyLevel: 1),
+      Exercise(text: "never move above", repetitions: 5, type: ExerciseType.drill, difficultyLevel: 1),
     ],
   ),
   Lesson(
-    title: "lesson_3", // Translation key for "পাঠ ৩: নিচের সারি"
-    description: "lower_row", // Translation key
-    category: "Bangla",
-    language: "bn",
-    difficultyLevel: 1,
-    exercises: [
-      Exercise(
-          text: "zxcvbnm zxcvbnm",
-          repetitions: 10,
-          type: ExerciseType.drill,
-          difficultyLevel: 1),
-      Exercise(
-          text: "zoo zebra zap; zoo zebra zap",
-          repetitions: 5,
-          type: ExerciseType.drill,
-          difficultyLevel: 1),
-      Exercise(
-          text: "box next mix; box next mix",
-          repetitions: 5,
-          type: ExerciseType.drill,
-          difficultyLevel: 1),
-      Exercise(
-          text: "car cat cab; car cat cab",
-          repetitions: 5,
-          type: ExerciseType.drill,
-          difficultyLevel: 1),
-      Exercise(
-          text: "van vet very; van vet very",
-          repetitions: 5,
-          type: ExerciseType.drill,
-          difficultyLevel: 1),
-    ],
-  ),
-  Lesson(
-    title: "lesson_4", // Translation key for "পাঠ ৪: সাধারণ শব্দ"
-    description: "common_words", // Translation key
-    category: "Bangla",
-    language: "bn",
+    title: "লেসন ৪: সংখ্যা ও চিহ্ন (1234567890)",
+    description: "নম্বর সারি এবং বিশেষ চিহ্নগুলো শিখুন",
+    category: "English",
+    language: "en",
     difficultyLevel: 2,
     exercises: [
-      Exercise(
-          text: "the and that was his with they",
-          repetitions: 5,
-          type: ExerciseType.drill,
-          difficultyLevel: 2),
-      Exercise(
-          text: "for are but had has have him",
-          repetitions: 5,
-          type: ExerciseType.drill,
-          difficultyLevel: 2),
-      Exercise(
-          text: "not she this which you your will",
-          repetitions: 5,
-          type: ExerciseType.drill,
-          difficultyLevel: 2),
-      Exercise(
-          text: "one all were when there can more",
-          repetitions: 5,
-          type: ExerciseType.drill,
-          difficultyLevel: 2),
-      Exercise(
-          text: "if no man out time up very who",
-          repetitions: 5,
-          type: ExerciseType.drill,
-          difficultyLevel: 2),
+      Exercise(text: "1234567890", repetitions: 10, type: ExerciseType.drill, difficultyLevel: 2),
+      Exercise(text: "111 222 333 444 555", repetitions: 8, type: ExerciseType.drill, difficultyLevel: 2),
+      Exercise(text: "666 777 888 999 000", repetitions: 8, type: ExerciseType.drill, difficultyLevel: 2),
+      Exercise(text: "12 34 56 78 90", repetitions: 6, type: ExerciseType.drill, difficultyLevel: 2),
+      Exercise(text: "100 200 300 400 500", repetitions: 6, type: ExerciseType.drill, difficultyLevel: 2),
+      Exercise(text: "2024 2025 2030", repetitions: 5, type: ExerciseType.drill, difficultyLevel: 2),
+      Exercise(text: "Phone: 0123456789", repetitions: 5, type: ExerciseType.drill, difficultyLevel: 2),
+      Exercise(text: "ID: 1234; PIN: 5678", repetitions: 5, type: ExerciseType.drill, difficultyLevel: 2),
     ],
   ),
   Lesson(
-    title: "lesson_5", // Translation key for "পাঠ ৫: সাধারণ বাক্য"
-    description: "common_sentences", // Translation key
-    category: "Bangla",
-    language: "bn",
+    title: "লেসন ৫: সাধারণ ইংরেজি শব্দ",
+    description: "সবচেয়ে বেশি ব্যবহৃত ইংরেজি শব্দগুলো দ্রুত টাইপ করুন",
+    category: "English",
+    language: "en",
+    difficultyLevel: 2,
+    exercises: [
+      Exercise(text: "the and that was his", repetitions: 6, type: ExerciseType.drill, difficultyLevel: 2),
+      Exercise(text: "for are but had have", repetitions: 6, type: ExerciseType.drill, difficultyLevel: 2),
+      Exercise(text: "not she this which you", repetitions: 5, type: ExerciseType.drill, difficultyLevel: 2),
+      Exercise(text: "one all were when there", repetitions: 5, type: ExerciseType.drill, difficultyLevel: 2),
+      Exercise(text: "can more if no man out", repetitions: 5, type: ExerciseType.drill, difficultyLevel: 2),
+      Exercise(text: "time up very who now", repetitions: 5, type: ExerciseType.drill, difficultyLevel: 2),
+      Exercise(text: "people my over know down", repetitions: 5, type: ExerciseType.drill, difficultyLevel: 2),
+      Exercise(text: "after first also made did", repetitions: 5, type: ExerciseType.drill, difficultyLevel: 2),
+    ],
+  ),
+  Lesson(
+    title: "লেসন ৬: ইংরেজি বাক্য ও উক্তি",
+    description: "বিখ্যাত উক্তি ও বাক্য টাইপ করে দক্ষতা বাড়ান",
+    category: "English",
+    language: "en",
     difficultyLevel: 2,
     exercises: [
       Exercise(
         text: "The quick brown fox jumps over the lazy dog.",
-        repetitions: 5,
-        type: ExerciseType.standard,
-        difficultyLevel: 2,
+        repetitions: 5, type: ExerciseType.standard, difficultyLevel: 2,
       ),
       Exercise(
         text: "A journey of a thousand miles begins with a single step.",
-        repetitions: 5,
-        type: ExerciseType.quote,
-        difficultyLevel: 2,
-        source: "Lao Tzu",
+        repetitions: 5, type: ExerciseType.quote, difficultyLevel: 2, source: "Lao Tzu",
       ),
       Exercise(
         text: "To be or not to be, that is the question.",
-        repetitions: 5,
-        type: ExerciseType.quote,
-        difficultyLevel: 2,
-        source: "William Shakespeare, Hamlet",
+        repetitions: 5, type: ExerciseType.quote, difficultyLevel: 2, source: "Shakespeare",
       ),
       Exercise(
         text: "All that glitters is not gold.",
-        repetitions: 5,
-        type: ExerciseType.quote,
-        difficultyLevel: 2,
+        repetitions: 5, type: ExerciseType.standard, difficultyLevel: 2,
       ),
       Exercise(
         text: "The early bird catches the worm.",
-        repetitions: 5,
-        type: ExerciseType.standard,
-        difficultyLevel: 2,
+        repetitions: 5, type: ExerciseType.standard, difficultyLevel: 2,
+      ),
+      Exercise(
+        text: "Practice makes perfect.",
+        repetitions: 5, type: ExerciseType.standard, difficultyLevel: 2,
+      ),
+      Exercise(
+        text: "Knowledge is power.",
+        repetitions: 5, type: ExerciseType.quote, difficultyLevel: 2, source: "Francis Bacon",
+      ),
+      Exercise(
+        text: "Actions speak louder than words.",
+        repetitions: 5, type: ExerciseType.standard, difficultyLevel: 2,
+      ),
+    ],
+  ),
+  
+  // --- LESSON 7: TechZone IT - Professional Paragraph Practice ---
+  Lesson(
+    title: "Lesson 7: TechZone IT - Professional Paragraph",
+    description: "Practice typing professional business descriptions about TechZone IT",
+    category: "English",
+    language: "en",
+    difficultyLevel: 3,
+    exercises: [
+      Exercise(
+        text: "TechZone IT, strategically located in Aditmari, Lalmonirhat, operates on the profound philosophy of providing All Technology Solutions in One Place.",
+        repetitions: 3, type: ExerciseType.paragraph, difficultyLevel: 3,
+      ),
+      Exercise(
+        text: "It is not merely a conventional computer hardware store but a holistic digital ecosystem designed to cater to every conceivable technological requirement of its clientele.",
+        repetitions: 3, type: ExerciseType.paragraph, difficultyLevel: 3,
+      ),
+      Exercise(
+        text: "Its foundation is built upon a robust sales division offering everything from high-performance custom PC builds utilizing the latest Intel and AMD Ryzen processors.",
+        repetitions: 3, type: ExerciseType.paragraph, difficultyLevel: 3,
+      ),
+      Exercise(
+        text: "TechZone IT retails renowned branded laptops from industry giants like HP, Dell, Acer, and Lenovo, alongside an exhaustive array of essential computing components.",
+        repetitions: 3, type: ExerciseType.paragraph, difficultyLevel: 3,
+      ),
+      Exercise(
+        text: "The inventory includes SSDs, RAM, motherboards, processors, PSUs, gaming casings, coolers, monitors, keyboards, mice, and sound systems.",
+        repetitions: 3, type: ExerciseType.paragraph, difficultyLevel: 3,
+      ),
+      Exercise(
+        text: "Beyond core computing hardware, TechZone IT stands as a reliable destination for imaging and documentation solutions from leading brands like Epson, HP, Canon, Brother, and Pantum.",
+        repetitions: 3, type: ExerciseType.paragraph, difficultyLevel: 3,
+      ),
+      Exercise(
+        text: "Experienced technicians meticulously handle complex hardware repairs for desktops and laptops, perform critical data recovery operations from corrupted storage devices.",
+        repetitions: 3, type: ExerciseType.paragraph, difficultyLevel: 3,
+      ),
+      Exercise(
+        text: "TechZone IT truly embodies the essence of a One-Stop technology service provider through a unique synthesis of hardware, software, servicing, networking, and skill development.",
+        repetitions: 3, type: ExerciseType.paragraph, difficultyLevel: 3,
+      ),
+      Exercise(
+        text: "TechZone IT offers comprehensive training programs ranging from basic computer and office applications to all categories of freelancing.",
+        repetitions: 3, type: ExerciseType.paragraph, difficultyLevel: 3,
+      ),
+      Exercise(
+        text: "Training courses include Graphic Design, Web Development, Programming, Custom App Development, Bug Fixing, and Digital Marketing.",
+        repetitions: 3, type: ExerciseType.paragraph, difficultyLevel: 3,
+      ),
+      Exercise(
+        text: "Additionally, modern courses on AI and Automation are provided, helping young professionals build future-ready careers in technology.",
+        repetitions: 3, type: ExerciseType.paragraph, difficultyLevel: 3,
       ),
     ],
   ),
 ];
 
-// Combined lessons (Real Bangla + Keyboard Practice + English)
+// ============================================================
+// COMBINED LESSONS - Final Export
+// Order: English (১-৬) → Bijoy Bangla (৭-২৪) → Phonetic (২৫+)
+// NO DUPLICATES - banglaBijoyLessons removed (content in realBanglaLessons)
+// ============================================================
 final List<Lesson> lessons = [
-  ...realBanglaLessons, // প্রকৃত বাংলা টাইপিং lessons
-  ...phoneticBanglaLessons, // Phonetic Typing lessons
-  ...banglaLessons, // Keyboard drill lessons (English keys)
-  ...englishLessons, // English paragraph lessons
+  ...englishKeyboardLessons,  // লেসন ১-৬: English Keyboard Mastery
+  ...realBanglaLessons,       // লেসন ৭-২৪: Bangla Bijoy Typing (all renamed in Bengali)
+  ...phoneticBanglaLessons,   // লেসন ২৫+: Phonetic Bangla Typing
+  ...englishLessons,          // Additional English paragraph lessons
 ];

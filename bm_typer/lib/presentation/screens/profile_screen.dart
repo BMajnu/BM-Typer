@@ -1,7 +1,8 @@
+import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:bm_typer/core/providers/user_provider.dart';
-import 'package:bm_typer/core/constants/app_colors.dart';
 import 'package:bm_typer/presentation/screens/reminder_settings_screen.dart';
 import 'package:bm_typer/presentation/screens/level_details_screen.dart';
 import 'package:bm_typer/presentation/screens/export_screen.dart';
@@ -15,317 +16,268 @@ class ProfileScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final user = ref.watch(currentUserProvider);
+    final colorScheme = Theme.of(context).colorScheme;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final screenWidth = MediaQuery.of(context).size.width;
+    final isCompact = screenWidth < 600;
 
     if (user == null) {
-      return const Scaffold(
-        body: Center(
-          child: Text('User not found'),
+      return Scaffold(
+        body: Container(
+          decoration: _buildGradientBackground(isDark, colorScheme),
+          child: SafeArea(
+            child: Column(
+              children: [
+                // Back button
+                Align(
+                  alignment: Alignment.topLeft,
+                  child: Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: IconButton(
+                      icon: Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: (isDark ? Colors.white : Colors.black).withOpacity(0.1),
+                          shape: BoxShape.circle,
+                        ),
+                        child: Icon(Icons.arrow_back_ios_new_rounded, size: 18, color: isDark ? Colors.white : Colors.black87),
+                      ),
+                      onPressed: () => Navigator.pop(context),
+                    ),
+                  ),
+                ),
+                
+                Expanded(
+                  child: Center(
+                    child: Padding(
+                      padding: EdgeInsets.all(isCompact ? 24 : 40),
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(24),
+                        child: BackdropFilter(
+                          filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+                          child: Container(
+                            padding: EdgeInsets.all(isCompact ? 24 : 32),
+                            constraints: const BoxConstraints(maxWidth: 400),
+                            decoration: BoxDecoration(
+                              color: (isDark ? Colors.white : Colors.black).withOpacity(isDark ? 0.1 : 0.05),
+                              borderRadius: BorderRadius.circular(24),
+                              border: Border.all(
+                                color: (isDark ? Colors.white : Colors.black).withOpacity(0.1),
+                              ),
+                            ),
+                            child: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                // Icon
+                                Container(
+                                  padding: const EdgeInsets.all(20),
+                                  decoration: BoxDecoration(
+                                    color: colorScheme.primary.withOpacity(0.1),
+                                    shape: BoxShape.circle,
+                                  ),
+                                  child: Icon(
+                                    Icons.person_add_rounded,
+                                    size: 48,
+                                    color: colorScheme.primary,
+                                  ),
+                                ),
+                                
+                                const SizedBox(height: 24),
+                                
+                                Text(
+                                  'প্রোফাইল তৈরি করুন',
+                                  style: GoogleFonts.hindSiliguri(
+                                    fontSize: isCompact ? 22 : 26,
+                                    fontWeight: FontWeight.bold,
+                                    color: isDark ? Colors.white : Colors.black87,
+                                  ),
+                                  textAlign: TextAlign.center,
+                                ),
+                                
+                                const SizedBox(height: 12),
+                                
+                                Text(
+                                  'আপনার অগ্রগতি ট্র্যাক করতে এবং লিডারবোর্ডে যোগ দিতে একটি প্রোফাইল তৈরি করুন।',
+                                  style: GoogleFonts.hindSiliguri(
+                                    fontSize: 14,
+                                    color: (isDark ? Colors.white : Colors.black).withOpacity(0.6),
+                                  ),
+                                  textAlign: TextAlign.center,
+                                ),
+                                
+                                const SizedBox(height: 32),
+                                
+                                // Register Button
+                                SizedBox(
+                                  width: double.infinity,
+                                  child: Container(
+                                    decoration: BoxDecoration(
+                                      borderRadius: BorderRadius.circular(16),
+                                      gradient: LinearGradient(
+                                        colors: [colorScheme.primary, colorScheme.secondary],
+                                      ),
+                                      boxShadow: [
+                                        BoxShadow(
+                                          color: colorScheme.primary.withOpacity(0.4),
+                                          blurRadius: 15,
+                                          offset: const Offset(0, 5),
+                                        ),
+                                      ],
+                                    ),
+                                    child: ElevatedButton.icon(
+                                      onPressed: () {
+                                        Navigator.pushNamed(context, '/register');
+                                      },
+                                      icon: const Icon(Icons.person_add_rounded),
+                                      label: Text(
+                                        'রেজিস্ট্রেশন করুন',
+                                        style: GoogleFonts.hindSiliguri(
+                                          fontSize: 16,
+                                          fontWeight: FontWeight.w600,
+                                        ),
+                                      ),
+                                      style: ElevatedButton.styleFrom(
+                                        backgroundColor: Colors.transparent,
+                                        shadowColor: Colors.transparent,
+                                        foregroundColor: Colors.white,
+                                        padding: const EdgeInsets.symmetric(vertical: 16),
+                                        shape: RoundedRectangleBorder(
+                                          borderRadius: BorderRadius.circular(16),
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                                
+                                const SizedBox(height: 16),
+                                
+                                // Continue as Guest
+                                TextButton(
+                                  onPressed: () {
+                                    Navigator.pop(context);
+                                  },
+                                  child: Text(
+                                    'অতিথি হিসেবে চালিয়ে যান',
+                                    style: GoogleFonts.hindSiliguri(
+                                      fontSize: 14,
+                                      color: colorScheme.primary,
+                                    ),
+                                  ),
+                                ),
+                                
+                                const SizedBox(height: 16),
+                                
+                                // Features list
+                                Container(
+                                  padding: const EdgeInsets.all(16),
+                                  decoration: BoxDecoration(
+                                    color: colorScheme.primary.withOpacity(0.05),
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                  child: Column(
+                                    children: [
+                                      _buildFeatureItem(Icons.trending_up_rounded, 'অগ্রগতি ট্র্যাক', colorScheme, isDark),
+                                      const SizedBox(height: 8),
+                                      _buildFeatureItem(Icons.leaderboard_rounded, 'লিডারবোর্ড', colorScheme, isDark),
+                                      const SizedBox(height: 8),
+                                      _buildFeatureItem(Icons.emoji_events_rounded, 'অ্যাচিভমেন্ট', colorScheme, isDark),
+                                    ],
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
         ),
       );
     }
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('User Profile'),
-      ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Profile header
-            Row(
-              children: [
-                CircleAvatar(
-                  radius: 40,
-                  backgroundColor: AppColors.primaryLegacy,
-                  child: Text(
-                    user.name[0].toUpperCase(),
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 36,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 16),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        user.name,
-                        style:
-                            Theme.of(context).textTheme.headlineSmall?.copyWith(
-                                  fontWeight: FontWeight.bold,
-                                ),
-                      ),
-                      Text(
-                        user.email,
-                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                              color: Colors.grey[600],
-                            ),
-                      ),
-                      const SizedBox(height: 8),
-                      Row(
-                        children: [
-                          _buildProfileStat(context, 'Level', '${user.level}'),
-                          _buildProfileStat(context, 'XP', '${user.xpPoints}'),
-                          _buildProfileStat(context, 'Lessons',
-                              '${user.totalLessonsCompleted}'),
-                        ],
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-
-            const SizedBox(height: 24),
-
-            // XP and Level section
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text(
-                      'Level ${user.level} ${_getLevelTitle(user.level)}',
-                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                            fontWeight: FontWeight.bold,
-                          ),
-                    ),
-                    TextButton(
-                      onPressed: () {
-                        Navigator.of(context).push(
-                          MaterialPageRoute(
-                            builder: (context) => const LevelDetailsScreen(),
-                          ),
-                        );
-                      },
-                      child: const Text('Details'),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 8),
-                const XPProgressBar(),
-                const SizedBox(height: 8),
-                Text(
-                  '${user.xpPoints} XP • ${user.xpToNextLevel} XP to next level',
-                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: Colors.grey[600],
-                      ),
-                ),
-              ],
-            ),
-
-            const SizedBox(height: 24),
-
-            // Daily Streak Section
-            Card(
-              elevation: 2,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(16),
+      body: Container(
+        decoration: _buildGradientBackground(isDark, colorScheme),
+        child: CustomScrollView(
+          slivers: [
+            // Modern App Bar with Glassmorphism
+            SliverAppBar(
+              expandedHeight: isCompact ? 200 : 240,
+              floating: false,
+              pinned: true,
+              backgroundColor: Colors.transparent,
+              flexibleSpace: FlexibleSpaceBar(
+                background: _buildProfileHeader(context, user, colorScheme, isDark, isCompact),
               ),
+              leading: IconButton(
+                icon: Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: Colors.black.withOpacity(0.2),
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(Icons.arrow_back_ios_new_rounded, size: 18, color: Colors.white),
+                ),
+                onPressed: () => Navigator.pop(context),
+              ),
+              actions: [
+                IconButton(
+                  icon: Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: Colors.black.withOpacity(0.2),
+                      shape: BoxShape.circle,
+                    ),
+                    child: Icon(Icons.settings_rounded, size: 20, color: Colors.white),
+                  ),
+                  onPressed: () {},
+                ),
+                const SizedBox(width: 8),
+              ],
+            ),
+            
+            // Content
+            SliverToBoxAdapter(
               child: Padding(
-                padding: const EdgeInsets.all(16.0),
+                padding: EdgeInsets.all(isCompact ? 16 : 24),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Text(
-                          'Daily Streak',
-                          style:
-                              Theme.of(context).textTheme.titleMedium?.copyWith(
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                        ),
-                        IconButton(
-                          icon: const Icon(Icons.notifications_outlined),
-                          onPressed: () {
-                            Navigator.of(context).push(
-                              MaterialPageRoute(
-                                builder: (context) =>
-                                    const ReminderSettingsScreen(),
-                              ),
-                            );
-                          },
-                          tooltip: 'Reminder Settings',
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 8),
-                    StreakCounter(
-                      streak: user.streak,
-                      isActive: user.streakMaintained,
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      user.streakMaintained
-                          ? 'You\'ve practiced ${user.streak} day${user.streak > 1 ? 's' : ''} in a row!'
-                          : 'Practice today to continue your streak!',
-                      style: TextStyle(
-                        color: user.streakMaintained
-                            ? Colors.green[700]
-                            : Colors.orange[700],
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
+                    // Quick Stats Row
+                    _buildQuickStats(context, user, colorScheme, isDark, isCompact),
+                    
+                    const SizedBox(height: 24),
+                    
+                    // XP Progress Section
+                    _buildXPSection(context, user, colorScheme, isDark),
+                    
+                    const SizedBox(height: 24),
+                    
+                    // Daily Streak Section
+                    _buildStreakSection(context, user, colorScheme, isDark),
+                    
+                    const SizedBox(height: 24),
+                    
+                    // Typing Statistics
+                    _buildTypingStatsSection(context, user, colorScheme, isDark),
+                    
+                    const SizedBox(height: 24),
+                    
+                    // Recent Activity
+                    _buildRecentActivitySection(context, user, colorScheme, isDark),
+                    
+                    const SizedBox(height: 24),
+                    
+                    // Action Buttons Row
+                    _buildActionButtons(context, colorScheme, isDark),
+                    
+                    const SizedBox(height: 32),
                   ],
                 ),
-              ),
-            ),
-
-            const SizedBox(height: 24),
-
-            // Typing Statistics
-            _buildTypingStatsSection(context, user),
-
-            const SizedBox(height: 24),
-
-            // Recent Activity
-            _buildRecentActivitySection(context, user),
-
-            const SizedBox(height: 24),
-
-            // Export and Share
-            Card(
-              elevation: 2,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(16),
-              ),
-              child: InkWell(
-                onTap: () {
-                  Navigator.of(context).push(
-                    MaterialPageRoute(
-                      builder: (context) => const ExportScreen(),
-                    ),
-                  );
-                },
-                borderRadius: BorderRadius.circular(16),
-                child: Padding(
-                  padding: const EdgeInsets.all(16.0),
-                  child: Row(
-                    children: [
-                      Container(
-                        width: 48,
-                        height: 48,
-                        decoration: BoxDecoration(
-                          color: Theme.of(context).colorScheme.primaryContainer,
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: Icon(
-                          Icons.ios_share,
-                          color:
-                              Theme.of(context).colorScheme.onPrimaryContainer,
-                        ),
-                      ),
-                      const SizedBox(width: 16),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'Export and Share Progress',
-                              style: Theme.of(context)
-                                  .textTheme
-                                  .titleMedium
-                                  ?.copyWith(
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                            ),
-                            Text(
-                              'Download reports, certificates, and share your achievements',
-                              style: Theme.of(context)
-                                  .textTheme
-                                  .bodySmall
-                                  ?.copyWith(
-                                    color: Colors.grey[600],
-                                  ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      Icon(
-                        Icons.chevron_right,
-                        color: Colors.grey[400],
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ),
-
-            // Add typing test section after the settings section
-            const SizedBox(height: 24),
-
-            // Typing Test Section
-            Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: Theme.of(context)
-                    .colorScheme
-                    .surfaceVariant
-                    .withOpacity(0.3),
-                borderRadius: BorderRadius.circular(16),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Typing Speed Test',
-                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                          fontSize: 20,
-                          fontWeight: FontWeight.bold,
-                          color: Theme.of(context).colorScheme.onSurface,
-                        ),
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    'Test your typing speed and accuracy with our speed test feature.',
-                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                          color: Theme.of(context).colorScheme.onSurfaceVariant,
-                        ),
-                  ),
-                  const SizedBox(height: 16),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: ElevatedButton.icon(
-                          onPressed: () {
-                            Navigator.pushNamed(context, '/typing_test');
-                          },
-                          icon: const Icon(Icons.speed),
-                          label: const Text('Take Speed Test'),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor:
-                                Theme.of(context).colorScheme.primary,
-                            foregroundColor:
-                                Theme.of(context).colorScheme.onPrimary,
-                            padding: const EdgeInsets.symmetric(vertical: 12),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: OutlinedButton.icon(
-                          onPressed: () {
-                            Navigator.pushNamed(
-                                context, '/typing_test_results');
-                          },
-                          icon: const Icon(Icons.analytics_outlined),
-                          label: const Text('View Results'),
-                          style: OutlinedButton.styleFrom(
-                            padding: const EdgeInsets.symmetric(vertical: 12),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
               ),
             ),
           ],
@@ -334,180 +286,616 @@ class ProfileScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildProfileStat(BuildContext context, String label, String value) {
-    return Expanded(
-      child: Column(
-        children: [
-          Text(
-            value,
-            style: Theme.of(context).textTheme.titleMedium?.copyWith(
+  BoxDecoration _buildGradientBackground(bool isDark, ColorScheme colorScheme) {
+    return BoxDecoration(
+      gradient: LinearGradient(
+        begin: Alignment.topCenter,
+        end: Alignment.bottomCenter,
+        colors: isDark
+            ? [
+                const Color(0xFF1a1a2e),
+                const Color(0xFF16213e),
+                const Color(0xFF0f0f1a),
+              ]
+            : [
+                colorScheme.primaryContainer.withOpacity(0.3),
+                colorScheme.surface,
+                colorScheme.surface,
+              ],
+      ),
+    );
+  }
+
+  Widget _buildProfileHeader(BuildContext context, UserModel user, ColorScheme colorScheme, bool isDark, bool isCompact) {
+    return Container(
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            colorScheme.primary,
+            colorScheme.secondary,
+            colorScheme.tertiary ?? colorScheme.primary,
+          ],
+        ),
+      ),
+      child: SafeArea(
+        child: Padding(
+          padding: EdgeInsets.all(isCompact ? 16 : 24),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.end,
+            children: [
+              // Avatar with Level Ring
+              Stack(
+                alignment: Alignment.center,
+                children: [
+                  // Level Ring
+                  Container(
+                    width: isCompact ? 90 : 110,
+                    height: isCompact ? 90 : 110,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      border: Border.all(color: Colors.white.withOpacity(0.3), width: 3),
+                    ),
+                  ),
+                  // Avatar
+                  Container(
+                    width: isCompact ? 80 : 100,
+                    height: isCompact ? 80 : 100,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: Colors.white.withOpacity(0.9),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withOpacity(0.2),
+                          blurRadius: 20,
+                          offset: const Offset(0, 10),
+                        ),
+                      ],
+                    ),
+                    child: Center(
+                      child: Text(
+                        user.name.isNotEmpty ? user.name[0].toUpperCase() : '?',
+                        style: GoogleFonts.poppins(
+                          fontSize: isCompact ? 36 : 44,
+                          fontWeight: FontWeight.bold,
+                          color: colorScheme.primary,
+                        ),
+                      ),
+                    ),
+                  ),
+                  // Level Badge
+                  Positioned(
+                    bottom: 0,
+                    right: 0,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: Colors.amber,
+                        borderRadius: BorderRadius.circular(12),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.amber.withOpacity(0.4),
+                            blurRadius: 8,
+                          ),
+                        ],
+                      ),
+                      child: Text(
+                        'Lv ${user.level}',
+                        style: GoogleFonts.poppins(
+                          fontSize: 12,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.black87,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              
+              SizedBox(height: isCompact ? 12 : 16),
+              
+              // Name
+              Text(
+                user.name,
+                style: GoogleFonts.poppins(
+                  fontSize: isCompact ? 22 : 26,
                   fontWeight: FontWeight.bold,
+                  color: Colors.white,
                 ),
+              ),
+              
+              // Level Title
+              Text(
+                _getLevelTitle(user.level),
+                style: GoogleFonts.hindSiliguri(
+                  fontSize: isCompact ? 14 : 16,
+                  color: Colors.white.withOpacity(0.8),
+                ),
+              ),
+            ],
           ),
-          Text(
-            label,
-            style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  color: Colors.grey[600],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildQuickStats(BuildContext context, UserModel user, ColorScheme colorScheme, bool isDark, bool isCompact) {
+    return Row(
+      children: [
+        Expanded(child: _buildStatPill('${user.xpPoints}', 'XP', Icons.star_rounded, Colors.amber, isDark)),
+        const SizedBox(width: 12),
+        Expanded(child: _buildStatPill('${user.streak}', 'Streak', Icons.local_fire_department_rounded, Colors.orange, isDark)),
+        const SizedBox(width: 12),
+        Expanded(child: _buildStatPill('${user.totalLessonsCompleted}', 'Lessons', Icons.menu_book_rounded, colorScheme.primary, isDark)),
+      ],
+    );
+  }
+
+  Widget _buildStatPill(String value, String label, IconData icon, Color color, bool isDark) {
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(16),
+      child: BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 5, sigmaY: 5),
+        child: Container(
+          padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 12),
+          decoration: BoxDecoration(
+            color: (isDark ? Colors.white : Colors.black).withOpacity(isDark ? 0.1 : 0.05),
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: color.withOpacity(0.3)),
+          ),
+          child: Column(
+            children: [
+              Icon(icon, color: color, size: 24),
+              const SizedBox(height: 8),
+              Text(
+                value,
+                style: GoogleFonts.poppins(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  color: isDark ? Colors.white : Colors.black87,
                 ),
+              ),
+              Text(
+                label,
+                style: GoogleFonts.hindSiliguri(
+                  fontSize: 12,
+                  color: (isDark ? Colors.white : Colors.black).withOpacity(0.6),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildXPSection(BuildContext context, UserModel user, ColorScheme colorScheme, bool isDark) {
+    return _buildGlassCard(
+      isDark: isDark,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                'Level ${user.level} • ${_getLevelTitle(user.level)}',
+                style: GoogleFonts.poppins(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
+                  color: isDark ? Colors.white : Colors.black87,
+                ),
+              ),
+              TextButton(
+                onPressed: () {
+                  Navigator.of(context).push(
+                    MaterialPageRoute(builder: (context) => const LevelDetailsScreen()),
+                  );
+                },
+                child: Text('বিস্তারিত', style: GoogleFonts.hindSiliguri()),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          const XPProgressBar(),
+          const SizedBox(height: 8),
+          Text(
+            '${user.xpPoints} XP • পরবর্তী লেভেলে ${user.xpToNextLevel} XP বাকি',
+            style: GoogleFonts.hindSiliguri(
+              fontSize: 13,
+              color: (isDark ? Colors.white : Colors.black).withOpacity(0.6),
+            ),
           ),
         ],
       ),
     );
   }
 
-  Widget _buildTypingStatsSection(BuildContext context, UserModel user) {
-    return Card(
-      elevation: 2,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'Typing Statistics',
-              style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.bold,
+  Widget _buildStreakSection(BuildContext context, UserModel user, ColorScheme colorScheme, bool isDark) {
+    return _buildGlassCard(
+      isDark: isDark,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Row(
+                children: [
+                  Icon(Icons.local_fire_department_rounded, color: Colors.orange, size: 24),
+                  const SizedBox(width: 8),
+                  Text(
+                    'ডেইলি স্ট্রিক',
+                    style: GoogleFonts.hindSiliguri(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                      color: isDark ? Colors.white : Colors.black87,
+                    ),
                   ),
+                ],
+              ),
+              IconButton(
+                icon: Icon(Icons.notifications_outlined, color: colorScheme.primary),
+                onPressed: () {
+                  Navigator.of(context).push(
+                    MaterialPageRoute(builder: (context) => const ReminderSettingsScreen()),
+                  );
+                },
+                tooltip: 'রিমাইন্ডার সেটিংস',
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          StreakCounter(
+            streak: user.streak,
+            isActive: user.streakMaintained,
+          ),
+          const SizedBox(height: 12),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            decoration: BoxDecoration(
+              color: (user.streakMaintained ? Colors.green : Colors.orange).withOpacity(0.1),
+              borderRadius: BorderRadius.circular(8),
             ),
-            const SizedBox(height: 16),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceAround,
+            child: Row(
               children: [
-                _buildStatCard(
-                  context,
-                  icon: Icons.speed,
-                  label: 'Best WPM',
-                  value: '${user.highestWpm.toStringAsFixed(1)}',
+                Icon(
+                  user.streakMaintained ? Icons.check_circle_rounded : Icons.info_outline_rounded,
+                  color: user.streakMaintained ? Colors.green : Colors.orange,
+                  size: 18,
                 ),
-                _buildStatCard(
-                  context,
-                  icon: Icons.av_timer,
-                  label: 'Average WPM',
-                  value: '${user.averageWpm.toStringAsFixed(1)}',
-                ),
-                _buildStatCard(
-                  context,
-                  icon: Icons.book,
-                  label: 'Lessons',
-                  value: '${user.totalLessonsCompleted}',
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    user.streakMaintained
+                        ? 'আপনি ${user.streak} দিন ধরে প্র্যাক্টিস করছেন!'
+                        : 'আজ প্র্যাক্টিস করুন এবং স্ট্রিক চালিয়ে যান!',
+                    style: GoogleFonts.hindSiliguri(
+                      fontSize: 13,
+                      color: user.streakMaintained ? Colors.green[700] : Colors.orange[700],
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
                 ),
               ],
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
 
-  Widget _buildStatCard(
-    BuildContext context, {
-    required IconData icon,
-    required String label,
-    required String value,
-  }) {
-    return Column(
-      children: [
-        Container(
-          padding: const EdgeInsets.all(12),
-          decoration: BoxDecoration(
-            color: AppColors.primaryLegacy.withOpacity(0.1),
-            borderRadius: BorderRadius.circular(12),
+  Widget _buildTypingStatsSection(BuildContext context, UserModel user, ColorScheme colorScheme, bool isDark) {
+    return _buildGlassCard(
+      isDark: isDark,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'টাইপিং পরিসংখ্যান',
+            style: GoogleFonts.hindSiliguri(
+              fontSize: 16,
+              fontWeight: FontWeight.w600,
+              color: isDark ? Colors.white : Colors.black87,
+            ),
           ),
-          child: Icon(
-            icon,
-            color: AppColors.primaryLegacy,
-            size: 28,
-          ),
-        ),
-        const SizedBox(height: 8),
-        Text(
-          value,
-          style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                fontWeight: FontWeight.bold,
+          const SizedBox(height: 16),
+          Row(
+            children: [
+              Expanded(
+                child: _buildTypingStat(
+                  icon: Icons.speed_rounded,
+                  value: '${user.highestWpm.toStringAsFixed(0)}',
+                  label: 'সর্বোচ্চ WPM',
+                  color: Colors.green,
+                  isDark: isDark,
+                ),
               ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: _buildTypingStat(
+                  icon: Icons.av_timer_rounded,
+                  value: '${user.averageWpm.toStringAsFixed(0)}',
+                  label: 'গড় WPM',
+                  color: Colors.blue,
+                  isDark: isDark,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: _buildTypingStat(
+                  icon: Icons.check_circle_rounded,
+                  value: '${user.totalLessonsCompleted}',
+                  label: 'সম্পন্ন',
+                  color: colorScheme.primary,
+                  isDark: isDark,
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildTypingStat({
+    required IconData icon,
+    required String value,
+    required String label,
+    required Color color,
+    required bool isDark,
+  }) {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Column(
+        children: [
+          Icon(icon, color: color, size: 24),
+          const SizedBox(height: 8),
+          Text(
+            value,
+            style: GoogleFonts.poppins(
+              fontSize: 20,
+              fontWeight: FontWeight.bold,
+              color: isDark ? Colors.white : Colors.black87,
+            ),
+          ),
+          Text(
+            label,
+            style: GoogleFonts.hindSiliguri(
+              fontSize: 11,
+              color: (isDark ? Colors.white : Colors.black).withOpacity(0.6),
+            ),
+            textAlign: TextAlign.center,
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildRecentActivitySection(BuildContext context, UserModel user, ColorScheme colorScheme, bool isDark) {
+    final recentSessions = user.typingSessions.reversed.take(5).toList();
+
+    return _buildGlassCard(
+      isDark: isDark,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'সাম্প্রতিক কার্যকলাপ',
+            style: GoogleFonts.hindSiliguri(
+              fontSize: 16,
+              fontWeight: FontWeight.w600,
+              color: isDark ? Colors.white : Colors.black87,
+            ),
+          ),
+          const SizedBox(height: 16),
+          recentSessions.isEmpty
+              ? Container(
+                  padding: const EdgeInsets.all(24),
+                  child: Center(
+                    child: Column(
+                      children: [
+                        Icon(Icons.history_rounded, size: 40, color: colorScheme.primary.withOpacity(0.4)),
+                        const SizedBox(height: 12),
+                        Text(
+                          'এখনও কোনো কার্যকলাপ নেই\nকিছু লেসন সম্পূর্ণ করুন!',
+                          style: GoogleFonts.hindSiliguri(
+                            color: (isDark ? Colors.white : Colors.black).withOpacity(0.5),
+                          ),
+                          textAlign: TextAlign.center,
+                        ),
+                      ],
+                    ),
+                  ),
+                )
+              : ListView.separated(
+                  shrinkWrap: true,
+                  physics: const NeverScrollableScrollPhysics(),
+                  itemCount: recentSessions.length,
+                  separatorBuilder: (context, index) => Divider(
+                    color: (isDark ? Colors.white : Colors.black).withOpacity(0.1),
+                  ),
+                  itemBuilder: (context, index) {
+                    final session = recentSessions[index];
+                    return Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 8),
+                      child: Row(
+                        children: [
+                          Container(
+                            width: 40,
+                            height: 40,
+                            decoration: BoxDecoration(
+                              color: colorScheme.primary.withOpacity(0.1),
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                            child: Icon(Icons.keyboard_rounded, color: colorScheme.primary, size: 20),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  session.completedLesson ?? 'টাইপিং প্র্যাক্টিস',
+                                  style: GoogleFonts.hindSiliguri(
+                                    fontWeight: FontWeight.w600,
+                                    color: isDark ? Colors.white : Colors.black87,
+                                  ),
+                                ),
+                                Text(
+                                  _formatDate(session.timestamp),
+                                  style: GoogleFonts.hindSiliguri(
+                                    fontSize: 12,
+                                    color: (isDark ? Colors.white : Colors.black).withOpacity(0.5),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          Column(
+                            crossAxisAlignment: CrossAxisAlignment.end,
+                            children: [
+                              Text(
+                                '${session.wpm.toStringAsFixed(0)} WPM',
+                                style: GoogleFonts.poppins(
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.green,
+                                ),
+                              ),
+                              Text(
+                                '${session.accuracy.toStringAsFixed(0)}%',
+                                style: GoogleFonts.poppins(
+                                  fontSize: 12,
+                                  color: (isDark ? Colors.white : Colors.black).withOpacity(0.5),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    );
+                  },
+                ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildActionButtons(BuildContext context, ColorScheme colorScheme, bool isDark) {
+    return Row(
+      children: [
+        Expanded(
+          child: _buildActionButton(
+            context,
+            icon: Icons.speed_rounded,
+            label: 'স্পিড টেস্ট',
+            color: colorScheme.primary,
+            isDark: isDark,
+            onTap: () => Navigator.pushNamed(context, '/typing_test'),
+          ),
         ),
-        Text(
-          label,
-          style: Theme.of(context).textTheme.bodySmall,
+        const SizedBox(width: 12),
+        Expanded(
+          child: _buildActionButton(
+            context,
+            icon: Icons.ios_share_rounded,
+            label: 'এক্সপোর্ট',
+            color: colorScheme.secondary,
+            isDark: isDark,
+            onTap: () => Navigator.of(context).push(
+              MaterialPageRoute(builder: (context) => const ExportScreen()),
+            ),
+          ),
         ),
       ],
     );
   }
 
-  Widget _buildRecentActivitySection(BuildContext context, UserModel user) {
-    final recentSessions = user.typingSessions.reversed.take(5).toList();
-
-    return Card(
-      elevation: 2,
-      shape: RoundedRectangleBorder(
+  Widget _buildActionButton(BuildContext context, {
+    required IconData icon,
+    required String label,
+    required Color color,
+    required bool isDark,
+    required VoidCallback onTap,
+  }) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
         borderRadius: BorderRadius.circular(16),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'Recent Activity',
-              style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.bold,
-                  ),
+        child: Container(
+          padding: const EdgeInsets.symmetric(vertical: 16),
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              colors: [color, color.withOpacity(0.7)],
             ),
-            const SizedBox(height: 16),
-            recentSessions.isEmpty
-                ? const Center(
-                    child: Padding(
-                      padding: EdgeInsets.all(16.0),
-                      child: Text(
-                          'No recent activity yet. Complete some lessons!'),
-                    ),
-                  )
-                : ListView.separated(
-                    shrinkWrap: true,
-                    physics: const NeverScrollableScrollPhysics(),
-                    itemCount: recentSessions.length,
-                    separatorBuilder: (context, index) => const Divider(),
-                    itemBuilder: (context, index) {
-                      final session = recentSessions[index];
-                      return ListTile(
-                        contentPadding: EdgeInsets.zero,
-                        title: Text(
-                          session.completedLesson ?? 'Typing Practice',
-                          style: const TextStyle(
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                        subtitle: Text(
-                          _formatDate(session.timestamp),
-                        ),
-                        trailing: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          crossAxisAlignment: CrossAxisAlignment.end,
-                          children: [
-                            Text(
-                              '${session.wpm.toStringAsFixed(1)} WPM',
-                              style: const TextStyle(
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                            Text(
-                              '${session.accuracy.toStringAsFixed(1)}% accuracy',
-                              style: TextStyle(
-                                fontSize: 12,
-                                color: Colors.grey[600],
-                              ),
-                            ),
-                          ],
-                        ),
-                      );
-                    },
-                  ),
-          ],
+            borderRadius: BorderRadius.circular(16),
+            boxShadow: [
+              BoxShadow(
+                color: color.withOpacity(0.3),
+                blurRadius: 12,
+                offset: const Offset(0, 4),
+              ),
+            ],
+          ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(icon, color: Colors.white),
+              const SizedBox(width: 8),
+              Text(
+                label,
+                style: GoogleFonts.hindSiliguri(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                  color: Colors.white,
+                ),
+              ),
+            ],
+          ),
         ),
       ),
+    );
+  }
+
+  Widget _buildGlassCard({required bool isDark, required Widget child}) {
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(20),
+      child: BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+        child: Container(
+          padding: const EdgeInsets.all(20),
+          decoration: BoxDecoration(
+            color: (isDark ? Colors.white : Colors.black).withOpacity(isDark ? 0.1 : 0.05),
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(
+              color: (isDark ? Colors.white : Colors.black).withOpacity(0.1),
+            ),
+          ),
+          child: child,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildFeatureItem(IconData icon, String text, ColorScheme colorScheme, bool isDark) {
+    return Row(
+      children: [
+        Icon(icon, size: 20, color: colorScheme.primary),
+        const SizedBox(width: 12),
+        Text(
+          text,
+          style: GoogleFonts.hindSiliguri(
+            fontSize: 13,
+            color: (isDark ? Colors.white : Colors.black).withOpacity(0.7),
+          ),
+        ),
+      ],
     );
   }
 
@@ -517,11 +905,11 @@ class ProfileScreen extends ConsumerWidget {
 
     if (difference.inDays == 0) {
       if (difference.inHours == 0) {
-        return '${difference.inMinutes} minutes ago';
+        return '${difference.inMinutes} মিনিট আগে';
       }
-      return '${difference.inHours} hours ago';
+      return '${difference.inHours} ঘন্টা আগে';
     } else if (difference.inDays == 1) {
-      return 'Yesterday';
+      return 'গতকাল';
     } else {
       return '${date.day}/${date.month}/${date.year}';
     }
@@ -529,19 +917,19 @@ class ProfileScreen extends ConsumerWidget {
 
   String _getLevelTitle(int level) {
     if (level < 3) {
-      return 'Beginner';
+      return 'শিক্ষানবিশ';
     } else if (level < 6) {
-      return 'Apprentice';
+      return 'প্রশিক্ষণার্থী';
     } else if (level < 10) {
-      return 'Skilled Typist';
+      return 'দক্ষ টাইপিস্ট';
     } else if (level < 15) {
-      return 'Expert Typist';
+      return 'বিশেষজ্ঞ টাইপিস্ট';
     } else if (level < 20) {
-      return 'Master Typist';
+      return 'মাস্টার টাইপিস্ট';
     } else if (level < 30) {
-      return 'Grandmaster';
+      return 'গ্র্যান্ডমাস্টার';
     } else {
-      return 'Legendary Typist';
+      return 'কিংবদন্তি টাইপিস্ট';
     }
   }
 }

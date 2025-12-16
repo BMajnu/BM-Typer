@@ -1,0 +1,112 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // ===== HELPER FUNCTIONS =====
+    
+    // Check if user is authenticated
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    // Check if user is the owner
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+    
+    // Check if user is admin
+    function isAdmin() {
+      return isAuthenticated() && 
+        exists(/databases/$(database)/documents/admin_users/$(request.auth.uid));
+    }
+    
+    // Check if user is developer (super admin)
+    function isDeveloper() {
+      return isAdmin() && 
+        get(/databases/$(database)/documents/admin_users/$(request.auth.uid)).data.role == 'developer';
+    }
+    
+    // Check if user belongs to organization
+    function isOrgMember(orgId) {
+      return isAuthenticated() && 
+        exists(/databases/$(database)/documents/organizations/$(orgId)/members/$(request.auth.uid));
+    }
+    
+    // Check if user is org admin
+    function isOrgAdmin(orgId) {
+      return isOrgMember(orgId) && 
+        get(/databases/$(database)/documents/organizations/$(orgId)/members/$(request.auth.uid)).data.role == 'admin';
+    }
+    
+    // ===== USER COLLECTION =====
+    match /users/{userId} {
+      // Users can read/write their own data
+      allow read: if isOwner(userId) || isAdmin();
+      allow create: if isOwner(userId);
+      allow update: if isOwner(userId) || isAdmin();
+      allow delete: if isAdmin();
+      
+      // User sessions subcollection
+      match /sessions/{sessionId} {
+        allow read, write: if isOwner(userId) || isAdmin();
+      }
+    }
+    
+    // ===== LEADERBOARD COLLECTION =====
+    match /leaderboard/{entryId} {
+      // Anyone authenticated can read leaderboard
+      allow read: if isAuthenticated();
+      // Only authenticated users can submit entries
+      allow create: if isAuthenticated() && request.resource.data.userId == request.auth.uid;
+      // Users can update/delete their own entries
+      allow update, delete: if isAuthenticated() && resource.data.userId == request.auth.uid;
+      // Admins can manage any entry
+      allow write: if isAdmin();
+    }
+    
+    // ===== SUBSCRIPTIONS COLLECTION =====
+    match /subscriptions/{subscriptionId} {
+      // Users can read their own subscriptions
+      allow read: if isAuthenticated() && resource.data.userId == request.auth.uid;
+      // Only admins can create/update/delete subscriptions
+      allow write: if isAdmin();
+    }
+    
+    // ===== ORGANIZATIONS COLLECTION =====
+    match /organizations/{orgId} {
+      // Org members can read org info
+      allow read: if isOrgMember(orgId) || isAdmin();
+      // Only admins can create/update/delete orgs
+      allow write: if isAdmin();
+      
+      // Members subcollection
+      match /members/{memberId} {
+        allow read: if isOrgMember(orgId) || isAdmin();
+        allow write: if isOrgAdmin(orgId) || isAdmin();
+      }
+    }
+    
+    // ===== APP CONFIG COLLECTION =====
+    match /app_config/{configDoc} {
+      // Anyone can read app config (version, features, etc.)
+      allow read: if true;
+      // Only developers can write app config
+      allow write: if isDeveloper();
+    }
+    
+    // ===== ADMIN USERS COLLECTION =====
+    match /admin_users/{adminId} {
+      // Only developers can read/write admin users
+      allow read: if isAdmin();
+      allow write: if isDeveloper();
+    }
+    
+    // ===== NOTIFICATIONS COLLECTION =====
+    match /notifications/{notifId} {
+      // Anyone authenticated can read notifications
+      allow read: if isAuthenticated();
+      // Only admins can create/update/delete notifications
+      allow write: if isAdmin();
+    }
+  }
+}

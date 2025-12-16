@@ -1,10 +1,14 @@
+import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:bm_typer/core/constants/app_colors.dart';
-import 'package:bm_typer/core/constants/app_text_styles.dart';
+import 'package:bm_typer/core/theme/theme.dart';
+import 'package:bm_typer/core/constants/app_colors.dart' as legacy_colors;
 import 'package:bm_typer/core/models/lesson_model.dart';
 
-class TypingArea extends StatelessWidget {
+/// আধুনিক টাইপিং এরিয়া উইজেট
+/// 
+/// গ্লাসমরফিজম ইফেক্ট এবং উন্নত অ্যানিমেশন সহ।
+class TypingArea extends StatefulWidget {
   final String text;
   final int currentIndex;
   final List<int> incorrectIndices;
@@ -12,6 +16,7 @@ class TypingArea extends StatelessWidget {
   final VoidCallback onTap;
   final ExerciseType exerciseType;
   final String? source;
+  final String? pendingPreBaseVowel;
 
   const TypingArea({
     super.key,
@@ -22,192 +27,198 @@ class TypingArea extends StatelessWidget {
     required this.onTap,
     required this.exerciseType,
     this.source,
+    this.pendingPreBaseVowel,
   });
 
-  bool get isParagraph => exerciseType == ExerciseType.paragraph;
-  bool get isMultiLine => text.contains('\n');
+  @override
+  State<TypingArea> createState() => _TypingAreaState();
+}
+
+class _TypingAreaState extends State<TypingArea> with SingleTickerProviderStateMixin {
+  late AnimationController _cursorController;
+  
+  bool get isParagraph => widget.exerciseType == ExerciseType.paragraph;
+  bool get isMultiLine => widget.text.contains('\n');
+
+  @override
+  void initState() {
+    super.initState();
+    _cursorController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 600),
+    )..repeat(reverse: true);
+  }
+
+  @override
+  void dispose() {
+    _cursorController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final isDarkMode = theme.brightness == Brightness.dark;
     final colorScheme = theme.colorScheme;
-    final surfaceColor = isDarkMode
-        ? colorScheme.surfaceVariant.withOpacity(0.7)
-        : colorScheme.surface;
-    final borderColor = colorScheme.outline.withOpacity(0.2);
 
     return GestureDetector(
-      onTap: onTap,
+      onTap: widget.onTap,
       child: AnimatedContainer(
-        duration: const Duration(milliseconds: 300),
-        width: double.infinity,
-        height: isParagraph ? null : 150,
-        padding: const EdgeInsets.all(24),
-        margin: const EdgeInsets.symmetric(horizontal: 16),
-        decoration: BoxDecoration(
-          color: surfaceColor,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(
-            color:
-                isFocused ? colorScheme.primary.withOpacity(0.6) : borderColor,
-            width: isFocused ? 2 : 1,
-          ),
-          boxShadow: [
-            BoxShadow(
-              color: colorScheme.shadow.withOpacity(isDarkMode ? 0.3 : 0.1),
-              blurRadius: 8,
-              offset: const Offset(0, 3),
-            ),
-          ],
+        duration: AppDurations.medium,
+        curve: Curves.easeOutCubic,
+        width: double.infinity, // Full width
+        constraints: BoxConstraints(
+          minHeight: isParagraph ? 200 : 100,
         ),
-        child: Stack(
-          children: [
-            Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                crossAxisAlignment: CrossAxisAlignment.start,
+        margin: EdgeInsets.symmetric(horizontal: AppSpacing.sm), // Reduced margin
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(AppSizes.radiusMd),
+          child: BackdropFilter(
+            filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+            child: AnimatedContainer(
+              duration: AppDurations.medium,
+              padding: EdgeInsets.all(AppSpacing.xxl),
+              decoration: BoxDecoration(
+                // Glassmorphism effect
+                gradient: LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: isDarkMode
+                      ? [
+                          AppColors.glassWhiteDark,
+                          AppColors.glassWhiteDark.withOpacity(0.05),
+                        ]
+                      : [
+                          Colors.white.withOpacity(0.9),
+                          Colors.white.withOpacity(0.7),
+                        ],
+                ),
+                borderRadius: BorderRadius.circular(AppSizes.radiusLg),
+                border: Border.all(
+                  color: widget.isFocused
+                      ? colorScheme.primary.withOpacity(0.6)
+                      : (isDarkMode ? AppColors.glassBorderDark : AppColors.glassBorder),
+                  width: widget.isFocused ? 2 : 1,
+                ),
+                boxShadow: [
+                  BoxShadow(
+                    color: isDarkMode 
+                        ? AppColors.glassShadowDark 
+                        : AppColors.glassShadow,
+                    blurRadius: 20,
+                    offset: const Offset(0, 8),
+                  ),
+                  if (widget.isFocused)
+                    BoxShadow(
+                      color: colorScheme.primary.withOpacity(0.2),
+                      blurRadius: 24,
+                      offset: const Offset(0, 4),
+                    ),
+                ],
+              ),
+              child: Stack(
                 children: [
-                  // Source citation if available
-                  if (source != null && source!.isNotEmpty)
-                    Padding(
-                      padding: const EdgeInsets.only(bottom: 12.0),
-                      child: Text(
-                        'Source: $source',
-                        style: TextStyle(
-                          fontSize: 12,
-                          fontStyle: FontStyle.italic,
-                          color: colorScheme.onSurfaceVariant,
-                        ),
-                      ),
+                  // Progress indicator at top
+                  if (widget.isFocused && widget.text.isNotEmpty)
+                    Positioned(
+                      top: 0,
+                      left: 0,
+                      right: 0,
+                      child: _buildProgressBar(colorScheme),
                     ),
 
-                  // Main typing content
-                  isMultiLine || isParagraph
-                      ? _buildParagraphText(context)
-                      : Center(
-                          child: RichText(
-                            text: TextSpan(
-                              style: GoogleFonts.notoSans(
-                                fontSize: 32.0, // Increased font size
-                                fontWeight: FontWeight.w500,
-                                color: colorScheme.onSurface.withOpacity(0.8),
-                                letterSpacing: 1.2,
-                                height: 1.5,
-                              ),
-                              children: _buildTextSpans(context),
-                            ),
-                          ),
-                        ),
+                  // Main content
+                  Padding(
+                    padding: EdgeInsets.only(top: widget.isFocused ? AppSpacing.lg : 0),
+                    child: Center(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        crossAxisAlignment: CrossAxisAlignment.center,
+                        children: [
+                          // Source citation
+                          if (widget.source != null && widget.source!.isNotEmpty)
+                            _buildSourceCitation(colorScheme),
+
+                          // Main typing content
+                          isMultiLine || isParagraph
+                              ? _buildParagraphText(context)
+                              : _buildSingleLineText(context),
+                        ],
+                      ),
+                    ),
+                  ),
+
+                  // Click to focus overlay
+                  if (!widget.isFocused)
+                    _buildFocusOverlay(context, isDarkMode, colorScheme),
                 ],
               ),
             ),
+          ),
+        ),
+      ),
+    );
+  }
 
-            // Overlay when not focused with animated opacity
-            AnimatedOpacity(
-              opacity: !isFocused ? 1.0 : 0.0,
-              duration: const Duration(milliseconds: 300),
-              child: Container(
-                decoration: BoxDecoration(
-                  color: (isDarkMode ? Colors.black : Colors.white)
-                      .withOpacity(0.8),
-                  borderRadius: BorderRadius.circular(16),
-                ),
-                child: SingleChildScrollView(
-                  child: Center(
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        const SizedBox(height: 16),
-                        Icon(
-                          Icons.keyboard,
-                          size: 48,
-                          color: colorScheme.primary,
-                        ),
-                        const SizedBox(height: 16),
-                        Text(
-                          isParagraph
-                              ? 'অনুচ্ছেদ টাইপিং শুরু করতে এখানে ক্লিক করুন'
-                              : 'অনুশীলন শুরু করতে এখানে ক্লিক করুন',
-                          style: TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
-                            color: colorScheme.onSurface,
-                          ),
-                        ),
-                        const SizedBox(height: 12),
-                        // Tips section
-                        Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 24.0),
-                          child: Column(
-                            children: [
-                              _buildTip(
-                                  context,
-                                  'আপনার আঙুলগুলি হোম রো-তে রাখুন (ASDF JKL;)',
-                                  Icons.keyboard_alt_outlined),
-                              const SizedBox(height: 8),
-                              _buildTip(context, 'কীবোর্ড নয়, স্ক্রিনে তাকান',
-                                  Icons.visibility),
-                              const SizedBox(height: 8),
-                              _buildTip(
-                                  context,
-                                  'সঠিক আঙ্গুল দিয়ে সঠিক কী টিপুন',
-                                  Icons.touch_app),
-                            ],
-                          ),
-                        ),
-                        const SizedBox(height: 16),
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 24, vertical: 10),
-                          decoration: BoxDecoration(
-                            color: colorScheme.primaryContainer,
-                            borderRadius: BorderRadius.circular(24),
-                            boxShadow: [
-                              BoxShadow(
-                                color: colorScheme.shadow.withOpacity(0.2),
-                                blurRadius: 4,
-                                offset: const Offset(0, 2),
-                              ),
-                            ],
-                          ),
-                          child: Text(
-                            'শুরু করুন',
-                            style: GoogleFonts.notoSans(
-                              fontSize: 16,
-                              fontWeight: FontWeight.bold,
-                              color: colorScheme.onPrimaryContainer,
-                            ),
-                          ),
-                        ),
-                        const SizedBox(height: 16),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-            ),
+  Widget _buildProgressBar(ColorScheme colorScheme) {
+    final progress = widget.text.isEmpty ? 0.0 : widget.currentIndex / widget.text.length;
+    
+    return Container(
+      height: 4,
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(2),
+        color: colorScheme.surfaceContainerHighest,
+      ),
+      child: FractionallySizedBox(
+        alignment: Alignment.centerLeft,
+        widthFactor: progress,
+        child: Container(
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(2),
+            gradient: AppColors.primaryGradient,
+          ),
+        ),
+      ),
+    );
+  }
 
-            // Current progress indicator
-            if (isFocused && text.isNotEmpty)
-              Positioned(
-                top: 0,
-                left: 0,
-                right: 0,
-                child: Padding(
-                  padding: const EdgeInsets.only(bottom: 8.0),
-                  child: ClipRRect(
-                    borderRadius: BorderRadius.circular(4),
-                    child: LinearProgressIndicator(
-                      value: text.isEmpty ? 0 : currentIndex / text.length,
-                      backgroundColor: colorScheme.surfaceVariant,
-                      color: colorScheme.primary,
-                      minHeight: 4,
-                    ),
-                  ),
-                ),
-              ),
-          ],
+  Widget _buildSourceCitation(ColorScheme colorScheme) {
+    return Padding(
+      padding: EdgeInsets.only(bottom: AppSpacing.md),
+      child: Container(
+        padding: EdgeInsets.symmetric(
+          horizontal: AppSpacing.md,
+          vertical: AppSpacing.xs,
+        ),
+        decoration: BoxDecoration(
+          color: colorScheme.surfaceContainerHighest.withOpacity(0.5),
+          borderRadius: BorderRadius.circular(AppSizes.radiusFull),
+        ),
+        child: Text(
+          'উৎস: ${widget.source}',
+          style: AppTypography.labelSmall(context).copyWith(
+            fontStyle: FontStyle.italic,
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSingleLineText(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    
+    return Center(
+      child: RichText(
+        textAlign: TextAlign.center,
+        text: TextSpan(
+          style: GoogleFonts.notoSansBengali(
+            fontSize: 36.0,
+            fontWeight: FontWeight.w500,
+            color: colorScheme.onSurface.withOpacity(0.9),
+            letterSpacing: 2,
+            height: 1.6,
+          ),
+          children: _buildTextSpans(context),
         ),
       ),
     );
@@ -217,17 +228,16 @@ class TypingArea extends StatelessWidget {
     final colorScheme = Theme.of(context).colorScheme;
 
     if (!isMultiLine) {
-      // For single-line paragraphs, wrap with padding and use RichText
       return Padding(
-        padding: const EdgeInsets.symmetric(vertical: 8.0),
+        padding: EdgeInsets.symmetric(vertical: AppSpacing.sm),
         child: RichText(
           text: TextSpan(
-            style: GoogleFonts.notoSans(
-              fontSize: 28.0, // Increased font size
+            style: GoogleFonts.notoSansBengali(
+              fontSize: 28.0,
               fontWeight: FontWeight.w500,
-              color: colorScheme.onSurface.withOpacity(0.8),
-              letterSpacing: 1.2,
-              height: 1.5,
+              color: colorScheme.onSurface.withOpacity(0.9),
+              letterSpacing: 1.5,
+              height: 1.6,
             ),
             children: _buildTextSpans(context),
           ),
@@ -235,8 +245,7 @@ class TypingArea extends StatelessWidget {
       );
     }
 
-    // For multi-line text, split by newlines and create separate RichText widgets
-    final lines = text.split('\n');
+    final lines = widget.text.split('\n');
     int charOffset = 0;
 
     return Column(
@@ -247,18 +256,18 @@ class TypingArea extends StatelessWidget {
           charOffset,
           charOffset + line.length,
         );
-        charOffset += line.length + 1; // +1 for the newline character
+        charOffset += line.length + 1;
 
         return Padding(
-          padding: const EdgeInsets.symmetric(vertical: 4.0),
+          padding: EdgeInsets.symmetric(vertical: AppSpacing.xs),
           child: RichText(
             text: TextSpan(
-              style: GoogleFonts.notoSans(
-                fontSize: 24.0, // Slightly smaller for multi-line
+              style: GoogleFonts.notoSansBengali(
+                fontSize: 24.0,
                 fontWeight: FontWeight.w500,
-                color: colorScheme.onSurface.withOpacity(0.8),
-                letterSpacing: 1.2,
-                height: 1.5,
+                color: colorScheme.onSurface.withOpacity(0.9),
+                letterSpacing: 1.5,
+                height: 1.6,
               ),
               children: lineSpans,
             ),
@@ -269,85 +278,247 @@ class TypingArea extends StatelessWidget {
   }
 
   List<TextSpan> _buildTextSpans(BuildContext context) {
-    return _buildTextSpansForRange(context, 0, text.length);
+    return _buildTextSpansForRange(context, 0, widget.text.length);
   }
 
-  List<TextSpan> _buildTextSpansForRange(
-      BuildContext context, int start, int end) {
+  List<TextSpan> _buildTextSpansForRange(BuildContext context, int start, int end) {
     final List<TextSpan> spans = [];
     final colorScheme = Theme.of(context).colorScheme;
     final isDark = colorScheme.brightness == Brightness.dark;
 
-    for (int i = start; i < end; i++) {
-      final char = text[i];
-      TextStyle style;
+    const preBaseVowels = ['ি', 'ে', 'ৈ'];
+    const postBaseVowels = ['া', 'ী', 'ু', 'ূ', 'ৃ', 'ৄ', 'ো', 'ৌ', '্'];
 
-      if (i < currentIndex) {
-        // Character has been typed
-        if (incorrectIndices.contains(i)) {
-          style = TextStyle(
-            color: isDark ? AppColors.incorrectDark : AppColors.incorrectLight,
+    bool isPreBasePair(int idx) {
+      return idx < end - 1 && preBaseVowels.contains(widget.text[idx + 1]);
+    }
+
+    bool isCurrentToType(int idx) {
+      if (widget.currentIndex < end - 1 && preBaseVowels.contains(widget.text[widget.currentIndex + 1])) {
+        if (widget.pendingPreBaseVowel != null) {
+          return idx == widget.currentIndex;
+        } else {
+          return idx == widget.currentIndex + 1;
+        }
+      }
+      return idx == widget.currentIndex;
+    }
+
+    TextStyle getStyleForIndex(int idx, bool forceHighlight) {
+      if (idx < widget.currentIndex) {
+        if (widget.incorrectIndices.contains(idx)) {
+          return TextStyle(
+            color: isDark 
+                ? legacy_colors.AppColors.incorrectDark 
+                : legacy_colors.AppColors.incorrectLight,
             fontWeight: FontWeight.normal,
           );
         } else {
-          style = TextStyle(
-            color: isDark ? AppColors.correctDark : AppColors.correctLight,
+          return TextStyle(
+            color: isDark 
+                ? legacy_colors.AppColors.correctDark 
+                : legacy_colors.AppColors.correctLight,
             fontWeight: FontWeight.normal,
           );
         }
-      } else if (i == currentIndex) {
-        // Current character with blinking animation
-        style = TextStyle(
+      } else if (forceHighlight || isCurrentToType(idx)) {
+        // Current character - animated highlight
+        return TextStyle(
           color: colorScheme.primary,
           fontWeight: FontWeight.bold,
-          backgroundColor: colorScheme.primary.withOpacity(0.1),
-          decoration: TextDecoration.underline,
-          decorationColor: colorScheme.primary,
-          decorationThickness: 2,
+          backgroundColor: colorScheme.primary.withOpacity(0.15),
+          shadows: [
+            Shadow(
+              color: colorScheme.primary.withOpacity(0.3),
+              blurRadius: 8,
+            ),
+          ],
         );
       } else {
-        // Not yet typed
-        style = TextStyle(
-          color: colorScheme.onSurface.withOpacity(0.7),
+        return TextStyle(
+          color: colorScheme.onSurface.withOpacity(0.6),
           fontWeight: FontWeight.normal,
         );
       }
+    }
 
-      spans.add(TextSpan(text: char, style: style));
+    int i = start;
+    while (i < end) {
+      final char = widget.text[i];
+
+      if (i < end - 1 && preBaseVowels.contains(widget.text[i + 1])) {
+        final consonant = char;
+        final vowel = widget.text[i + 1];
+        final isThisPairCurrent = (i == widget.currentIndex);
+
+        if (isThisPairCurrent) {
+          spans.add(const TextSpan(text: ' '));
+          spans.add(TextSpan(text: vowel, style: getStyleForIndex(i + 1, true)));
+          spans.add(const TextSpan(text: ' '));
+          spans.add(TextSpan(text: consonant, style: getStyleForIndex(i, false)));
+          spans.add(const TextSpan(text: ' '));
+        } else {
+          spans.add(TextSpan(text: consonant, style: getStyleForIndex(i, false)));
+          spans.add(TextSpan(text: vowel, style: getStyleForIndex(i + 1, false)));
+        }
+        i += 2;
+      } else if (postBaseVowels.contains(char)) {
+        final isThisCurrent = (i == widget.currentIndex);
+        if (isThisCurrent) {
+          spans.add(const TextSpan(text: ' '));
+          spans.add(TextSpan(text: char, style: getStyleForIndex(i, true)));
+          spans.add(const TextSpan(text: ' '));
+        } else {
+          spans.add(TextSpan(text: char, style: getStyleForIndex(i, false)));
+        }
+        i++;
+      } else {
+        spans.add(TextSpan(text: char, style: getStyleForIndex(i, false)));
+        i++;
+      }
     }
 
     return spans;
   }
 
-  // Helper method to build a tip with icon
+  Widget _buildFocusOverlay(BuildContext context, bool isDarkMode, ColorScheme colorScheme) {
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(AppSizes.radiusLg),
+      child: BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 3, sigmaY: 3),
+        child: AnimatedContainer(
+          duration: AppDurations.medium,
+          decoration: BoxDecoration(
+            color: (isDarkMode ? Colors.black : Colors.white).withOpacity(0.85),
+            borderRadius: BorderRadius.circular(AppSizes.radiusLg),
+          ),
+          child: Center(
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  // Removed the Keyboard Icon
+                  Text(
+                    isParagraph
+                        ? 'অনুচ্ছেদ টাইপিং শুরু করতে এখানে ক্লিক করুন'
+                        : 'অনুশীলন শুরু করতে এখানে ক্লিক করুন',
+                    style: AppTypography.titleMedium(context).copyWith(
+                      fontWeight: FontWeight.w600,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                  SizedBox(height: AppSpacing.md),
+                  
+                  // Tips
+                  Padding(
+                    padding: EdgeInsets.symmetric(horizontal: AppSpacing.xxl),
+                    child: Column(
+                      children: [
+                        _buildTip(
+                          context,
+                          'আপনার আঙুলগুলি হোম রো-তে রাখুন (ASDF JKL;)',
+                          Icons.keyboard_alt_outlined,
+                        ),
+                        SizedBox(height: AppSpacing.sm),
+                        _buildTip(
+                          context,
+                          'কীবোর্ড নয়, স্ক্রিনে তাকান',
+                          Icons.visibility_rounded,
+                        ),
+                        SizedBox(height: AppSpacing.sm),
+                        _buildTip(
+                          context,
+                          'সঠিক আঙ্গুল দিয়ে সঠিক কী টিপুন',
+                          Icons.touch_app_rounded,
+                        ),
+                      ],
+                    ),
+                  ),
+                  SizedBox(height: AppSpacing.xl),
+                  
+                  // Start button
+                  Container(
+                    padding: EdgeInsets.symmetric(
+                      horizontal: AppSpacing.xxl,
+                      vertical: AppSpacing.md,
+                    ),
+                    decoration: BoxDecoration(
+                      gradient: AppColors.primaryGradient,
+                      borderRadius: BorderRadius.circular(AppSizes.radiusFull),
+                      boxShadow: [
+                        BoxShadow(
+                          color: AppColors.primary.withOpacity(0.4),
+                          blurRadius: 16,
+                          offset: const Offset(0, 6),
+                        ),
+                      ],
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          Icons.play_arrow_rounded,
+                          color: Colors.white,
+                          size: AppSizes.iconMd,
+                        ),
+                        SizedBox(width: AppSpacing.sm),
+                        Text(
+                          'শুরু করুন',
+                          style: GoogleFonts.notoSansBengali(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w600,
+                            color: Colors.white,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  SizedBox(height: AppSpacing.lg),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
   Widget _buildTip(BuildContext context, String tipText, IconData iconData) {
     final colorScheme = Theme.of(context).colorScheme;
 
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      padding: EdgeInsets.symmetric(
+        horizontal: AppSpacing.md,
+        vertical: AppSpacing.sm,
+      ),
       decoration: BoxDecoration(
-        color: colorScheme.primaryContainer.withOpacity(0.3),
-        borderRadius: BorderRadius.circular(8),
+        color: colorScheme.primary.withOpacity(0.08),
+        borderRadius: BorderRadius.circular(AppSizes.radiusSm),
         border: Border.all(
-          color: colorScheme.primary.withOpacity(0.2),
+          color: colorScheme.primary.withOpacity(0.15),
           width: 1,
         ),
       ),
       child: Row(
         children: [
-          Icon(
-            iconData,
-            size: 20,
-            color: colorScheme.primary,
+          Container(
+            padding: EdgeInsets.all(AppSpacing.xs),
+            decoration: BoxDecoration(
+              color: colorScheme.primary.withOpacity(0.15),
+              borderRadius: BorderRadius.circular(AppSizes.radiusXs),
+            ),
+            child: Icon(
+              iconData,
+              size: AppSizes.iconSm,
+              color: colorScheme.primary,
+            ),
           ),
-          const SizedBox(width: 12),
+          SizedBox(width: AppSpacing.md),
           Expanded(
             child: Text(
               tipText,
-              style: GoogleFonts.hindSiliguri(
-                fontSize: 16,
+              style: AppTypography.bodySmall(context).copyWith(
                 fontWeight: FontWeight.w500,
-                color: colorScheme.onSurface,
               ),
             ),
           ),

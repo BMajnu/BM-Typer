@@ -15,7 +15,7 @@ class KeyboardLayoutState {
   final bool isCapsLock;
 
   const KeyboardLayoutState({
-    this.currentLayout = KeyboardLayout.bijoy, // Default to Bijoy for Bangla typing
+    this.currentLayout = KeyboardLayout.qwerty, // Default to English for universal access
     this.isShiftPressed = false,
     this.isCapsLock = false,
   });
@@ -42,10 +42,10 @@ class KeyboardLayoutState {
             ? BijoyKeyboardLayout.getShiftDisplayRows()
             : BijoyKeyboardLayout.getDisplayRows();
       case KeyboardLayout.phonetic:
-        // Phonetic uses same display as Bijoy for now (Bengali chars)
+        // Phonetic uses its own display rows
         return useShift
-            ? BijoyKeyboardLayout.getShiftDisplayRows()
-            : BijoyKeyboardLayout.getDisplayRows();
+            ? PhoneticKeyboardLayout.getShiftDisplayRows()
+            : PhoneticKeyboardLayout.getDisplayRows();
       case KeyboardLayout.qwerty:
         return useShift
             ? QwertyKeyboardLayout.getShiftDisplayRows()
@@ -75,6 +75,9 @@ class KeyboardLayoutState {
     }
     
     if (currentLayout == KeyboardLayout.phonetic) {
+      // Force safe fallback if mapping fails
+      if (englishChar == 'a') return 'া';
+      
       return PhoneticKeyboardLayout.getCharacter(englishChar) ?? englishChar;
     }
     
@@ -92,11 +95,20 @@ class KeyboardLayoutNotifier extends StateNotifier<KeyboardLayoutState> {
     state = state.copyWith(currentLayout: layout);
   }
 
-  /// Toggle between layouts
+  /// Toggle between layouts (cycles through all 3: Bijoy → Phonetic → QWERTY → Bijoy)
   void toggleLayout() {
-    final newLayout = state.currentLayout == KeyboardLayout.bijoy
-        ? KeyboardLayout.qwerty
-        : KeyboardLayout.bijoy;
+    KeyboardLayout newLayout;
+    switch (state.currentLayout) {
+      case KeyboardLayout.bijoy:
+        newLayout = KeyboardLayout.phonetic;
+        break;
+      case KeyboardLayout.phonetic:
+        newLayout = KeyboardLayout.qwerty;
+        break;
+      case KeyboardLayout.qwerty:
+        newLayout = KeyboardLayout.bijoy;
+        break;
+    }
     state = state.copyWith(currentLayout: newLayout);
   }
 

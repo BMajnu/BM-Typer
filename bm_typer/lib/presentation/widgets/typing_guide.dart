@@ -315,101 +315,260 @@ class TypingGuide extends ConsumerWidget {
     return FingerInfo('index', 'right');
   }
 
-  // Helper method to get guidance based on character
+  // Helper method to get guidance based on character and current layout
   (String, String) _getGuidanceForCharacter(String character) {
     // Default guidance
     String fingerGuidance = 'সঠিক আঙ্গুল ব্যবহার করুন';
     String keyGuidance = 'কীবোর্ড নয়, স্ক্রিনে তাকান';
 
-    // Character-specific guidance
-    switch (character.toLowerCase()) {
-      // Home row keys
-      case 'a':
-        fingerGuidance = 'বাম হাতের কনিষ্ঠা আঙ্গুল ব্যবহার করুন';
-        keyGuidance = 'A কী-টি হোম রো-এর বাম দিকে অবস্থিত';
-        break;
-      case 's':
-        fingerGuidance = 'বাম হাতের অনামিকা আঙ্গুল ব্যবহার করুন';
-        keyGuidance = 'S কী-টি হোম রো-এর বাম দিকে A এর পাশে অবস্থিত';
-        break;
-      case 'd':
-        fingerGuidance = 'বাম হাতের মধ্যমা আঙ্গুল ব্যবহার করুন';
-        keyGuidance = 'D কী-টি হোম রো-এর বাম দিকে S এর পাশে অবস্থিত';
-        break;
-      case 'f':
-        fingerGuidance = 'বাম হাতের তর্জনী আঙ্গুল ব্যবহার করুন';
-        keyGuidance =
-            'F কী-টি হোম রো-এর বাম দিকে, বাম হাতের তর্জনী আঙ্গুলের নীচে';
-        break;
-      case 'g':
-        fingerGuidance = 'বাম হাতের তর্জনী আঙ্গুল ব্যবহার করুন';
-        keyGuidance = 'G কী-টি হোম রো-এর F এর পাশে অবস্থিত';
-        break;
-      case 'h':
-        fingerGuidance = 'ডান হাতের তর্জনী আঙ্গুল ব্যবহার করুন';
-        keyGuidance = 'H কী-টি হোম রো-এর ডান দিকে G এর পাশে অবস্থিত';
-        break;
-      case 'j':
-        fingerGuidance = 'ডান হাতের তর্জনী আঙ্গুল ব্যবহার করুন';
-        keyGuidance =
-            'J কী-টি হোম রো-এর ডান দিকে, ডান হাতের তর্জনী আঙ্গুলের নীচে';
-        break;
-      case 'k':
-        fingerGuidance = 'ডান হাতের মধ্যমা আঙ্গুল ব্যবহার করুন';
-        keyGuidance = 'K কী-টি হোম রো-এর ডান দিকে J এর পাশে অবস্থিত';
-        break;
-      case 'l':
-        fingerGuidance = 'ডান হাতের অনামিকা আঙ্গুল ব্যবহার করুন';
-        keyGuidance = 'L কী-টি হোম রো-এর ডান দিকে K এর পাশে অবস্থিত';
-        break;
-      case ';':
-        fingerGuidance = 'ডান হাতের কনিষ্ঠা আঙ্গুল ব্যবহার করুন';
-        keyGuidance = '; কী-টি হোম রো-এর ডান দিকে L এর পাশে অবস্থিত';
-        break;
-
-      // Top row keys
-      case 'q':
-        fingerGuidance = 'বাম হাতের কনিষ্ঠা আঙ্গুল ব্যবহার করুন';
-        keyGuidance = 'Q কী-টি উপরের সারিতে A এর উপরে অবস্থিত';
-        break;
-      case 'w':
-        fingerGuidance = 'বাম হাতের অনামিকা আঙ্গুল ব্যবহার করুন';
-        keyGuidance = 'W কী-টি উপরের সারিতে S এর উপরে অবস্থিত';
-        break;
-      case 'e':
-        fingerGuidance = 'বাম হাতের মধ্যমা আঙ্গুল ব্যবহার করুন';
-        keyGuidance = 'E কী-টি উপরের সারিতে D এর উপরে অবস্থিত';
-        break;
-      case 'r':
-        fingerGuidance = 'বাম হাতের তর্জনী আঙ্গুল ব্যবহার করুন';
-        keyGuidance = 'R কী-টি উপরের সারিতে F এর উপরে অবস্থিত';
-        break;
-
-      // Bottom row keys
-      case 'z':
-        fingerGuidance = 'বাম হাতের কনিষ্ঠা আঙ্গুল ব্যবহার করুন';
-        keyGuidance = 'Z কী-টি নীচের সারিতে A এর নীচে অবস্থিত';
-        break;
-      case 'x':
-        fingerGuidance = 'বাম হাতের অনামিকা আঙ্গুল ব্যবহার করুন';
-        keyGuidance = 'X কী-টি নীচের সারিতে S এর নীচে অবস্থিত';
-        break;
-      case 'c':
-        fingerGuidance = 'বাম হাতের মধ্যমা আঙ্গুল ব্যবহার করুন';
-        keyGuidance = 'C কী-টি নীচের সারিতে D এর নীচে অবস্থিত';
-        break;
-
-      // Space key
-      case ' ':
-        fingerGuidance = 'ডান হাতের বৃদ্ধাঙ্গুলি ব্যবহার করুন';
-        keyGuidance = 'স্পেসবার কীবোর্ডের নীচের দিকে মাঝখানে অবস্থিত';
-        break;
-
-      default:
-        if (character.isEmpty) {
-          fingerGuidance = 'পরবর্তী অক্ষরের জন্য প্রস্তুত হোন';
-          keyGuidance = 'হোম রো-তে আঙ্গুল রাখুন (ASDF JKL;)';
-        }
+    // === PHONETIC BANGLA CHARACTER MAPPING ===
+    // Check for Phonetic layout first (based on common Avro phonetic mapping)
+    // Format: Bangla Character -> English Key (A, S, D, etc.)
+    
+    // --- PHONETIC HOME ROW (a s d f g h j k l) ---
+    // Phonetic: া স দ ফ গ হ জ ক ল
+    if (character == 'া') {
+      fingerGuidance = 'বাম কনিষ্ঠা | A কী চাপুন (Phonetic)';
+      keyGuidance = 'া-কার → A';
+    } else if (character == 'স') {
+      fingerGuidance = 'বাম অনামিকা | S কী চাপুন (Phonetic)';
+      keyGuidance = 'স → S';
+    } else if (character == 'দ') {
+      fingerGuidance = 'বাম মধ্যমা | D কী চাপুন (Phonetic)';
+      keyGuidance = 'দ → D';
+    } else if (character == 'ফ') {
+      fingerGuidance = 'বাম তর্জনী | F কী চাপুন (Phonetic)';
+      keyGuidance = 'ফ → F';
+    } else if (character == 'গ') {
+      fingerGuidance = 'বাম তর্জনী | G কী চাপুন (Phonetic)';
+      keyGuidance = 'গ → G';
+    } else if (character == 'হ') {
+      fingerGuidance = 'ডান তর্জনী | H কী চাপুন (Phonetic)';
+      keyGuidance = 'হ → H';
+    } else if (character == 'জ') {
+      fingerGuidance = 'ডান তর্জনী | J কী চাপুন (Phonetic)';
+      keyGuidance = 'জ → J';
+    } else if (character == 'ক') {
+      fingerGuidance = 'ডান মধ্যমা | K কী চাপুন (Phonetic)';
+      keyGuidance = 'ক → K';
+    } else if (character == 'ল') {
+      fingerGuidance = 'ডান অনামিকা | L কী চাপুন (Phonetic)';
+      keyGuidance = 'ল → L';
+    }
+    
+    // --- PHONETIC TOP ROW (q w e r t y u i o p) ---
+    // Phonetic: ৃ ও ে র ত য় ু ি অ প
+    else if (character == 'ৃ') {
+      fingerGuidance = 'বাম কনিষ্ঠা | Q কী চাপুন (Phonetic)';
+      keyGuidance = 'ৃ-কার → Q';
+    } else if (character == 'ও') {
+      fingerGuidance = 'বাম অনামিকা | W কী চাপুন (Phonetic)';
+      keyGuidance = 'ও → W';
+    } else if (character == 'ে') {
+      fingerGuidance = 'বাম মধ্যমা | E কী চাপুন (Phonetic)';
+      keyGuidance = 'ে-কার → E';
+    } else if (character == 'র') {
+      fingerGuidance = 'বাম তর্জনী | R কী চাপুন (Phonetic)';
+      keyGuidance = 'র → R';
+    } else if (character == 'ত') {
+      fingerGuidance = 'বাম তর্জনী | T কী চাপুন (Phonetic)';
+      keyGuidance = 'ত → T';
+    } else if (character == 'য়') {
+      fingerGuidance = 'ডান তর্জনী | Y কী চাপুন (Phonetic)';
+      keyGuidance = 'য় → Y';
+    } else if (character == 'ু') {
+      fingerGuidance = 'ডান তর্জনী | U কী চাপুন (Phonetic)';
+      keyGuidance = 'ু-কার → U';
+    } else if (character == 'ি') {
+      fingerGuidance = 'ডান মধ্যমা | I কী চাপুন (Phonetic)';
+      keyGuidance = 'ি-কার → I';
+    } else if (character == 'অ') {
+      fingerGuidance = 'ডান অনামিকা | O কী চাপুন (Phonetic)';
+      keyGuidance = 'অ → O';
+    } else if (character == 'প') {
+      fingerGuidance = 'ডান কনিষ্ঠা | P কী চাপুন (Phonetic)';
+      keyGuidance = 'প → P';
+    }
+    
+    // --- PHONETIC BOTTOM ROW (z x c v b n m) ---
+    // Phonetic: য ক্স চ ভ ব ন ম
+    else if (character == 'য') {
+      fingerGuidance = 'বাম কনিষ্ঠা | Z কী চাপুন (Phonetic)';
+      keyGuidance = 'য → Z';
+    } else if (character == 'চ') {
+      fingerGuidance = 'বাম মধ্যমা | C কী চাপুন (Phonetic)';
+      keyGuidance = 'চ → C';
+    } else if (character == 'ভ') {
+      fingerGuidance = 'বাম তর্জনী | V কী চাপুন (Phonetic)';
+      keyGuidance = 'ভ → V';
+    } else if (character == 'ব') {
+      fingerGuidance = 'বাম তর্জনী | B কী চাপুন (Phonetic)';
+      keyGuidance = 'ব → B';
+    } else if (character == 'ন') {
+      fingerGuidance = 'ডান তর্জনী | N কী চাপুন (Phonetic)';
+      keyGuidance = 'ন → N';
+    } else if (character == 'ম') {
+      fingerGuidance = 'ডান তর্জনী | M কী চাপুন (Phonetic)';
+      keyGuidance = 'ম → M';
+    }
+    
+    // --- PHONETIC SHIFT ROW (Shift + Keys = Aspirated/Retroflex) ---
+    else if (character == 'আ') {
+      fingerGuidance = 'বাম কনিষ্ঠা | Shift + A চাপুন (Phonetic)';
+      keyGuidance = 'আ → Shift + A';
+    } else if (character == 'শ') {
+      fingerGuidance = 'বাম অনামিকা | Shift + S চাপুন (Phonetic)';
+      keyGuidance = 'শ → Shift + S';
+    } else if (character == 'ড') {
+      fingerGuidance = 'বাম মধ্যমা | Shift + D চাপুন (Phonetic)';
+      keyGuidance = 'ড → Shift + D';
+    } else if (character == 'ট') {
+      fingerGuidance = 'বাম তর্জনী | Shift + T চাপুন (Phonetic)';
+      keyGuidance = 'ট → Shift + T';
+    } else if (character == 'ঘ') {
+      fingerGuidance = 'বাম তর্জনী | Shift + G চাপুন (Phonetic)';
+      keyGuidance = 'ঘ → Shift + G';
+    } else if (character == 'খ') {
+      fingerGuidance = 'ডান মধ্যমা | Shift + K চাপুন (Phonetic)';
+      keyGuidance = 'খ → Shift + K';
+    } else if (character == 'ঝ') {
+      fingerGuidance = 'ডান তর্জনী | Shift + J চাপুন (Phonetic)';
+      keyGuidance = 'ঝ → Shift + J';
+    } else if (character == 'ছ') {
+      fingerGuidance = 'বাম মধ্যমা | Shift + C চাপুন (Phonetic)';
+      keyGuidance = 'ছ → Shift + C';
+    } else if (character == 'ণ') {
+      fingerGuidance = 'ডান তর্জনী | Shift + N চাপুন (Phonetic)';
+      keyGuidance = 'ণ → Shift + N';
+    } else if (character == 'ং') {
+      fingerGuidance = 'ডান তর্জনী | Shift + M চাপুন (Phonetic)';
+      keyGuidance = 'ং → Shift + M';
+    } else if (character == 'ী') {
+      fingerGuidance = 'ডান মধ্যমা | Shift + I চাপুন (Phonetic)';
+      keyGuidance = 'ী-কার → Shift + I';
+    } else if (character == 'ূ') {
+      fingerGuidance = 'ডান তর্জনী | Shift + U চাপুন (Phonetic)';
+      keyGuidance = 'ূ-কার → Shift + U';
+    } else if (character == 'ৈ') {
+      fingerGuidance = 'বাম মধ্যমা | Shift + E চাপুন (Phonetic)';
+      keyGuidance = 'ৈ-কার → Shift + E';
+    } else if (character == 'ঔ') {
+      fingerGuidance = 'ডান অনামিকা | Shift + O চাপুন (Phonetic)';
+      keyGuidance = 'ঔ → Shift + O';
+    } else if (character == 'ঋ') {
+      fingerGuidance = 'বাম কনিষ্ঠা | Shift + Q চাপুন (Phonetic)';
+      keyGuidance = 'ঋ → Shift + Q';
+    } else if (character == 'ড়') {
+      fingerGuidance = 'বাম তর্জনী | Shift + R চাপুন (Phonetic)';
+      keyGuidance = 'ড় → Shift + R';
+    } else if (character == 'ঞ') {
+      fingerGuidance = 'ডান তর্জনী | Shift + Y চাপুন (Phonetic)';
+      keyGuidance = 'ঞ → Shift + Y';
+    } else if (character == 'ঃ') {
+      fingerGuidance = 'ডান তর্জনী | Shift + H চাপুন (Phonetic)';
+      keyGuidance = 'বিসর্গ → Shift + H';
+    } else if (character == 'ৎ') {
+      fingerGuidance = 'বাম তর্জনী | Shift + F চাপুন (Phonetic)';
+      keyGuidance = 'খণ্ড-ত → Shift + F';
+    } else if (character == 'ঙ') {
+      fingerGuidance = 'বাম তর্জনী | Shift + V চাপুন (Phonetic)';
+      keyGuidance = 'ঙ → Shift + V';
+    }
+    
+    // --- PHONETIC NUMBERS ---
+    else if (character == '০') {
+      fingerGuidance = 'ডান কনিষ্ঠা | 0 কী চাপুন';
+      keyGuidance = '০ (শূন্য) → 0';
+    } else if (character == '১') {
+      fingerGuidance = 'বাম কনিষ্ঠা | 1 কী চাপুন';
+      keyGuidance = '১ (এক) → 1';
+    } else if (character == '২') {
+      fingerGuidance = 'বাম অনামিকা | 2 কী চাপুন';
+      keyGuidance = '২ (দুই) → 2';
+    } else if (character == '৩') {
+      fingerGuidance = 'বাম মধ্যমা | 3 কী চাপুন';
+      keyGuidance = '৩ (তিন) → 3';
+    } else if (character == '৪') {
+      fingerGuidance = 'বাম তর্জনী | 4 কী চাপুন';
+      keyGuidance = '৪ (চার) → 4';
+    } else if (character == '৫') {
+      fingerGuidance = 'বাম তর্জনী | 5 কী চাপুন';
+      keyGuidance = '৫ (পাঁচ) → 5';
+    } else if (character == '৬') {
+      fingerGuidance = 'ডান তর্জনী | 6 কী চাপুন';
+      keyGuidance = '৬ (ছয়) → 6';
+    } else if (character == '৭') {
+      fingerGuidance = 'ডান তর্জনী | 7 কী চাপুন';
+      keyGuidance = '৭ (সাত) → 7';
+    } else if (character == '৮') {
+      fingerGuidance = 'ডান মধ্যমা | 8 কী চাপুন';
+      keyGuidance = '৮ (আট) → 8';
+    } else if (character == '৯') {
+      fingerGuidance = 'ডান অনামিকা | 9 কী চাপুন';
+      keyGuidance = '৯ (নয়) → 9';
+    }
+    
+    // --- COMMON PUNCTUATION ---
+    else if (character == '।') {
+      fingerGuidance = 'ডান অনামিকা | . (Period) কী চাপুন';
+      keyGuidance = 'দাড়ি → . (Period)';
+    } else if (character == '্') {
+      fingerGuidance = 'বাম কনিষ্ঠা | ` (Backtick) কী চাপুন';
+      keyGuidance = 'হসন্ত → ` (Backtick)';
+    } else if (character == ' ') {
+      fingerGuidance = 'বৃদ্ধাঙ্গুলি | স্পেসবার চাপুন';
+      keyGuidance = 'স্পেস → Space Bar';
+    }
+    
+    // === ENGLISH CHARACTER MAPPING ===
+    else {
+      switch (character.toLowerCase()) {
+        case 'a':
+          fingerGuidance = 'বাম কনিষ্ঠা | A কী চাপুন';
+          keyGuidance = 'A কী-টি হোম রো-এর বাম দিকে অবস্থিত';
+          break;
+        case 's':
+          fingerGuidance = 'বাম অনামিকা | S কী চাপুন';
+          keyGuidance = 'S কী-টি হোম রো-তে A এর পাশে';
+          break;
+        case 'd':
+          fingerGuidance = 'বাম মধ্যমা | D কী চাপুন';
+          keyGuidance = 'D কী-টি হোম রো-তে S এর পাশে';
+          break;
+        case 'f':
+          fingerGuidance = 'বাম তর্জনী | F কী চাপুন';
+          keyGuidance = 'F কী-টি হোম পজিশন (বাম তর্জনী)';
+          break;
+        case 'g':
+          fingerGuidance = 'বাম তর্জনী | G কী চাপুন';
+          keyGuidance = 'G কী-টি F এর পাশে';
+          break;
+        case 'h':
+          fingerGuidance = 'ডান তর্জনী | H কী চাপুন';
+          keyGuidance = 'H কী-টি G এর পাশে';
+          break;
+        case 'j':
+          fingerGuidance = 'ডান তর্জনী | J কী চাপুন';
+          keyGuidance = 'J কী-টি হোম পজিশন (ডান তর্জনী)';
+          break;
+        case 'k':
+          fingerGuidance = 'ডান মধ্যমা | K কী চাপুন';
+          keyGuidance = 'K কী-টি J এর পাশে';
+          break;
+        case 'l':
+          fingerGuidance = 'ডান অনামিকা | L কী চাপুন';
+          keyGuidance = 'L কী-টি K এর পাশে';
+          break;
+        case ';':
+          fingerGuidance = 'ডান কনিষ্ঠা | ; কী চাপুন';
+          keyGuidance = '; কী-টি L এর পাশে';
+          break;
+        default:
+          if (character.isEmpty) {
+            fingerGuidance = 'পরবর্তী অক্ষরের জন্য প্রস্তুত হোন';
+            keyGuidance = 'হোম রো-তে আঙ্গুল রাখুন (ASDF JKL;)';
+          }
+      }
     }
 
     return (fingerGuidance, keyGuidance);

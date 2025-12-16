@@ -1,9 +1,10 @@
+import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:bm_typer/core/models/leaderboard_entry_model.dart';
 import 'package:bm_typer/core/services/leaderboard_service.dart';
 import 'package:bm_typer/core/providers/user_provider.dart';
-import 'package:bm_typer/core/constants/app_colors.dart';
 import 'package:bm_typer/core/models/user_model.dart';
 import 'package:bm_typer/data/local_lesson_data.dart';
 
@@ -47,61 +48,122 @@ class _LeaderboardScreenState extends ConsumerState<LeaderboardScreen>
   @override
   Widget build(BuildContext context) {
     final currentUser = ref.watch(currentUserProvider);
-    final leaderboardData = ref.watch(
-      leaderboardProvider(_selectedLessonId),
-    );
-
+    final leaderboardData = ref.watch(leaderboardProvider(_selectedLessonId));
     final userRankAsync = currentUser != null
         ? ref.watch(userRankProvider(currentUser.id))
         : null;
+    final colorScheme = Theme.of(context).colorScheme;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Leaderboard'),
-        bottom: TabBar(
-          controller: _tabController,
-          tabs: const [
-            Tab(text: 'Overall Rankings'),
-            Tab(text: 'By Lesson'),
-          ],
+      body: Container(
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: isDark
+                ? [const Color(0xFF1a1a2e), const Color(0xFF16213e), const Color(0xFF0f0f1a)]
+                : [colorScheme.primaryContainer.withOpacity(0.3), colorScheme.surface, colorScheme.surface],
+          ),
         ),
-        actions: [
+        child: SafeArea(
+          child: Column(
+            children: [
+              // Custom App Bar
+              _buildAppBar(context, colorScheme, isDark, currentUser),
+              
+              // Tab Bar
+              _buildTabBar(colorScheme, isDark),
+              
+              // Content
+              Expanded(
+                child: TabBarView(
+                  controller: _tabController,
+                  children: [
+                    _buildLeaderboardTab(leaderboardData, currentUser, userRankAsync, colorScheme, isDark),
+                    _buildLessonSelectionTab(colorScheme, isDark),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildAppBar(BuildContext context, ColorScheme colorScheme, bool isDark, UserModel? currentUser) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      child: Row(
+        children: [
           IconButton(
-            icon: const Icon(Icons.refresh),
+            icon: Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: (isDark ? Colors.white : Colors.black).withOpacity(0.1),
+                shape: BoxShape.circle,
+              ),
+              child: Icon(Icons.arrow_back_ios_new_rounded, size: 18, color: isDark ? Colors.white : Colors.black87),
+            ),
+            onPressed: () => Navigator.pop(context),
+          ),
+          const SizedBox(width: 8),
+          Icon(Icons.emoji_events_rounded, color: Colors.amber, size: 28),
+          const SizedBox(width: 12),
+          Text(
+            'লিডারবোর্ড',
+            style: GoogleFonts.hindSiliguri(
+              fontSize: 22,
+              fontWeight: FontWeight.bold,
+              color: isDark ? Colors.white : Colors.black87,
+            ),
+          ),
+          const Spacer(),
+          IconButton(
+            icon: Icon(Icons.refresh_rounded, color: colorScheme.primary),
             onPressed: () {
               ref.invalidate(leaderboardProvider);
               if (currentUser != null) {
                 ref.invalidate(userRankProvider(currentUser.id));
               }
             },
-            tooltip: 'Refresh',
           ),
-          if (currentUser != null) ...[
+          if (currentUser != null)
             _isGeneratingMockData
-                ? const Padding(
-                    padding: EdgeInsets.all(8.0),
-                    child: SizedBox(
-                      width: 20,
-                      height: 20,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    ),
-                  )
+                ? const SizedBox(width: 24, height: 24, child: CircularProgressIndicator(strokeWidth: 2))
                 : IconButton(
-                    icon: const Icon(Icons.science),
+                    icon: Icon(Icons.science_rounded, color: colorScheme.secondary),
                     onPressed: _generateMockData,
-                    tooltip: 'Generate Sample Data',
+                    tooltip: 'টেস্ট ডেটা তৈরি',
                   ),
-          ],
         ],
       ),
-      body: TabBarView(
-        controller: _tabController,
-        children: [
-          // Tab 1: Overall Leaderboard
-          _buildLeaderboardTab(leaderboardData, currentUser, userRankAsync),
+    );
+  }
 
-          // Tab 2: Lesson-specific leaderboards
-          _buildLessonSelectionTab(),
+  Widget _buildTabBar(ColorScheme colorScheme, bool isDark) {
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      decoration: BoxDecoration(
+        color: (isDark ? Colors.white : Colors.black).withOpacity(0.05),
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: TabBar(
+        controller: _tabController,
+        indicator: BoxDecoration(
+          color: colorScheme.primary,
+          borderRadius: BorderRadius.circular(12),
+        ),
+        labelColor: Colors.white,
+        unselectedLabelColor: isDark ? Colors.white60 : Colors.black54,
+        labelStyle: GoogleFonts.hindSiliguri(fontWeight: FontWeight.w600),
+        unselectedLabelStyle: GoogleFonts.hindSiliguri(),
+        dividerColor: Colors.transparent,
+        indicatorSize: TabBarIndicatorSize.tab,
+        tabs: const [
+          Tab(text: 'সার্বিক র‌্যাংকিং'),
+          Tab(text: 'লেসন অনুযায়ী'),
         ],
       ),
     );
@@ -111,68 +173,265 @@ class _LeaderboardScreenState extends ConsumerState<LeaderboardScreen>
     AsyncValue<List<LeaderboardEntry>> leaderboardData,
     UserModel? currentUser,
     AsyncValue<int>? userRankAsync,
+    ColorScheme colorScheme,
+    bool isDark,
   ) {
-    return Column(
-      children: [
-        // User's rank card (if logged in)
-        if (currentUser != null) _buildUserRankCard(currentUser, userRankAsync),
+    return leaderboardData.when(
+      data: (entries) {
+        if (entries.isEmpty) {
+          return _buildEmptyState(isDark, colorScheme);
+        }
 
-        // Leaderboard title and filter
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        return SingleChildScrollView(
+          padding: const EdgeInsets.all(16),
+          child: Column(
             children: [
-              Text(
-                _selectedLessonId == null
-                    ? 'Top Typists'
-                    : 'Top Typists - ${_getLessonName(_selectedLessonId!)}',
-                style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                      fontWeight: FontWeight.bold,
-                    ),
-              ),
-              if (_selectedLessonId != null)
-                TextButton(
-                  onPressed: () => setState(() {
-                    _selectedLessonId = null;
-                  }),
-                  child: const Text('Show All'),
+              // User's Rank Card
+              if (currentUser != null)
+                _buildUserRankCard(currentUser, userRankAsync, colorScheme, isDark),
+              
+              const SizedBox(height: 20),
+              
+              // Podium for Top 3
+              if (entries.length >= 3) _buildPodium(entries.take(3).toList(), colorScheme, isDark),
+              
+              const SizedBox(height: 24),
+              
+              // Rest of the leaderboard
+              _buildRankList(entries.skip(3).toList(), currentUser, colorScheme, isDark),
+            ],
+          ),
+        );
+      },
+      loading: () => Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            CircularProgressIndicator(color: colorScheme.primary),
+            const SizedBox(height: 16),
+            Text('লোড হচ্ছে...', style: GoogleFonts.hindSiliguri(color: isDark ? Colors.white60 : Colors.black54)),
+          ],
+        ),
+      ),
+      error: (error, stack) => Center(
+        child: Text('ত্রুটি: $error', style: GoogleFonts.hindSiliguri(color: Colors.red)),
+      ),
+    );
+  }
+
+  Widget _buildEmptyState(bool isDark, ColorScheme colorScheme) {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(Icons.leaderboard_rounded, size: 64, color: colorScheme.primary.withOpacity(0.3)),
+          const SizedBox(height: 16),
+          Text(
+            'এখনও কোনো এন্ট্রি নেই',
+            style: GoogleFonts.hindSiliguri(fontSize: 18, color: isDark ? Colors.white70 : Colors.black54),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'প্রথম হতে চান? লেসন সম্পন্ন করুন!',
+            style: GoogleFonts.hindSiliguri(color: isDark ? Colors.white38 : Colors.black38),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildUserRankCard(UserModel user, AsyncValue<int>? userRankAsync, ColorScheme colorScheme, bool isDark) {
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(20),
+      child: BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+        child: Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              colors: [colorScheme.primary.withOpacity(0.2), colorScheme.secondary.withOpacity(0.1)],
+            ),
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(color: colorScheme.primary.withOpacity(0.3)),
+          ),
+          child: Row(
+            children: [
+              Container(
+                width: 50,
+                height: 50,
+                decoration: BoxDecoration(
+                  color: colorScheme.primary,
+                  shape: BoxShape.circle,
                 ),
+                child: Center(
+                  child: Text(
+                    user.name.isNotEmpty ? user.name[0].toUpperCase() : '?',
+                    style: GoogleFonts.poppins(fontSize: 22, fontWeight: FontWeight.bold, color: Colors.white),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'আপনার অবস্থান',
+                      style: GoogleFonts.hindSiliguri(fontSize: 13, color: (isDark ? Colors.white : Colors.black).withOpacity(0.6)),
+                    ),
+                    userRankAsync?.when(
+                      data: (rank) => Text(
+                        rank > 0 ? '#$rank' : 'র‌্যাংক করা হয়নি',
+                        style: GoogleFonts.poppins(fontSize: 24, fontWeight: FontWeight.bold, color: isDark ? Colors.white : Colors.black87),
+                      ),
+                      loading: () => Text('লোড হচ্ছে...', style: GoogleFonts.hindSiliguri()),
+                      error: (_, __) => Text('ত্রুটি', style: GoogleFonts.hindSiliguri(color: Colors.red)),
+                    ) ?? Text('র‌্যাংক করা হয়নি', style: GoogleFonts.hindSiliguri()),
+                  ],
+                ),
+              ),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  Text(
+                    '${user.highestWpm.toStringAsFixed(0)} WPM',
+                    style: GoogleFonts.poppins(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.green),
+                  ),
+                  Text(
+                    'সর্বোচ্চ',
+                    style: GoogleFonts.hindSiliguri(fontSize: 12, color: (isDark ? Colors.white : Colors.black).withOpacity(0.5)),
+                  ),
+                ],
+              ),
             ],
           ),
         ),
+      ),
+    );
+  }
 
-        // Leaderboard entries list
-        Expanded(
-          child: leaderboardData.when(
-            data: (entries) {
-              if (entries.isEmpty) {
-                return const Center(
-                  child: Text(
-                    'No entries yet. Be the first to join the leaderboard!',
-                    textAlign: TextAlign.center,
-                  ),
-                );
-              }
+  Widget _buildPodium(List<LeaderboardEntry> top3, ColorScheme colorScheme, bool isDark) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.center,
+      crossAxisAlignment: CrossAxisAlignment.end,
+      children: [
+        // 2nd Place
+        if (top3.length > 1) _buildPodiumItem(top3[1], 2, 100, colorScheme, isDark),
+        const SizedBox(width: 8),
+        // 1st Place
+        _buildPodiumItem(top3[0], 1, 130, colorScheme, isDark),
+        const SizedBox(width: 8),
+        // 3rd Place
+        if (top3.length > 2) _buildPodiumItem(top3[2], 3, 80, colorScheme, isDark),
+      ],
+    );
+  }
 
-              return ListView.builder(
-                itemCount: entries.length,
-                itemBuilder: (context, index) {
-                  final entry = entries[index];
-                  final isCurrentUser =
-                      currentUser != null && entry.userId == currentUser.id;
+  Widget _buildPodiumItem(LeaderboardEntry entry, int rank, double height, ColorScheme colorScheme, bool isDark) {
+    Color podiumColor;
+    Color medalColor;
+    IconData medalIcon;
+    
+    switch (rank) {
+      case 1:
+        podiumColor = Colors.amber;
+        medalColor = Colors.amber;
+        medalIcon = Icons.emoji_events_rounded;
+        break;
+      case 2:
+        podiumColor = Colors.grey.shade300;
+        medalColor = Colors.grey.shade400;
+        medalIcon = Icons.workspace_premium_rounded;
+        break;
+      default:
+        podiumColor = Colors.brown.shade300;
+        medalColor = Colors.brown.shade400;
+        medalIcon = Icons.military_tech_rounded;
+    }
 
-                  return _buildLeaderboardEntryTile(
-                    entry: entry,
-                    rank: index + 1,
-                    isCurrentUser: isCurrentUser,
-                  );
-                },
-              );
-            },
-            loading: () => const Center(child: CircularProgressIndicator()),
-            error: (error, stack) => Center(
-              child: Text('Error loading leaderboard: $error'),
+    return Column(
+      children: [
+        // Medal
+        Icon(medalIcon, color: medalColor, size: rank == 1 ? 32 : 24),
+        const SizedBox(height: 8),
+        // Avatar
+        Container(
+          width: rank == 1 ? 64 : 52,
+          height: rank == 1 ? 64 : 52,
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            color: _getAvatarColor(entry.userName),
+            border: Border.all(color: podiumColor, width: 3),
+            boxShadow: [
+              BoxShadow(
+                color: podiumColor.withOpacity(0.4),
+                blurRadius: 12,
+              ),
+            ],
+          ),
+          child: Center(
+            child: Text(
+              entry.userName.isNotEmpty ? entry.userName[0].toUpperCase() : '?',
+              style: GoogleFonts.poppins(
+                fontSize: rank == 1 ? 26 : 20,
+                fontWeight: FontWeight.bold,
+                color: Colors.white,
+              ),
+            ),
+          ),
+        ),
+        const SizedBox(height: 8),
+        // Name
+        SizedBox(
+          width: 80,
+          child: Text(
+            entry.userName,
+            style: GoogleFonts.hindSiliguri(
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+              color: isDark ? Colors.white : Colors.black87,
+            ),
+            textAlign: TextAlign.center,
+            overflow: TextOverflow.ellipsis,
+          ),
+        ),
+        // WPM
+        Text(
+          '${entry.wpm.toStringAsFixed(0)}',
+          style: GoogleFonts.poppins(
+            fontSize: rank == 1 ? 20 : 16,
+            fontWeight: FontWeight.bold,
+            color: podiumColor,
+          ),
+        ),
+        Text(
+          'WPM',
+          style: GoogleFonts.poppins(
+            fontSize: 10,
+            color: (isDark ? Colors.white : Colors.black).withOpacity(0.5),
+          ),
+        ),
+        const SizedBox(height: 8),
+        // Podium Stand
+        Container(
+          width: rank == 1 ? 90 : 70,
+          height: height,
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+              colors: [podiumColor, podiumColor.withOpacity(0.6)],
+            ),
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(8)),
+          ),
+          child: Center(
+            child: Text(
+              '#$rank',
+              style: GoogleFonts.poppins(
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
+                color: Colors.white,
+              ),
             ),
           ),
         ),
@@ -180,220 +439,129 @@ class _LeaderboardScreenState extends ConsumerState<LeaderboardScreen>
     );
   }
 
-  Widget _buildUserRankCard(UserModel user, AsyncValue<int>? userRankAsync) {
-    return Card(
-      margin: const EdgeInsets.all(16.0),
-      elevation: 2,
-      color: AppColors.primaryLegacy.withOpacity(0.1),
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
-        side: BorderSide(
-          color: AppColors.primaryLegacy.withOpacity(0.5),
-          width: 1,
-        ),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          children: [
-            Row(
-              children: [
-                CircleAvatar(
-                  backgroundColor: AppColors.primaryLegacy,
-                  child: Text(
-                    user.name[0].toUpperCase(),
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Your Position',
-                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                            color: Colors.grey[600],
-                          ),
-                    ),
-                    userRankAsync?.when(
-                          data: (rank) => Text(
-                            rank > 0 ? 'Rank #$rank' : 'Not ranked yet',
-                            style: Theme.of(context)
-                                .textTheme
-                                .titleMedium
-                                ?.copyWith(
-                                  fontWeight: FontWeight.bold,
-                                ),
-                          ),
-                          loading: () => const Text('Loading...'),
-                          error: (_, __) => const Text('Error getting rank'),
-                        ) ??
-                        const Text('Not ranked yet'),
-                  ],
-                ),
-                const Spacer(),
-                Text(
-                  'Best: ${user.highestWpm.toStringAsFixed(1)} WPM',
-                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                        fontWeight: FontWeight.w500,
-                      ),
-                ),
-              ],
-            ),
-          ],
-        ),
-      ),
-    );
-  }
+  Widget _buildRankList(List<LeaderboardEntry> entries, UserModel? currentUser, ColorScheme colorScheme, bool isDark) {
+    if (entries.isEmpty) return const SizedBox();
 
-  Widget _buildLeaderboardEntryTile({
-    required LeaderboardEntry entry,
-    required int rank,
-    required bool isCurrentUser,
-  }) {
-    return Card(
-      margin: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 4.0),
-      color: isCurrentUser ? AppColors.primaryLegacy.withOpacity(0.1) : null,
-      child: ListTile(
-        leading: _buildRankBadge(rank),
-        title: Row(
-          children: [
-            CircleAvatar(
-              radius: 14,
-              backgroundColor: _getAvatarColor(entry.userName),
-              child: Text(
-                entry.userName[0].toUpperCase(),
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontWeight: FontWeight.bold,
-                  fontSize: 12,
-                ),
-              ),
-            ),
-            const SizedBox(width: 8),
-            Expanded(
-              child: Text(
-                entry.userName,
-                style: TextStyle(
-                  fontWeight: isCurrentUser ? FontWeight.bold : null,
-                ),
-              ),
-            ),
-          ],
-        ),
-        trailing: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.end,
-              children: [
-                Text(
-                  '${entry.wpm.toStringAsFixed(1)} WPM',
-                  style: const TextStyle(
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                Text(
-                  '${entry.accuracy.toStringAsFixed(1)}% acc',
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: Colors.grey[600],
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(width: 8),
-            Container(
-              padding: const EdgeInsets.symmetric(
-                horizontal: 8,
-                vertical: 4,
-              ),
-              decoration: BoxDecoration(
-                color: AppColors.primaryLegacy,
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Text(
-                'Lv ${entry.level}',
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 12,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-            ),
-          ],
-        ),
-        subtitle: Text(
-          '${_getTimeAgo(entry.timestamp)} • ${entry.lessonId != null ? _getLessonName(entry.lessonId!) : 'Overall'}',
-          style: const TextStyle(fontSize: 12),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildRankBadge(int rank) {
-    Color color;
-
-    switch (rank) {
-      case 1:
-        color = Colors.amber; // Gold
-        break;
-      case 2:
-        color = Colors.grey.shade300; // Silver
-        break;
-      case 3:
-        color = Colors.brown.shade300; // Bronze
-        break;
-      default:
-        color = Colors.grey.shade100; // Default
-    }
-
-    return Container(
-      width: 36,
-      height: 36,
-      decoration: BoxDecoration(
-        color: color,
-        shape: BoxShape.circle,
-        border: Border.all(
-          color: Colors.grey.shade300,
-        ),
-        boxShadow: rank <= 3
-            ? [
-                BoxShadow(
-                  color: Colors.black.withOpacity(0.1),
-                  blurRadius: 4,
-                  offset: const Offset(0, 2),
-                ),
-              ]
-            : null,
-      ),
-      child: Center(
-        child: Text(
-          '$rank',
-          style: TextStyle(
-            fontWeight: FontWeight.bold,
-            color: rank <= 3 ? Colors.white : Colors.grey.shade800,
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'অন্যান্য র‌্যাংকিং',
+          style: GoogleFonts.hindSiliguri(
+            fontSize: 16,
+            fontWeight: FontWeight.w600,
+            color: isDark ? Colors.white70 : Colors.black54,
           ),
         ),
+        const SizedBox(height: 12),
+        ...entries.asMap().entries.map((e) {
+          final index = e.key;
+          final entry = e.value;
+          final rank = index + 4; // Starting from 4th place
+          final isCurrentUser = currentUser != null && entry.userId == currentUser.id;
+          
+          return _buildRankTile(entry, rank, isCurrentUser, colorScheme, isDark);
+        }),
+      ],
+    );
+  }
+
+  Widget _buildRankTile(LeaderboardEntry entry, int rank, bool isCurrentUser, ColorScheme colorScheme, bool isDark) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 8),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: isCurrentUser
+            ? colorScheme.primary.withOpacity(0.15)
+            : (isDark ? Colors.white : Colors.black).withOpacity(0.05),
+        borderRadius: BorderRadius.circular(12),
+        border: isCurrentUser ? Border.all(color: colorScheme.primary.withOpacity(0.3)) : null,
+      ),
+      child: Row(
+        children: [
+          // Rank
+          SizedBox(
+            width: 36,
+            child: Text(
+              '#$rank',
+              style: GoogleFonts.poppins(
+                fontSize: 14,
+                fontWeight: FontWeight.bold,
+                color: isDark ? Colors.white54 : Colors.black45,
+              ),
+            ),
+          ),
+          // Avatar
+          Container(
+            width: 40,
+            height: 40,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: _getAvatarColor(entry.userName),
+            ),
+            child: Center(
+              child: Text(
+                entry.userName.isNotEmpty ? entry.userName[0].toUpperCase() : '?',
+                style: GoogleFonts.poppins(fontWeight: FontWeight.bold, color: Colors.white),
+              ),
+            ),
+          ),
+          const SizedBox(width: 12),
+          // Name
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  entry.userName,
+                  style: GoogleFonts.hindSiliguri(
+                    fontWeight: isCurrentUser ? FontWeight.bold : FontWeight.w500,
+                    color: isDark ? Colors.white : Colors.black87,
+                  ),
+                ),
+                Text(
+                  _getTimeAgo(entry.timestamp),
+                  style: GoogleFonts.hindSiliguri(
+                    fontSize: 11,
+                    color: (isDark ? Colors.white : Colors.black).withOpacity(0.4),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          // Stats
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              Text(
+                '${entry.wpm.toStringAsFixed(0)} WPM',
+                style: GoogleFonts.poppins(fontWeight: FontWeight.bold, color: Colors.green),
+              ),
+              Text(
+                '${entry.accuracy.toStringAsFixed(0)}%',
+                style: GoogleFonts.poppins(fontSize: 11, color: (isDark ? Colors.white : Colors.black).withOpacity(0.5)),
+              ),
+            ],
+          ),
+        ],
       ),
     );
   }
 
-  Widget _buildLessonSelectionTab() {
+  Widget _buildLessonSelectionTab(ColorScheme colorScheme, bool isDark) {
     return ListView.builder(
-      padding: const EdgeInsets.all(16.0),
-      itemCount: lessons.length + 1, // +1 for "Overall" option
+      padding: const EdgeInsets.all(16),
+      itemCount: lessons.length + 1,
       itemBuilder: (context, index) {
         if (index == 0) {
           return _buildLessonTile(
-            title: 'Overall Leaderboard',
-            subtitle: 'All lessons combined',
+            title: 'সার্বিক লিডারবোর্ড',
+            subtitle: 'সব লেসন একত্রে',
             lessonId: null,
             isSelected: _selectedLessonId == null,
+            colorScheme: colorScheme,
+            isDark: isDark,
+            icon: Icons.leaderboard_rounded,
           );
         } else {
           final lesson = lessons[index - 1];
@@ -402,6 +570,9 @@ class _LeaderboardScreenState extends ConsumerState<LeaderboardScreen>
             subtitle: lesson.description,
             lessonId: lesson.title,
             isSelected: _selectedLessonId == lesson.title,
+            colorScheme: colorScheme,
+            isDark: isDark,
+            icon: Icons.school_rounded,
           );
         }
       },
@@ -413,35 +584,52 @@ class _LeaderboardScreenState extends ConsumerState<LeaderboardScreen>
     required String subtitle,
     required String? lessonId,
     required bool isSelected,
+    required ColorScheme colorScheme,
+    required bool isDark,
+    required IconData icon,
   }) {
-    return Card(
-      elevation: isSelected ? 2 : 0,
-      color: isSelected ? AppColors.primaryLegacy.withOpacity(0.1) : null,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
-        side: isSelected
-            ? BorderSide(color: AppColors.primaryLegacy, width: 1)
-            : BorderSide.none,
+    return Container(
+      margin: const EdgeInsets.only(bottom: 8),
+      decoration: BoxDecoration(
+        color: isSelected
+            ? colorScheme.primary.withOpacity(0.15)
+            : (isDark ? Colors.white : Colors.black).withOpacity(0.05),
+        borderRadius: BorderRadius.circular(16),
+        border: isSelected ? Border.all(color: colorScheme.primary) : null,
       ),
       child: ListTile(
+        leading: Container(
+          width: 44,
+          height: 44,
+          decoration: BoxDecoration(
+            color: isSelected ? colorScheme.primary : colorScheme.primary.withOpacity(0.1),
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Icon(icon, color: isSelected ? Colors.white : colorScheme.primary),
+        ),
         title: Text(
           title,
-          style: TextStyle(
-            fontWeight: isSelected ? FontWeight.bold : null,
-            color: isSelected ? AppColors.primaryLegacy : null,
+          style: GoogleFonts.hindSiliguri(
+            fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
+            color: isDark ? Colors.white : Colors.black87,
           ),
         ),
-        subtitle: Text(subtitle),
+        subtitle: Text(
+          subtitle,
+          style: GoogleFonts.hindSiliguri(
+            fontSize: 12,
+            color: (isDark ? Colors.white : Colors.black).withOpacity(0.5),
+          ),
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+        ),
         trailing: isSelected
-            ? const Icon(
-                Icons.check_circle,
-                color: AppColors.primaryLegacy,
-              )
-            : const Icon(Icons.arrow_forward_ios, size: 16),
+            ? Icon(Icons.check_circle_rounded, color: colorScheme.primary)
+            : Icon(Icons.arrow_forward_ios_rounded, size: 16, color: (isDark ? Colors.white : Colors.black).withOpacity(0.3)),
         onTap: () {
           setState(() {
             _selectedLessonId = lessonId;
-            _tabController.animateTo(0); // Switch to leaderboard tab
+            _tabController.animateTo(0);
           });
         },
       ),
@@ -450,24 +638,18 @@ class _LeaderboardScreenState extends ConsumerState<LeaderboardScreen>
 
   Future<void> _generateMockData() async {
     setState(() => _isGeneratingMockData = true);
-
     try {
       await LeaderboardService.generateMockData(20);
-
-      // Refresh the leaderboard
       ref.invalidate(leaderboardProvider);
-
       final currentUser = ref.read(currentUserProvider);
       if (currentUser != null) {
         ref.invalidate(userRankProvider(currentUser.id));
       }
-
       if (!mounted) return;
-
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Sample leaderboard data generated!'),
-          duration: Duration(seconds: 2),
+        SnackBar(
+          content: Text('টেস্ট ডেটা তৈরি হয়েছে!', style: GoogleFonts.hindSiliguri()),
+          backgroundColor: Colors.green,
         ),
       );
     } finally {
@@ -475,48 +657,18 @@ class _LeaderboardScreenState extends ConsumerState<LeaderboardScreen>
     }
   }
 
-  String _getLessonName(String lessonId) {
-    if (lessonId.startsWith('lesson-')) {
-      final index = int.tryParse(lessonId.split('-').last);
-      if (index != null && index > 0 && index <= lessons.length) {
-        return lessons[index - 1].title;
-      }
-      return lessonId;
-    }
-
-    // Try to find a lesson with matching title
-    final matchedLesson = lessons.firstWhere(
-      (lesson) => lesson.title == lessonId,
-      orElse: () => lessons[0],
-    );
-
-    return matchedLesson.title;
-  }
-
   Color _getAvatarColor(String name) {
-    // Generate a consistent color based on the name
-    final colorIndex = name.codeUnits.fold<int>(
-          0,
-          (prev, element) => prev + element,
-        ) %
-        Colors.primaries.length;
+    final colorIndex = name.codeUnits.fold<int>(0, (prev, element) => prev + element) % Colors.primaries.length;
     return Colors.primaries[colorIndex];
   }
 
   String _getTimeAgo(DateTime timestamp) {
     final now = DateTime.now();
     final difference = now.difference(timestamp);
-
-    if (difference.inDays > 7) {
-      return '${timestamp.month}/${timestamp.day}';
-    } else if (difference.inDays > 0) {
-      return '${difference.inDays}d ago';
-    } else if (difference.inHours > 0) {
-      return '${difference.inHours}h ago';
-    } else if (difference.inMinutes > 0) {
-      return '${difference.inMinutes}m ago';
-    } else {
-      return 'Just now';
-    }
+    if (difference.inDays > 7) return '${timestamp.month}/${timestamp.day}';
+    if (difference.inDays > 0) return '${difference.inDays} দিন আগে';
+    if (difference.inHours > 0) return '${difference.inHours} ঘন্টা আগে';
+    if (difference.inMinutes > 0) return '${difference.inMinutes} মিনিট আগে';
+    return 'এইমাত্র';
   }
 }

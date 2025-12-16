@@ -1,10 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:bm_typer/core/constants/app_colors.dart';
+import 'package:google_fonts/google_fonts.dart';
+import 'package:bm_typer/core/theme/theme.dart';
 import 'package:bm_typer/core/providers/user_provider.dart';
 import 'package:bm_typer/core/models/user_model.dart';
 
-class XPProgressBar extends ConsumerWidget {
+/// আধুনিক XP প্রগ্রেস বার উইজেট
+/// 
+/// শাইনি অ্যানিমেশন এবং লেভেল কালার সহ।
+class XPProgressBar extends ConsumerStatefulWidget {
   final bool isExpanded;
 
   const XPProgressBar({
@@ -13,7 +17,30 @@ class XPProgressBar extends ConsumerWidget {
   });
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<XPProgressBar> createState() => _XPProgressBarState();
+}
+
+class _XPProgressBarState extends ConsumerState<XPProgressBar>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _shimmerController;
+
+  @override
+  void initState() {
+    super.initState();
+    _shimmerController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1500),
+    )..repeat();
+  }
+
+  @override
+  void dispose() {
+    _shimmerController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final user = ref.watch(currentUserProvider);
 
     if (user == null) {
@@ -25,31 +52,36 @@ class XPProgressBar extends ConsumerWidget {
     final xpToNextLevel = user.xpToNextLevel;
     final currentLevelXp =
         user.xpPoints - (xpToNextLevel - UserModel.xpRequiredForLevel(level));
+    final isDark = Theme.of(context).brightness == Brightness.dark;
 
-    return Card(
-      elevation: 2,
-      clipBehavior: Clip.antiAlias,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16),
-      ),
-      child: Container(
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [
-              Colors.indigo.shade800,
-              Colors.indigo.shade600,
-            ],
-          ),
+    return Container(
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            AppColors.getLevelColor(level).withOpacity(isDark ? 0.3 : 0.15),
+            AppColors.getLevelColor(level).withOpacity(isDark ? 0.1 : 0.05),
+          ],
         ),
-        padding: const EdgeInsets.all(16),
-        child: isExpanded
-            ? _buildExpandedView(context, level, nextLevelProgress,
-                currentLevelXp, xpToNextLevel)
-            : _buildCompactView(
-                level, nextLevelProgress, currentLevelXp, xpToNextLevel),
+        borderRadius: BorderRadius.circular(AppSizes.radiusLg),
+        border: Border.all(
+          color: AppColors.getLevelColor(level).withOpacity(0.3),
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: AppColors.getLevelColor(level).withOpacity(0.2),
+            blurRadius: 16,
+            offset: const Offset(0, 6),
+          ),
+        ],
       ),
+      padding: EdgeInsets.all(AppSpacing.lg),
+      child: widget.isExpanded
+          ? _buildExpandedView(
+              context, level, nextLevelProgress, currentLevelXp, xpToNextLevel)
+          : _buildCompactView(
+              level, nextLevelProgress, currentLevelXp, xpToNextLevel),
     );
   }
 
@@ -59,31 +91,61 @@ class XPProgressBar extends ConsumerWidget {
     int currentLevelXp,
     int xpToNextLevel,
   ) {
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      crossAxisAlignment: CrossAxisAlignment.start,
+    final levelColor = AppColors.getLevelColor(level);
+    
+    return Row(
       children: [
-        Row(
-          children: [
-            _buildLevelBadge(level),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+        _buildLevelBadge(level),
+        SizedBox(width: AppSpacing.md),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   Text(
-                    'Level $level',
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontWeight: FontWeight.bold,
+                    'লেভেল $level',
+                    style: AppTypography.titleSmall(context).copyWith(
+                      fontWeight: FontWeight.w700,
+                      color: levelColor,
                     ),
                   ),
-                  const SizedBox(height: 4),
-                  _buildProgressBar(nextLevelProgress),
+                  Container(
+                    padding: EdgeInsets.symmetric(
+                      horizontal: AppSpacing.sm,
+                      vertical: AppSpacing.xxs,
+                    ),
+                    decoration: BoxDecoration(
+                      color: AppColors.xpGold.withOpacity(0.15),
+                      borderRadius: BorderRadius.circular(AppSizes.radiusFull),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          Icons.star_rounded,
+                          size: AppSizes.iconSm,
+                          color: AppColors.xpGold,
+                        ),
+                        SizedBox(width: AppSpacing.xxs),
+                        Text(
+                          '$currentLevelXp XP',
+                          style: AppTypography.labelSmall(context).copyWith(
+                            color: AppColors.xpGold,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
                 ],
               ),
-            ),
-          ],
+              SizedBox(height: AppSpacing.sm),
+              _buildProgressBar(nextLevelProgress),
+            ],
+          ),
         ),
       ],
     );
@@ -96,68 +158,103 @@ class XPProgressBar extends ConsumerWidget {
     int currentLevelXp,
     int xpToNextLevel,
   ) {
+    final levelColor = AppColors.getLevelColor(level);
+    
     return Column(
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
+        // Header
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
             Text(
-              'Level Progress',
-              style: TextStyle(
-                color: Colors.white.withOpacity(0.9),
-                fontWeight: FontWeight.w500,
-              ),
+              'লেভেল প্রগ্রেস',
+              style: AppTypography.labelMedium(context),
             ),
             _buildLevelBadge(level),
           ],
         ),
-        const SizedBox(height: 16),
-        Text(
-          'Level $level Typist',
-          style: const TextStyle(
-            color: Colors.white,
-            fontSize: 22,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-        const SizedBox(height: 4),
-        Text(
-          _getLevelTitle(level),
-          style: TextStyle(
-            color: Colors.white.withOpacity(0.9),
-            fontSize: 14,
-          ),
-        ),
-        const SizedBox(height: 20),
-        _buildProgressBar(nextLevelProgress),
-        const SizedBox(height: 8),
+        SizedBox(height: AppSpacing.lg),
+        
+        // Level Title
         Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            Text(
-              '$currentLevelXp XP',
-              style: TextStyle(
-                color: Colors.white.withOpacity(0.9),
-                fontSize: 12,
+            Container(
+              padding: EdgeInsets.all(AppSpacing.sm),
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [levelColor, levelColor.withOpacity(0.7)],
+                ),
+                borderRadius: BorderRadius.circular(AppSizes.radiusSm),
+                boxShadow: [
+                  BoxShadow(
+                    color: levelColor.withOpacity(0.4),
+                    blurRadius: 8,
+                    offset: const Offset(0, 2),
+                  ),
+                ],
+              ),
+              child: Icon(
+                _getLevelIcon(level),
+                size: AppSizes.iconLg,
+                color: Colors.white,
               ),
             ),
-            Text(
-              '$xpToNextLevel XP to next level',
-              style: TextStyle(
-                color: Colors.white.withOpacity(0.9),
-                fontSize: 12,
+            SizedBox(width: AppSpacing.md),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'লেভেল $level টাইপিস্ট',
+                    style: AppTypography.headlineSmall(context).copyWith(
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  Text(
+                    _getLevelTitle(level),
+                    style: AppTypography.bodyMedium(context).copyWith(
+                      color: levelColor,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ],
               ),
             ),
           ],
         ),
-        const SizedBox(height: 16),
-        Text(
-          _getLevelDescription(level),
-          style: TextStyle(
-            color: Colors.white.withOpacity(0.85),
-            fontSize: 13,
+        SizedBox(height: AppSpacing.xl),
+        
+        // Progress Bar
+        _buildProgressBar(nextLevelProgress),
+        SizedBox(height: AppSpacing.sm),
+        
+        // XP Stats
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            _buildXPChip(Icons.star_rounded, '$currentLevelXp XP', AppColors.xpGold),
+            Text(
+              'পরবর্তী লেভেলে $xpToNextLevel XP',
+              style: AppTypography.labelSmall(context),
+            ),
+          ],
+        ),
+        SizedBox(height: AppSpacing.lg),
+        
+        // Description
+        Container(
+          padding: EdgeInsets.all(AppSpacing.md),
+          decoration: BoxDecoration(
+            color: Theme.of(context).colorScheme.surfaceContainerHighest.withOpacity(0.5),
+            borderRadius: BorderRadius.circular(AppSizes.radiusSm),
+          ),
+          child: Text(
+            _getLevelDescription(level),
+            style: AppTypography.bodySmall(context).copyWith(
+              height: 1.5,
+            ),
           ),
         ),
       ],
@@ -165,47 +262,83 @@ class XPProgressBar extends ConsumerWidget {
   }
 
   Widget _buildProgressBar(double progress) {
-    return Container(
-      height: 12,
-      decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.2),
-        borderRadius: BorderRadius.circular(6),
-      ),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(6),
-        child: Row(
-          children: [
-            AnimatedContainer(
-              duration: const Duration(milliseconds: 500),
-              curve: Curves.easeInOut,
-              width: progress * 100,
-              decoration: const BoxDecoration(
-                gradient: LinearGradient(
-                  colors: [
-                    Colors.amber,
-                    Colors.orange,
+    final clampedProgress = progress.clamp(0.0, 1.0);
+    
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        return Container(
+          height: 12,
+          decoration: BoxDecoration(
+            color: Theme.of(context).colorScheme.surfaceContainerHighest,
+            borderRadius: BorderRadius.circular(6),
+          ),
+          child: Stack(
+            children: [
+              // Progress fill
+              AnimatedContainer(
+                duration: AppDurations.slow,
+                curve: Curves.easeOutCubic,
+                width: constraints.maxWidth * clampedProgress,
+                decoration: BoxDecoration(
+                  gradient: AppColors.xpBarGradient,
+                  borderRadius: BorderRadius.circular(6),
+                  boxShadow: [
+                    BoxShadow(
+                      color: AppColors.xpGold.withOpacity(0.5),
+                      blurRadius: 8,
+                      offset: const Offset(0, 2),
+                    ),
                   ],
                 ),
               ),
-            ),
-          ],
-        ),
-      ),
+              // Shimmer effect
+              AnimatedBuilder(
+                animation: _shimmerController,
+                builder: (context, child) {
+                  return Positioned(
+                    left: -100 + (constraints.maxWidth + 100) * _shimmerController.value,
+                    top: 0,
+                    bottom: 0,
+                    child: Container(
+                      width: 60,
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          colors: [
+                            Colors.white.withOpacity(0),
+                            Colors.white.withOpacity(0.3),
+                            Colors.white.withOpacity(0),
+                          ],
+                        ),
+                      ),
+                    ),
+                  );
+                },
+              ),
+            ],
+          ),
+        );
+      },
     );
   }
 
   Widget _buildLevelBadge(int level) {
+    final levelColor = AppColors.getLevelColor(level);
+    
     return Container(
-      width: 36,
-      height: 36,
+      width: 44,
+      height: 44,
       decoration: BoxDecoration(
         shape: BoxShape.circle,
-        color: _getLevelColor(level),
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [levelColor, levelColor.withOpacity(0.7)],
+        ),
         border: Border.all(color: Colors.white, width: 2),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.2),
-            blurRadius: 4,
+            color: levelColor.withOpacity(0.4),
+            blurRadius: 8,
             offset: const Offset(0, 2),
           ),
         ],
@@ -213,63 +346,78 @@ class XPProgressBar extends ConsumerWidget {
       child: Center(
         child: Text(
           '$level',
-          style: const TextStyle(
+          style: GoogleFonts.inter(
             color: Colors.white,
-            fontWeight: FontWeight.bold,
-            fontSize: 16,
+            fontWeight: FontWeight.w800,
+            fontSize: 18,
           ),
         ),
       ),
     );
   }
 
-  Color _getLevelColor(int level) {
-    if (level < 5) {
-      return Colors.green;
-    } else if (level < 10) {
-      return Colors.blue;
-    } else if (level < 20) {
-      return Colors.purple;
-    } else if (level < 30) {
-      return Colors.orange;
-    } else {
-      return Colors.red;
-    }
+  Widget _buildXPChip(IconData icon, String text, Color color) {
+    return Container(
+      padding: EdgeInsets.symmetric(
+        horizontal: AppSpacing.sm,
+        vertical: AppSpacing.xs,
+      ),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.15),
+        borderRadius: BorderRadius.circular(AppSizes.radiusFull),
+        border: Border.all(color: color.withOpacity(0.3)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: AppSizes.iconSm, color: color),
+          SizedBox(width: AppSpacing.xs),
+          Text(
+            text,
+            style: AppTypography.labelMedium(context).copyWith(
+              color: color,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  IconData _getLevelIcon(int level) {
+    if (level < 5) return Icons.emoji_events_outlined;
+    if (level < 10) return Icons.military_tech_outlined;
+    if (level < 15) return Icons.workspace_premium_outlined;
+    if (level < 20) return Icons.diamond_outlined;
+    if (level < 30) return Icons.auto_awesome;
+    return Icons.star_rounded;
   }
 
   String _getLevelTitle(int level) {
-    if (level < 3) {
-      return 'Beginner';
-    } else if (level < 6) {
-      return 'Apprentice';
-    } else if (level < 10) {
-      return 'Skilled Typist';
-    } else if (level < 15) {
-      return 'Expert Typist';
-    } else if (level < 20) {
-      return 'Master Typist';
-    } else if (level < 30) {
-      return 'Grandmaster';
-    } else {
-      return 'Legendary Typist';
-    }
+    if (level < 3) return 'নবীন';
+    if (level < 6) return 'শিক্ষানবীশ';
+    if (level < 10) return 'দক্ষ টাইপিস্ট';
+    if (level < 15) return 'বিশেষজ্ঞ টাইপিস্ট';
+    if (level < 20) return 'মাস্টার টাইপিস্ট';
+    if (level < 30) return 'গ্র্যান্ডমাস্টার';
+    return 'কিংবদন্তি টাইপিস্ট';
   }
 
   String _getLevelDescription(int level) {
     if (level < 3) {
-      return 'Keep practicing to improve your typing skills and earn XP. Complete lessons and maintain your daily streak for bonus XP!';
+      return 'আপনার টাইপিং দক্ষতা উন্নত করতে অনুশীলন চালিয়ে যান। লেসন সম্পূর্ণ করে বোনাস XP অর্জন করুন!';
     } else if (level < 6) {
-      return 'Your consistency is paying off! Continue practicing regularly to unlock new achievements and rise through the ranks.';
+      return 'আপনার ধারাবাহিকতা ফল দিচ্ছে! নিয়মিত অনুশীলন করে নতুন অর্জন আনলক করুন।';
     } else if (level < 10) {
-      return 'You\'re becoming proficient! Focus on improving your accuracy and speed to earn more XP and climb to higher levels.';
+      return 'আপনি দক্ষ হয়ে উঠছেন! আপনার নির্ভুলতা এবং গতি উন্নত করতে মনোযোগ দিন।';
     } else if (level < 15) {
-      return 'Impressive progress! You\'re among the top typists. Challenge yourself with more difficult exercises to continue improving.';
+      return 'চমৎকার অগ্রগতি! আপনি শীর্ষ টাইপিস্টদের মধ্যে আছেন।';
     } else if (level < 20) {
-      return 'Your dedication has made you a master typist! Few reach this level of expertise. Keep pushing your limits!';
+      return 'আপনার নিষ্ঠা আপনাকে মাস্টার টাইপিস্ট করেছে! অল্প কয়েকজনই এই স্তরে পৌঁছায়।';
     } else if (level < 30) {
-      return 'Extraordinary typing skills! You\'ve mastered the art of typing. Share your knowledge and help others improve.';
+      return 'অসাধারণ টাইপিং দক্ষতা! আপনি টাইপিংয়ের শিল্পে দক্ষতা অর্জন করেছেন।';
     } else {
-      return 'You\'ve achieved legendary status! Your typing prowess is unmatched. Continue to set records and inspire others.';
+      return 'আপনি কিংবদন্তি মর্যাদা অর্জন করেছেন! আপনার টাইপিং দক্ষতা অতুলনীয়।';
     }
   }
 }

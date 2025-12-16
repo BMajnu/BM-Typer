@@ -1,15 +1,19 @@
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
+import 'package:bm_typer/core/theme/theme.dart';
 import 'package:bm_typer/core/models/achievement_model.dart';
 import 'package:bm_typer/core/services/achievement_service.dart';
 
-/// A widget to display achievement badges with visual effects
+/// আধুনিক অ্যাচিভমেন্ট ব্যাজ
+/// 
+/// শাইন এবং পালস অ্যানিমেশন সহ।
 class AchievementBadge extends StatefulWidget {
   final Achievement achievement;
   final double size;
   final bool isUnlocked;
   final bool showShine;
   final bool showAnimation;
+  final VoidCallback? onTap;
 
   const AchievementBadge({
     super.key,
@@ -18,6 +22,7 @@ class AchievementBadge extends StatefulWidget {
     this.isUnlocked = false,
     this.showShine = false,
     this.showAnimation = false,
+    this.onTap,
   });
 
   @override
@@ -41,39 +46,39 @@ class _AchievementBadgeState extends State<AchievementBadge>
 
     _pulseAnimation = TweenSequence<double>([
       TweenSequenceItem(
-        tween: Tween<double>(begin: 1.0, end: 1.15)
+        tween: Tween<double>(begin: 1.0, end: 1.1)
             .chain(CurveTween(curve: Curves.easeInOut)),
-        weight: 40.0,
+        weight: 50.0,
       ),
       TweenSequenceItem(
-        tween: Tween<double>(begin: 1.15, end: 1.0)
-            .chain(CurveTween(curve: Curves.bounceOut)),
-        weight: 60.0,
+        tween: Tween<double>(begin: 1.1, end: 1.0)
+            .chain(CurveTween(curve: Curves.easeInOut)),
+        weight: 50.0,
       ),
     ]).animate(_controller);
 
     _rotateAnimation = TweenSequence<double>([
       TweenSequenceItem(
-        tween: Tween<double>(begin: 0.0, end: 0.05)
+        tween: Tween<double>(begin: 0.0, end: 0.03)
             .chain(CurveTween(curve: Curves.easeInOut)),
-        weight: 20.0,
+        weight: 25.0,
       ),
       TweenSequenceItem(
-        tween: Tween<double>(begin: 0.05, end: -0.05)
+        tween: Tween<double>(begin: 0.03, end: -0.03)
             .chain(CurveTween(curve: Curves.easeInOut)),
-        weight: 40.0,
+        weight: 50.0,
       ),
       TweenSequenceItem(
-        tween: Tween<double>(begin: -0.05, end: 0.0)
+        tween: Tween<double>(begin: -0.03, end: 0.0)
             .chain(CurveTween(curve: Curves.easeInOut)),
-        weight: 40.0,
+        weight: 25.0,
       ),
     ]).animate(_controller);
 
-    _shineAnimation = Tween<double>(begin: -1.0, end: 1.0).animate(
+    _shineAnimation = Tween<double>(begin: -1.0, end: 1.5).animate(
       CurvedAnimation(
         parent: _controller,
-        curve: const Interval(0.0, 0.75, curve: Curves.easeInOut),
+        curve: const Interval(0.0, 0.8, curve: Curves.easeInOut),
       ),
     );
 
@@ -104,92 +109,127 @@ class _AchievementBadgeState extends State<AchievementBadge>
 
   @override
   Widget build(BuildContext context) {
-    final color =
-        AchievementService.getCategoryColor(widget.achievement.category);
+    final color = AchievementService.getCategoryColor(widget.achievement.category);
 
-    return AnimatedBuilder(
-      animation: _controller,
-      builder: (context, child) {
-        return Transform.scale(
-          scale: widget.showAnimation ? _pulseAnimation.value : 1.0,
-          child: Transform.rotate(
-            angle: widget.showAnimation ? _rotateAnimation.value : 0.0,
-            child: SizedBox(
-              width: widget.size,
-              height: widget.size,
-              child: Stack(
-                children: [
-                  // Badge base
-                  _buildBadgeBase(color),
-
-                  // Shine effect if enabled
-                  if (widget.showShine && widget.isUnlocked)
-                    _buildShineEffect(color),
-
-                  // Badge icon
-                  _buildBadgeIcon(),
-
-                  // Locked overlay if not unlocked
-                  if (!widget.isUnlocked) _buildLockedOverlay(),
-                ],
+    return GestureDetector(
+      onTap: widget.onTap,
+      child: AnimatedBuilder(
+        animation: _controller,
+        builder: (context, child) {
+          return Transform.scale(
+            scale: widget.showAnimation ? _pulseAnimation.value : 1.0,
+            child: Transform.rotate(
+              angle: widget.showAnimation ? _rotateAnimation.value : 0.0,
+              child: SizedBox(
+                width: widget.size,
+                height: widget.size,
+                child: Stack(
+                  children: [
+                    // Badge base with gradient
+                    _buildBadgeBase(color),
+                    
+                    // Shine effect
+                    if (widget.showShine && widget.isUnlocked)
+                      _buildShineEffect(),
+                    
+                    // Icon
+                    _buildBadgeIcon(color),
+                    
+                    // Locked overlay
+                    if (!widget.isUnlocked) _buildLockedOverlay(),
+                  ],
+                ),
               ),
             ),
-          ),
-        );
-      },
+          );
+        },
+      ),
     );
   }
 
   Widget _buildBadgeBase(Color color) {
-    final outerBorder = widget.isUnlocked ? color : Colors.grey[400]!;
-    final innerColor =
-        widget.isUnlocked ? color.withOpacity(0.2) : Colors.grey[200]!;
-
     return Container(
       width: widget.size,
       height: widget.size,
       decoration: BoxDecoration(
         shape: BoxShape.circle,
-        color: innerColor,
+        gradient: widget.isUnlocked
+            ? RadialGradient(
+                center: const Alignment(-0.3, -0.3),
+                colors: [
+                  color.withOpacity(0.9),
+                  color,
+                  color.withOpacity(0.8),
+                ],
+                stops: const [0.0, 0.5, 1.0],
+              )
+            : RadialGradient(
+                colors: [
+                  Colors.grey[400]!,
+                  Colors.grey[500]!,
+                ],
+              ),
         border: Border.all(
-          color: outerBorder,
-          width: widget.size * 0.05,
+          color: widget.isUnlocked ? Colors.white.withOpacity(0.5) : Colors.grey[400]!,
+          width: widget.size * 0.04,
         ),
         boxShadow: widget.isUnlocked
             ? [
                 BoxShadow(
-                  color: color.withOpacity(0.3),
-                  blurRadius: widget.size * 0.1,
+                  color: color.withOpacity(0.4),
+                  blurRadius: widget.size * 0.2,
                   spreadRadius: widget.size * 0.02,
                 ),
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.2),
+                  blurRadius: widget.size * 0.1,
+                  offset: Offset(0, widget.size * 0.05),
+                ),
               ]
-            : null,
+            : [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.15),
+                  blurRadius: widget.size * 0.08,
+                  offset: Offset(0, widget.size * 0.03),
+                ),
+              ],
+      ),
+      // Inner ring
+      child: Center(
+        child: Container(
+          width: widget.size * 0.8,
+          height: widget.size * 0.8,
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            border: Border.all(
+              color: widget.isUnlocked
+                  ? Colors.white.withOpacity(0.3)
+                  : Colors.grey[400]!.withOpacity(0.3),
+              width: widget.size * 0.02,
+            ),
+          ),
+        ),
       ),
     );
   }
 
-  Widget _buildShineEffect(Color color) {
+  Widget _buildShineEffect() {
     return AnimatedBuilder(
       animation: _shineAnimation,
       builder: (context, child) {
         return ClipOval(
-          child: Container(
+          child: SizedBox(
             width: widget.size,
             height: widget.size,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-            ),
             child: Transform.rotate(
-              angle: math.pi / 4, // 45 degrees
+              angle: math.pi / 4,
               child: Transform.translate(
                 offset: Offset(
-                  widget.showAnimation
-                      ? widget.size * _shineAnimation.value * 1.5
-                      : widget.size * 0.5,
+                  widget.size * _shineAnimation.value,
                   0,
                 ),
                 child: Container(
-                  width: widget.size * 0.2,
+                  width: widget.size * 0.3,
                   decoration: BoxDecoration(
                     gradient: LinearGradient(
                       colors: [
@@ -197,7 +237,6 @@ class _AchievementBadgeState extends State<AchievementBadge>
                         Colors.white.withOpacity(0.5),
                         Colors.white.withOpacity(0.0),
                       ],
-                      stops: const [0.0, 0.5, 1.0],
                     ),
                   ),
                 ),
@@ -209,41 +248,36 @@ class _AchievementBadgeState extends State<AchievementBadge>
     );
   }
 
-  Widget _buildBadgeIcon() {
-    final iconColor = widget.isUnlocked ? Colors.white : Colors.grey[500]!;
-    final iconSize = widget.size * 0.5;
-
+  Widget _buildBadgeIcon(Color color) {
     return Center(
       child: Icon(
         widget.achievement.icon,
-        color: iconColor,
-        size: iconSize,
+        color: widget.isUnlocked ? Colors.white : Colors.grey[500],
+        size: widget.size * 0.45,
       ),
     );
   }
 
   Widget _buildLockedOverlay() {
-    return Center(
-      child: Container(
-        width: widget.size,
-        height: widget.size,
-        decoration: const BoxDecoration(
-          shape: BoxShape.circle,
-          color: Colors.black26,
-        ),
-        child: Center(
-          child: Icon(
-            Icons.lock,
-            color: Colors.white.withOpacity(0.7),
-            size: widget.size * 0.3,
-          ),
+    return Container(
+      width: widget.size,
+      height: widget.size,
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        color: Colors.black.withOpacity(0.4),
+      ),
+      child: Center(
+        child: Icon(
+          Icons.lock_rounded,
+          color: Colors.white.withOpacity(0.8),
+          size: widget.size * 0.25,
         ),
       ),
     );
   }
 }
 
-/// A widget that displays a 3D-like badge with perspective effect
+/// পারস্পেক্টিভ ব্যাজ - 3D ইফেক্ট সহ
 class PerspectiveBadge extends StatefulWidget {
   final Achievement achievement;
   final double size;
@@ -273,7 +307,7 @@ class _PerspectiveBadgeState extends State<PerspectiveBadge>
     super.initState();
     _controller = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 800),
+      duration: AppDurations.slow,
     );
 
     _flipAnimation = TweenSequence<double>([
@@ -299,7 +333,6 @@ class _PerspectiveBadgeState extends State<PerspectiveBadge>
   void _onHover(bool isHovering) {
     setState(() {
       _isHovering = isHovering;
-
       if (isHovering) {
         _controller.forward();
       } else {
@@ -310,9 +343,8 @@ class _PerspectiveBadgeState extends State<PerspectiveBadge>
 
   @override
   Widget build(BuildContext context) {
-    final badgeColor =
-        AchievementService.getCategoryColor(widget.achievement.category);
-    final baseColor = widget.isUnlocked ? badgeColor : Colors.grey[400]!;
+    final color = AchievementService.getCategoryColor(widget.achievement.category);
+    final baseColor = widget.isUnlocked ? color : Colors.grey[400]!;
 
     return MouseRegion(
       onEnter: (_) => _onHover(true),
@@ -325,7 +357,7 @@ class _PerspectiveBadgeState extends State<PerspectiveBadge>
             return Transform(
               alignment: Alignment.center,
               transform: Matrix4.identity()
-                ..setEntry(3, 2, 0.001) // Perspective
+                ..setEntry(3, 2, 0.001)
                 ..rotateX(_isHovering ? _flipAnimation.value : 0)
                 ..rotateY(_isHovering ? _flipAnimation.value * 0.5 : 0),
               child: Container(
@@ -345,14 +377,13 @@ class _PerspectiveBadgeState extends State<PerspectiveBadge>
                   boxShadow: [
                     BoxShadow(
                       color: baseColor.withOpacity(0.4),
-                      blurRadius: widget.size * 0.1,
+                      blurRadius: widget.size * 0.12,
                       spreadRadius: widget.size * 0.01,
                     ),
                     BoxShadow(
                       color: Colors.black.withOpacity(0.2),
-                      blurRadius: widget.size * 0.05,
-                      spreadRadius: widget.size * 0.01,
-                      offset: Offset(0, widget.size * 0.02),
+                      blurRadius: widget.size * 0.06,
+                      offset: Offset(0, widget.size * 0.03),
                     ),
                   ],
                 ),
@@ -378,7 +409,7 @@ class _PerspectiveBadgeState extends State<PerspectiveBadge>
                       child: Icon(
                         widget.achievement.icon,
                         color: Colors.white,
-                        size: widget.size * 0.5,
+                        size: widget.size * 0.45,
                       ),
                     ),
 
@@ -412,13 +443,13 @@ class _PerspectiveBadgeState extends State<PerspectiveBadge>
                           height: widget.size,
                           decoration: BoxDecoration(
                             shape: BoxShape.circle,
-                            color: Colors.black.withOpacity(0.4),
+                            color: Colors.black.withOpacity(0.45),
                           ),
                           child: Center(
                             child: Icon(
-                              Icons.lock,
-                              color: Colors.white.withOpacity(0.8),
-                              size: widget.size * 0.3,
+                              Icons.lock_rounded,
+                              color: Colors.white.withOpacity(0.85),
+                              size: widget.size * 0.28,
                             ),
                           ),
                         ),
@@ -434,7 +465,7 @@ class _PerspectiveBadgeState extends State<PerspectiveBadge>
   }
 }
 
-/// A grid of achievement badges
+/// অ্যাচিভমেন্ট ব্যাজ গ্রিড
 class AchievementBadgeGrid extends StatelessWidget {
   final List<Achievement> achievements;
   final List<String> unlockedIds;
@@ -460,6 +491,7 @@ class AchievementBadgeGrid extends StatelessWidget {
         crossAxisCount: _calculateCrossAxisCount(context),
         crossAxisSpacing: spacing,
         mainAxisSpacing: spacing,
+        childAspectRatio: 0.85,
       ),
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
@@ -482,7 +514,8 @@ class AchievementBadgeGrid extends StatelessWidget {
             isUnlocked: isUnlocked,
             size: badgeSize,
             showShine: isUnlocked,
-            showAnimation: isUnlocked && index % 2 == 0, // Animate some badges
+            showAnimation: isUnlocked && index % 3 == 0,
+            onTap: onTap != null ? () => onTap!(achievement) : null,
           );
         }
 
@@ -490,15 +523,15 @@ class AchievementBadgeGrid extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           children: [
             badgeWidget,
-            const SizedBox(height: 8),
+            SizedBox(height: AppSpacing.xs),
             Text(
               achievement.title,
               textAlign: TextAlign.center,
-              style: TextStyle(
-                fontWeight: FontWeight.bold,
+              style: AppTypography.labelSmall(context).copyWith(
+                fontWeight: FontWeight.w600,
                 color: isUnlocked
                     ? AchievementService.getCategoryColor(achievement.category)
-                    : Colors.grey[500],
+                    : Theme.of(context).colorScheme.onSurfaceVariant,
               ),
               maxLines: 2,
               overflow: TextOverflow.ellipsis,

@@ -52,6 +52,12 @@ dependencies:
   pdf: ^3.11.3
   universal_html: ^2.2.4
   fl_chart: ^1.0.0
+  share_plus: ^12.0.1
+  url_launcher: ^6.3.2
+  firebase_core: ^4.3.0
+  cloud_firestore: ^6.1.1
+  firebase_auth: ^6.1.3
+  connectivity_plus: ^7.0.0
 
 dev_dependencies:
   flutter_test:

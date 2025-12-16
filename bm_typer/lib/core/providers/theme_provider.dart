@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:bm_typer/core/services/theme_service.dart';
+import 'package:bm_typer/core/theme/theme.dart';
 
 /// Theme state containing both theme mode and color
 class ThemeState {
@@ -38,26 +39,14 @@ class ThemeState {
     }
   }
 
-  /// Get light theme data
+  /// Get light theme data - uses new AppTheme design system
   ThemeData getLightTheme() {
-    return ThemeData(
-      colorScheme: ColorScheme.fromSeed(
-        seedColor: seedColor,
-        brightness: Brightness.light,
-      ),
-      useMaterial3: true,
-    );
+    return AppTheme.lightTheme(seedColor: seedColor);
   }
 
-  /// Get dark theme data
+  /// Get dark theme data - uses new AppTheme design system
   ThemeData getDarkTheme() {
-    return ThemeData(
-      colorScheme: ColorScheme.fromSeed(
-        seedColor: seedColor,
-        brightness: Brightness.dark,
-      ),
-      useMaterial3: true,
-    );
+    return AppTheme.darkTheme(seedColor: seedColor);
   }
 }
 
