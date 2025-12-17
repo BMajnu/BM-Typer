@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:bm_typer/core/providers/user_provider.dart';
+import 'package:bm_typer/core/providers/subscription_provider.dart';
+import 'package:bm_typer/core/services/feature_limit_service.dart';
 import 'package:bm_typer/presentation/screens/reminder_settings_screen.dart';
 import 'package:bm_typer/presentation/screens/level_details_screen.dart';
 import 'package:bm_typer/presentation/screens/export_screen.dart';
@@ -249,6 +251,11 @@ class ProfileScreen extends ConsumerWidget {
                   children: [
                     // Quick Stats Row
                     _buildQuickStats(context, user, colorScheme, isDark, isCompact),
+                    
+                    const SizedBox(height: 16),
+                    
+                    // Subscription Status Card
+                    _buildSubscriptionStatusCard(context, ref, colorScheme, isDark),
                     
                     const SizedBox(height: 24),
                     
@@ -939,6 +946,183 @@ class ProfileScreen extends ConsumerWidget {
       return 'গ্র্যান্ডমাস্টার';
     } else {
       return 'কিংবদন্তি টাইপিস্ট';
+    }
+  }
+
+  Widget _buildSubscriptionStatusCard(BuildContext context, WidgetRef ref, ColorScheme colorScheme, bool isDark) {
+    final subscriptionState = ref.watch(subscriptionStateProvider);
+    final isPremium = subscriptionState.isPremium;
+    
+    if (isPremium) {
+      // Premium user card
+      return Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            colors: [Colors.amber.shade600, Colors.orange.shade400],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ),
+          borderRadius: BorderRadius.circular(16),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.amber.withOpacity(0.3),
+              blurRadius: 10,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
+        child: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: Colors.white.withOpacity(0.2),
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(Icons.workspace_premium_rounded, color: Colors.white, size: 28),
+            ),
+            const SizedBox(width: 16),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'প্রিমিয়াম অ্যাক্টিভ ✓',
+                    style: GoogleFonts.hindSiliguri(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white,
+                    ),
+                  ),
+                  Text(
+                    'সব ফিচার আনলক আছে',
+                    style: GoogleFonts.hindSiliguri(
+                      fontSize: 12,
+                      color: Colors.white.withOpacity(0.9),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+              decoration: BoxDecoration(
+                color: Colors.white.withOpacity(0.2),
+                borderRadius: BorderRadius.circular(20),
+              ),
+              child: Text(
+                (subscriptionState.subscription?.type ?? 'premium').toUpperCase(),
+                style: GoogleFonts.poppins(
+                  fontSize: 11,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.white,
+                ),
+              ),
+            ),
+          ],
+        ),
+      );
+    } else {
+      // Free user card with limits
+      final limitService = ref.watch(featureLimitServiceProvider);
+      final remainingPractice = limitService.getRemainingPracticeMinutes(false);
+      final remainingTests = limitService.getRemainingTests(false);
+      
+      return Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: isDark ? Colors.white.withOpacity(0.08) : Colors.grey.shade100,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(
+            color: Colors.deepPurple.withOpacity(0.3),
+          ),
+        ),
+        child: Column(
+          children: [
+            Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: Colors.deepPurple.withOpacity(0.1),
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(Icons.stars_rounded, color: Colors.deepPurple, size: 24),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'ফ্রি প্ল্যান',
+                        style: GoogleFonts.hindSiliguri(
+                          fontSize: 15,
+                          fontWeight: FontWeight.bold,
+                          color: isDark ? Colors.white : Colors.black87,
+                        ),
+                      ),
+                      Text(
+                        'আজকের অবশিষ্ট: $remainingPractice মিনিট • $remainingTests টেস্ট',
+                        style: GoogleFonts.hindSiliguri(
+                          fontSize: 11,
+                          color: remainingPractice <= 2 ? Colors.orange : (isDark ? Colors.white70 : Colors.grey.shade600),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                TextButton(
+                  onPressed: () => Navigator.pushNamed(context, '/subscription'),
+                  child: Text(
+                    'আপগ্রেড',
+                    style: GoogleFonts.hindSiliguri(
+                      fontSize: 13,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.deepPurple,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            
+            const SizedBox(height: 12),
+            
+            // Progress bar for practice time
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      'দৈনিক প্র্যাক্টিস',
+                      style: TextStyle(fontSize: 11, color: isDark ? Colors.white60 : Colors.grey.shade600),
+                    ),
+                    Text(
+                      '$remainingPractice/${FeatureLimits.maxDailyPracticeMinutes} মিনিট',
+                      style: TextStyle(fontSize: 11, color: isDark ? Colors.white60 : Colors.grey.shade600),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 4),
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(4),
+                  child: LinearProgressIndicator(
+                    value: (FeatureLimits.maxDailyPracticeMinutes - remainingPractice) / FeatureLimits.maxDailyPracticeMinutes,
+                    backgroundColor: Colors.grey.withOpacity(0.2),
+                    valueColor: AlwaysStoppedAnimation(
+                      remainingPractice <= 2 ? Colors.orange : Colors.deepPurple,
+                    ),
+                    minHeight: 6,
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      );
     }
   }
 }
