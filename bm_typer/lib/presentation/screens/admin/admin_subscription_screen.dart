@@ -382,94 +382,19 @@ class _AdminSubscriptionScreenState extends ConsumerState<AdminSubscriptionScree
   }
 
   void _showGrantDialog(BuildContext context) {
-    String? userId;
-    SubscriptionType selectedType = SubscriptionType.monthly;
-    final colorScheme = Theme.of(context).colorScheme;
-
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        title: Text('নতুন সাবস্ক্রিপশন দিন', style: GoogleFonts.hindSiliguri(fontWeight: FontWeight.bold)),
-        content: StatefulBuilder(
-          builder: (context, setDialogState) => Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TextField(
-                decoration: InputDecoration(
-                  labelText: 'ইউজার ID',
-                  labelStyle: GoogleFonts.hindSiliguri(),
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-                ),
-                onChanged: (val) => userId = val,
-              ),
-              const SizedBox(height: 16),
-              DropdownButtonFormField<SubscriptionType>(
-                value: selectedType,
-                decoration: InputDecoration(
-                  labelText: 'প্ল্যান',
-                  labelStyle: GoogleFonts.hindSiliguri(),
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-                ),
-                items: [
-                  DropdownMenuItem(
-                    value: SubscriptionType.monthly,
-                    child: Text('মাসিক - ৳99', style: GoogleFonts.hindSiliguri()),
-                  ),
-                  DropdownMenuItem(
-                    value: SubscriptionType.quarterly,
-                    child: Text('৩ মাস - ৳249', style: GoogleFonts.hindSiliguri()),
-                  ),
-                  DropdownMenuItem(
-                    value: SubscriptionType.halfYearly,
-                    child: Text('৬ মাস - ৳449', style: GoogleFonts.hindSiliguri()),
-                  ),
-                  DropdownMenuItem(
-                    value: SubscriptionType.yearly,
-                    child: Text('বার্ষিক - ৳799', style: GoogleFonts.hindSiliguri()),
-                  ),
-                ],
-                onChanged: (val) {
-                  if (val != null) setDialogState(() => selectedType = val);
-                },
-              ),
-            ],
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: Text('বাতিল', style: GoogleFonts.hindSiliguri()),
-          ),
-          ElevatedButton(
-            onPressed: () async {
-              if (userId != null && userId!.isNotEmpty) {
-                final service = ref.read(adminSubscriptionServiceProvider);
-                final success = await service.grantSubscription(
-                  userId: userId!,
-                  type: selectedType,
-                );
-                if (mounted) {
-                  Navigator.pop(context);
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text(
-                        success ? 'সাবস্ক্রিপশন দেওয়া হয়েছে!' : 'ত্রুটি হয়েছে',
-                        style: GoogleFonts.hindSiliguri(),
-                      ),
-                      backgroundColor: success ? Colors.green : Colors.red,
-                    ),
-                  );
-                  ref.invalidate(subscriptionStatsProvider);
-                }
-              }
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: colorScheme.primary,
-              foregroundColor: colorScheme.onPrimary,
+      builder: (context) => _GrantSubscriptionDialog(
+        ref: ref,
+        onSuccess: () {
+          ref.invalidate(subscriptionStatsProvider);
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('সাবস্ক্রিপশন দেওয়া হয়েছে!', style: GoogleFonts.hindSiliguri()),
+              backgroundColor: Colors.green,
             ),
-            child: Text('দিন', style: GoogleFonts.hindSiliguri(fontWeight: FontWeight.bold)),
-          ),
-        ],
+          );
+        },
       ),
     );
   }
@@ -565,6 +490,593 @@ class _AdminSubscriptionScreenState extends ConsumerState<AdminSubscriptionScree
             child: Text('বাতিল করুন', style: GoogleFonts.hindSiliguri(fontWeight: FontWeight.bold)),
           ),
         ],
+      ),
+    );
+  }
+}
+
+/// Professional Grant Subscription Dialog with Tabs
+class _GrantSubscriptionDialog extends StatefulWidget {
+  final WidgetRef ref;
+  final VoidCallback onSuccess;
+
+  const _GrantSubscriptionDialog({
+    required this.ref,
+    required this.onSuccess,
+  });
+
+  @override
+  State<_GrantSubscriptionDialog> createState() => _GrantSubscriptionDialogState();
+}
+
+class _GrantSubscriptionDialogState extends State<_GrantSubscriptionDialog> with SingleTickerProviderStateMixin {
+  late TabController _tabController;
+  
+  // Search tab
+  final TextEditingController _searchController = TextEditingController();
+  List<Map<String, dynamic>> _searchResults = [];
+  bool _isSearching = false;
+  Map<String, dynamic>? _selectedUser;
+  SubscriptionType _selectedType = SubscriptionType.monthly;
+  
+  // New user tab
+  final _formKey = GlobalKey<FormState>();
+  final TextEditingController _nameController = TextEditingController();
+  final TextEditingController _emailController = TextEditingController();
+  final TextEditingController _passwordController = TextEditingController();
+  final TextEditingController _phoneController = TextEditingController();
+  SubscriptionType _newUserPlanType = SubscriptionType.monthly;
+  bool _isCreating = false;
+  String? _errorMessage;
+
+  @override
+  void initState() {
+    super.initState();
+    _tabController = TabController(length: 2, vsync: this);
+    // Load initial users to verify data connection
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _searchUsers('');
+    });
+  }
+
+  @override
+  void dispose() {
+    _tabController.dispose();
+    _searchController.dispose();
+    _nameController.dispose();
+    _emailController.dispose();
+    _passwordController.dispose();
+    _phoneController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _searchUsers(String query) async {
+    // Removed length check to allow fetching all users (handled in service)
+    setState(() => _isSearching = true);
+    
+    final service = widget.ref.read(adminSubscriptionServiceProvider);
+    final results = await service.searchUsers(query);
+    
+    if (mounted) {
+      setState(() {
+        _searchResults = results;
+        _isSearching = false;
+      });
+    }
+  }
+
+  Future<void> _grantToExistingUser() async {
+    if (_selectedUser == null) return;
+
+    final service = widget.ref.read(adminSubscriptionServiceProvider);
+    final success = await service.grantSubscription(
+      userId: _selectedUser!['id'],
+      type: _selectedType,
+    );
+
+    if (mounted) {
+      if (success) {
+        Navigator.pop(context);
+        widget.onSuccess();
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('সাবস্ক্রিপশন দিতে সমস্যা হয়েছে', style: GoogleFonts.hindSiliguri()),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
+  Future<void> _createUserAndGrant() async {
+    if (!_formKey.currentState!.validate()) return;
+
+    setState(() {
+      _isCreating = true;
+      _errorMessage = null;
+    });
+
+    final service = widget.ref.read(adminSubscriptionServiceProvider);
+    final result = await service.createUserAndGrant(
+      name: _nameController.text.trim(),
+      email: _emailController.text.trim(),
+      password: _passwordController.text,
+      phone: _phoneController.text.trim().isNotEmpty ? _phoneController.text.trim() : null,
+      subscriptionType: _newUserPlanType,
+    );
+
+    if (mounted) {
+      setState(() => _isCreating = false);
+
+      if (result['success'] == true) {
+        Navigator.pop(context);
+        widget.onSuccess();
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('ইউজার তৈরি ও সাবস্ক্রিপশন দেওয়া হয়েছে!', style: GoogleFonts.hindSiliguri()),
+            backgroundColor: Colors.green,
+          ),
+        );
+      } else {
+        setState(() => _errorMessage = result['error']);
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+
+    return Dialog(
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+      child: Container(
+        width: 550,
+        height: 600,
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          children: [
+            // Header
+            Row(
+              children: [
+                Icon(Icons.card_membership, color: colorScheme.primary),
+                const SizedBox(width: 12),
+                Text(
+                  'সাবস্ক্রিপশন দিন',
+                  style: GoogleFonts.hindSiliguri(
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                const Spacer(),
+                IconButton(
+                  icon: const Icon(Icons.close),
+                  onPressed: () => Navigator.pop(context),
+                ),
+              ],
+            ),
+
+            const SizedBox(height: 16),
+
+            // Tab Bar
+            Container(
+              decoration: BoxDecoration(
+                color: colorScheme.surfaceContainerHighest.withOpacity(0.3),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: TabBar(
+                controller: _tabController,
+                indicator: BoxDecoration(
+                  color: colorScheme.primary,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                labelColor: Colors.white,
+                unselectedLabelColor: colorScheme.onSurface,
+                labelStyle: GoogleFonts.hindSiliguri(fontWeight: FontWeight.bold),
+                tabs: const [
+                  Tab(text: 'বিদ্যমান ইউজার'),
+                  Tab(text: 'নতুন ইউজার'),
+                ],
+              ),
+            ),
+
+            const SizedBox(height: 16),
+
+            // Tab Content
+            Expanded(
+              child: TabBarView(
+                controller: _tabController,
+                children: [
+                  _buildSearchTab(colorScheme),
+                  _buildCreateTab(colorScheme),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSearchTab(ColorScheme colorScheme) {
+    return Column(
+      children: [
+        // Search Field
+        TextField(
+          controller: _searchController,
+          decoration: InputDecoration(
+            hintText: 'নাম বা ইমেইল দিয়ে খুঁজুন...',
+            hintStyle: GoogleFonts.hindSiliguri(),
+            prefixIcon: const Icon(Icons.search),
+            suffixIcon: _isSearching
+                ? const Padding(
+                    padding: EdgeInsets.all(12),
+                    child: SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2)),
+                  )
+                : null,
+            border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+            filled: true,
+            fillColor: colorScheme.surfaceContainerHighest.withOpacity(0.3),
+          ),
+          onChanged: (value) => _searchUsers(value),
+        ),
+
+        const SizedBox(height: 12),
+
+        // Search Results or Selected User
+        Expanded(
+          child: _selectedUser != null
+              ? _buildSelectedUserCard(colorScheme)
+              : _searchResults.isEmpty
+                  ? Center(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(Icons.search, size: 48, color: Colors.grey.shade300),
+                          const SizedBox(height: 12),
+                          Text(
+                            _searchController.text.length < 2
+                                ? 'কমপক্ষে ২ অক্ষর লিখুন'
+                                : 'কোনো ইউজার পাওয়া যায়নি',
+                            style: GoogleFonts.hindSiliguri(color: Colors.grey),
+                          ),
+                        ],
+                      ),
+                    )
+                  : ListView.separated(
+                      padding: const EdgeInsets.all(12),
+                      separatorBuilder: (c, i) => const SizedBox(height: 8),
+                      itemCount: _searchResults.length,
+                      itemBuilder: (context, index) {
+                        final user = _searchResults[index];
+                        final hasName = user['name']?.toString().isNotEmpty ?? false;
+                        final hasEmail = user['email']?.toString().isNotEmpty ?? false;
+                        final hasPhone = user['phone']?.toString().isNotEmpty ?? false;
+                        
+                        // Priority: Name > Email > Phone > ID
+                        final displayName = hasName ? user['name'] 
+                            : (hasEmail ? user['email'] 
+                            : (hasPhone ? user['phone'] : 'User ${user['userId']}'));
+                            
+                        final subtitle = hasName ? (hasEmail ? user['email'] : (hasPhone ? user['phone'] : 'ID: ${user['userId']}')) 
+                            : 'ID: ${user['userId']}';
+
+                        return Card(
+                          elevation: 0,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            side: BorderSide(color: Colors.grey.shade300),
+                          ),
+                          child: ListTile(
+                            contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                            leading: CircleAvatar(
+                              backgroundColor: colorScheme.primary.withOpacity(0.1),
+                              backgroundImage: user['photoUrl'] != null
+                                  ? NetworkImage(user['photoUrl'])
+                                  : null,
+                              child: user['photoUrl'] == null 
+                                  ? Text(
+                                      (user['name']?.toString().isNotEmpty ?? false)
+                                          ? (user['name'].toString()[0].toUpperCase())
+                                          : 'U',
+                                      style: TextStyle(color: colorScheme.primary, fontWeight: FontWeight.bold),
+                                    )
+                                  : null,
+                            ),
+                            title: Text(
+                              displayName,
+                              style: GoogleFonts.hindSiliguri(
+                                fontWeight: FontWeight.bold,
+                                color: colorScheme.onSurface,
+                              ),
+                            ),
+                            subtitle: Text(
+                              subtitle,
+                              style: TextStyle(
+                                fontSize: 13,
+                                color: colorScheme.onSurfaceVariant,
+                              ),
+                            ),
+                            trailing: ElevatedButton(
+                              onPressed: () {
+                                setState(() {
+                                  _selectedUser = user;
+                                });
+                              },
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: colorScheme.primary,
+                                foregroundColor: colorScheme.onPrimary,
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 0),
+                              ),
+                              child: Text('সিলেক্ট', style: GoogleFonts.hindSiliguri()),
+                            ),
+                          ),
+                        );
+                      },
+                    ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildSelectedUserCard(ColorScheme colorScheme) {
+    return SingleChildScrollView(
+      child: Column(
+        children: [
+          // Selected User Card
+          Card(
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Row(
+                children: [
+                  CircleAvatar(
+                    radius: 25,
+                    backgroundColor: colorScheme.primaryContainer,
+                    backgroundImage: _selectedUser!['photoUrl'] != null
+                        ? NetworkImage(_selectedUser!['photoUrl'])
+                        : null,
+                    child: _selectedUser!['photoUrl'] == null
+                        ? Text(
+                            (_selectedUser!['name']?.toString().isNotEmpty ?? false)
+                                ? (_selectedUser!['name'].toString()[0].toUpperCase())
+                                : 'U',
+                            style: TextStyle(color: colorScheme.primary, fontSize: 20),
+                          )
+                        : null,
+                  ),
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Builder(
+                          builder: (context) {
+                            final user = _selectedUser!;
+                            final hasName = user['name']?.toString().isNotEmpty ?? false;
+                            final hasEmail = user['email']?.toString().isNotEmpty ?? false;
+                            final hasPhone = user['phone']?.toString().isNotEmpty ?? false;
+                            
+                            final displayName = hasName ? user['name'] 
+                                : (hasEmail ? user['email'] 
+                                : (hasPhone ? user['phone'] : 'User ${user['userId']}'));
+                                
+                            return Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(displayName, style: GoogleFonts.hindSiliguri(fontWeight: FontWeight.bold, fontSize: 16)),
+                                if (hasName && hasEmail)
+                                  Text(user['email'], style: const TextStyle(fontSize: 13)),
+                                Text('ID: ${user['userId']}', style: TextStyle(fontSize: 11, color: Colors.grey.shade600)),
+                              ],
+                            );
+                          }
+                        ),
+                      ],
+                    ),
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.close),
+                    onPressed: () => setState(() => _selectedUser = null),
+                  ),
+                ],
+              ),
+            ),
+          ),
+
+          const SizedBox(height: 20),
+
+          // Plan Selection
+          Text('প্ল্যান সিলেক্ট করুন:', style: GoogleFonts.hindSiliguri(fontWeight: FontWeight.w600)),
+          const SizedBox(height: 12),
+
+          ...SubscriptionType.values.where((t) => t != SubscriptionType.free).map((type) {
+            final isSelected = _selectedType == type;
+            return Card(
+              color: isSelected ? colorScheme.primary.withOpacity(0.1) : null,
+              child: ListTile(
+                leading: Radio<SubscriptionType>(
+                  value: type,
+                  groupValue: _selectedType,
+                  onChanged: (val) => setState(() => _selectedType = val!),
+                ),
+                title: Text(SubscriptionModel.getDisplayName(type), style: GoogleFonts.hindSiliguri()),
+                trailing: Text('৳${SubscriptionModel.getPrice(type)}', style: GoogleFonts.hindSiliguri(fontWeight: FontWeight.bold)),
+                onTap: () => setState(() => _selectedType = type),
+              ),
+            );
+          }).toList(),
+
+          const SizedBox(height: 20),
+
+          // Grant Button
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton.icon(
+              onPressed: _grantToExistingUser,
+              icon: const Icon(Icons.card_giftcard),
+              label: Text('সাবস্ক্রিপশন দিন', style: GoogleFonts.hindSiliguri(fontWeight: FontWeight.bold)),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: colorScheme.primary,
+                foregroundColor: colorScheme.onPrimary,
+                padding: const EdgeInsets.symmetric(vertical: 14),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildCreateTab(ColorScheme colorScheme) {
+    return Form(
+      key: _formKey,
+      child: SingleChildScrollView(
+        child: Column(
+          children: [
+            // Name
+            TextFormField(
+              controller: _nameController,
+              decoration: InputDecoration(
+                labelText: 'পুরো নাম *',
+                labelStyle: GoogleFonts.hindSiliguri(),
+                prefixIcon: const Icon(Icons.person),
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+              ),
+              validator: (value) => value?.isEmpty == true ? 'নাম দিন' : null,
+            ),
+
+            const SizedBox(height: 16),
+
+            // Email
+            TextFormField(
+              controller: _emailController,
+              keyboardType: TextInputType.emailAddress,
+              decoration: InputDecoration(
+                labelText: 'ইমেইল *',
+                labelStyle: GoogleFonts.hindSiliguri(),
+                prefixIcon: const Icon(Icons.email),
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+              ),
+              validator: (value) {
+                if (value?.isEmpty == true) return 'ইমেইল দিন';
+                if (!RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$').hasMatch(value!)) {
+                  return 'সঠিক ইমেইল দিন';
+                }
+                return null;
+              },
+            ),
+
+            const SizedBox(height: 16),
+
+            // Password
+            TextFormField(
+              controller: _passwordController,
+              obscureText: true,
+              decoration: InputDecoration(
+                labelText: 'পাসওয়ার্ড *',
+                labelStyle: GoogleFonts.hindSiliguri(),
+                prefixIcon: const Icon(Icons.lock),
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                helperText: 'কমপক্ষে ৬ অক্ষর',
+              ),
+              validator: (value) {
+                if (value?.isEmpty == true) return 'পাসওয়ার্ড দিন';
+                if (value!.length < 6) return 'কমপক্ষে ৬ অক্ষর দিন';
+                return null;
+              },
+            ),
+
+            const SizedBox(height: 16),
+
+            // Phone
+            TextFormField(
+              controller: _phoneController,
+              keyboardType: TextInputType.phone,
+              decoration: InputDecoration(
+                labelText: 'ফোন (ঐচ্ছিক)',
+                labelStyle: GoogleFonts.hindSiliguri(),
+                prefixIcon: const Icon(Icons.phone),
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+              ),
+            ),
+
+            const SizedBox(height: 16),
+
+            // Plan Selection
+            DropdownButtonFormField<SubscriptionType>(
+              value: _newUserPlanType,
+              decoration: InputDecoration(
+                labelText: 'প্ল্যান',
+                labelStyle: GoogleFonts.hindSiliguri(),
+                prefixIcon: const Icon(Icons.card_membership),
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+              ),
+              items: SubscriptionType.values.where((t) => t != SubscriptionType.free).map((type) {
+                return DropdownMenuItem(
+                  value: type,
+                  child: Text('${SubscriptionModel.getDisplayName(type)} - ৳${SubscriptionModel.getPrice(type)}', style: GoogleFonts.hindSiliguri()),
+                );
+              }).toList(),
+              onChanged: (val) {
+                if (val != null) setState(() => _newUserPlanType = val);
+              },
+            ),
+
+            const SizedBox(height: 16),
+
+            // Error Message
+            if (_errorMessage != null)
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.red.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: Colors.red.withOpacity(0.3)),
+                ),
+                child: Row(
+                  children: [
+                    Icon(Icons.error_outline, color: Colors.red.shade400, size: 20),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        _errorMessage!,
+                        style: GoogleFonts.hindSiliguri(color: Colors.red.shade700, fontSize: 13),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+
+            const SizedBox(height: 20),
+
+            // Create Button
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton.icon(
+                onPressed: _isCreating ? null : _createUserAndGrant,
+                icon: _isCreating
+                    ? const SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                      )
+                    : const Icon(Icons.person_add),
+                label: Text(
+                  _isCreating ? 'তৈরি হচ্ছে...' : 'ইউজার তৈরি ও সাবস্ক্রিপশন দিন',
+                  style: GoogleFonts.hindSiliguri(fontWeight: FontWeight.bold),
+                ),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: colorScheme.primary,
+                  foregroundColor: colorScheme.onPrimary,
+                  padding: const EdgeInsets.symmetric(vertical: 16),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

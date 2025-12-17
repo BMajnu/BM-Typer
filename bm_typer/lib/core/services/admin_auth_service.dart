@@ -2,22 +2,103 @@ import 'dart:convert';
 import 'package:crypto/crypto.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter/foundation.dart';
+import 'package:bm_typer/core/models/admin_user_model.dart';
 
 /// Service for handling admin authentication
 /// Provides secondary PIN-based verification for admin dashboard access
 class AdminAuthService {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   
-  // Admin emails list (should match AdminDashboardScreen)
-  static const List<String> adminEmails = [
+  // Legacy admin emails list (for backward compatibility)
+  // New system uses admin_users collection in Firestore
+  static const List<String> legacyAdminEmails = [
     'badiuzzamanmajnu786@gmail.com',
-    // Add more admin emails as needed
   ];
   
-  /// Check if an email is in the admin list
+  /// Check if an email is in the admin list (legacy or Firestore)
   bool isAdminEmail(String? email) {
     if (email == null) return false;
-    return adminEmails.contains(email.toLowerCase());
+    return legacyAdminEmails.contains(email.toLowerCase());
+  }
+  
+  /// Get admin user from Firestore by email
+  Future<AdminUser?> getAdminUser(String email) async {
+    try {
+      final querySnapshot = await _firestore
+          .collection('admin_users')
+          .where('email', isEqualTo: email.toLowerCase())
+          .where('isActive', isEqualTo: true)
+          .limit(1)
+          .get();
+      
+      if (querySnapshot.docs.isEmpty) {
+        // Fallback: Check legacy admin emails and create temporary admin
+        if (legacyAdminEmails.contains(email.toLowerCase())) {
+          return AdminUser(
+            id: 'legacy_${email.hashCode}',
+            email: email.toLowerCase(),
+            role: AdminRole.developer, // Legacy admins get developer role
+            createdAt: DateTime.now(),
+            isActive: true,
+          );
+        }
+        return null;
+      }
+      
+      return AdminUser.fromFirestore(querySnapshot.docs.first);
+    } catch (e) {
+      debugPrint('❌ Error fetching admin user: $e');
+      // Fallback for legacy admin
+      if (legacyAdminEmails.contains(email.toLowerCase())) {
+        return AdminUser(
+          id: 'legacy_${email.hashCode}',
+          email: email.toLowerCase(),
+          role: AdminRole.developer,
+          createdAt: DateTime.now(),
+          isActive: true,
+        );
+      }
+      return null;
+    }
+  }
+  
+  /// Create or update admin user in Firestore
+  Future<bool> createAdminUser(AdminUser adminUser) async {
+    try {
+      await _firestore
+          .collection('admin_users')
+          .doc(adminUser.id)
+          .set(adminUser.toFirestore(), SetOptions(merge: true));
+      return true;
+    } catch (e) {
+      debugPrint('❌ Error creating admin user: $e');
+      return false;
+    }
+  }
+  
+  /// Update admin user role
+  Future<bool> updateAdminRole(String adminId, AdminRole newRole) async {
+    try {
+      await _firestore.collection('admin_users').doc(adminId).update({
+        'role': newRole.name,
+      });
+      return true;
+    } catch (e) {
+      debugPrint('❌ Error updating admin role: $e');
+      return false;
+    }
+  }
+  
+  /// Get all admin users
+  Future<List<AdminUser>> getAllAdminUsers() async {
+    try {
+      final snapshot = await _firestore.collection('admin_users').get();
+      return snapshot.docs.map((doc) => AdminUser.fromFirestore(doc)).toList();
+    } catch (e) {
+      debugPrint('❌ Error fetching admin users: $e');
+      return [];
+    }
   }
   
   /// Hash a PIN for secure storage/comparison
@@ -83,16 +164,18 @@ class AdminAuthService {
   }
 }
 
-/// Admin session state
+/// Admin session state with role information
 class AdminSessionState {
   final bool isAuthenticated;
   final DateTime? authenticatedAt;
   final int sessionTimeoutMinutes;
+  final AdminUser? adminUser;
   
   const AdminSessionState({
     this.isAuthenticated = false,
     this.authenticatedAt,
     this.sessionTimeoutMinutes = 30,
+    this.adminUser,
   });
   
   bool get isSessionValid {
@@ -101,15 +184,25 @@ class AdminSessionState {
     return elapsed.inMinutes < sessionTimeoutMinutes;
   }
   
+  /// Check if current admin has a specific permission
+  bool hasPermission(AdminPermission permission) {
+    return adminUser?.hasPermission(permission) ?? false;
+  }
+  
+  /// Get current admin role
+  AdminRole? get role => adminUser?.role;
+  
   AdminSessionState copyWith({
     bool? isAuthenticated,
     DateTime? authenticatedAt,
     int? sessionTimeoutMinutes,
+    AdminUser? adminUser,
   }) {
     return AdminSessionState(
       isAuthenticated: isAuthenticated ?? this.isAuthenticated,
       authenticatedAt: authenticatedAt ?? this.authenticatedAt,
       sessionTimeoutMinutes: sessionTimeoutMinutes ?? this.sessionTimeoutMinutes,
+      adminUser: adminUser ?? this.adminUser,
     );
   }
 }
@@ -125,21 +218,37 @@ class AdminSessionNotifier extends StateNotifier<AdminSessionState> {
   
   AdminSessionNotifier(this._authService) : super(const AdminSessionState());
   
-  /// Attempt to authenticate with PIN
-  Future<bool> authenticate(String pin) async {
+  /// Attempt to authenticate with PIN and load admin user
+  Future<bool> authenticate(String pin, {String? email}) async {
     final isValid = await _authService.verifyPin(pin);
     
     if (isValid) {
       final timeout = await _authService.getSessionTimeout();
+      
+      // Try to load admin user if email provided
+      AdminUser? adminUser;
+      if (email != null) {
+        adminUser = await _authService.getAdminUser(email);
+      }
+      
       state = AdminSessionState(
         isAuthenticated: true,
         authenticatedAt: DateTime.now(),
         sessionTimeoutMinutes: timeout,
+        adminUser: adminUser,
       );
       return true;
     }
     
     return false;
+  }
+  
+  /// Set admin user after authentication
+  Future<void> setAdminUser(String email) async {
+    final adminUser = await _authService.getAdminUser(email);
+    if (adminUser != null) {
+      state = state.copyWith(adminUser: adminUser);
+    }
   }
   
   /// Log out of admin session
@@ -154,6 +263,11 @@ class AdminSessionNotifier extends StateNotifier<AdminSessionState> {
       return false;
     }
     return true;
+  }
+  
+  /// Check if current admin has permission
+  bool hasPermission(AdminPermission permission) {
+    return state.hasPermission(permission);
   }
 }
 

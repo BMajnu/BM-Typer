@@ -272,44 +272,57 @@ class AdminOrganizationService {
 
   /// Search users by name or email
   Future<List<Map<String, dynamic>>> searchUsers(String query) async {
-    if (query.isEmpty || query.length < 2) return [];
-
     try {
       final queryLower = query.toLowerCase();
       
-      // Search by email (exact match prefix)
-      final emailResults = await _firestore
-          .collection('users')
-          .where('email', isGreaterThanOrEqualTo: queryLower)
-          .where('email', isLessThan: '${queryLower}z')
-          .limit(10)
-          .get();
-
-      // Search by name
-      final nameResults = await _firestore
-          .collection('users')
-          .orderBy('name')
-          .startAt([query])
-          .endAt(['$query\uf8ff'])
-          .limit(10)
-          .get();
-
-      // Combine and deduplicate
-      final Map<String, Map<String, dynamic>> uniqueUsers = {};
+      debugPrint('🔍 Fetching users for query: "$query"');
       
-      for (final doc in [...emailResults.docs, ...nameResults.docs]) {
-        if (!uniqueUsers.containsKey(doc.id)) {
-          uniqueUsers[doc.id] = {
+      // Fetch users (increased limit)
+      final allUsers = await _firestore
+          .collection('users')
+          .limit(500)
+          .get();
+          
+      debugPrint('🔍 Total users fetched from DB: ${allUsers.docs.length}');
+
+      final List<Map<String, dynamic>> results = [];
+      
+      for (final doc in allUsers.docs) {
+        final data = doc.data();
+        
+        final profile = data['profile'] as Map<String, dynamic>?;
+
+        // Try multiple field variants including nested profile
+        final name = (data['name'] ?? profile?['name'] ?? data['userName'] ?? data['displayName'] ?? data['fullName'] ?? '').toString();
+        final email = (data['email'] ?? profile?['email'] ?? data['userEmail'] ?? '').toString();
+        final phone = (data['phone'] ?? profile?['phoneNumber'] ?? profile?['phone'] ?? data['phoneNumber'] ?? '').toString();
+        final userId = (data['userId'] ?? profile?['customUserId'] ?? doc.id).toString();
+        final photoUrl = data['photoUrl'] ?? profile?['photoUrl'] ?? data['photoURL']; // Keep null if missing
+        
+        final nameLower = name.toLowerCase();
+        final emailLower = email.toLowerCase();
+        final userIdLower = userId.toLowerCase();
+        
+        // If query is empty, add everything
+        if (query.isEmpty || 
+            nameLower.contains(queryLower) || 
+            emailLower.contains(queryLower) || 
+            userIdLower.contains(queryLower)) {
+          results.add({
             'id': doc.id,
-            'userId': doc.data()['userId'] ?? doc.id,
-            'name': doc.data()['name'] ?? '',
-            'email': doc.data()['email'] ?? '',
-            'photoUrl': doc.data()['photoUrl'],
-          };
+            'userId': userId,
+            'name': name,
+            'email': email,
+            'phone': phone,
+            'photoUrl': photoUrl,
+          });
         }
+        
+        if (results.length >= 20) break;
       }
 
-      return uniqueUsers.values.toList();
+      debugPrint('✅ Found ${results.length} matches');
+      return results;
     } catch (e) {
       debugPrint('❌ Error searching users: $e');
       return [];

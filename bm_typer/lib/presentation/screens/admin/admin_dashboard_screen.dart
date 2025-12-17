@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:bm_typer/core/providers/user_provider.dart';
 import 'package:bm_typer/core/services/admin_auth_service.dart';
+import 'package:bm_typer/core/models/admin_user_model.dart';
 import 'package:bm_typer/presentation/screens/admin/admin_user_management_screen.dart';
 import 'package:bm_typer/presentation/screens/admin/admin_analytics_screen.dart';
 import 'package:bm_typer/presentation/screens/admin/admin_content_screen.dart';
@@ -24,16 +25,25 @@ class AdminDashboardScreen extends ConsumerStatefulWidget {
 class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
   int _selectedIndex = 0;
   
-  final List<_NavItem> _navItems = [
-    _NavItem(icon: Icons.dashboard_rounded, label: 'ড্যাশবোর্ড'),
-    _NavItem(icon: Icons.people_rounded, label: 'ইউজার'),
-    _NavItem(icon: Icons.analytics_rounded, label: 'অ্যানালিটিক্স'),
-    _NavItem(icon: Icons.article_rounded, label: 'কন্টেন্ট'),
-    _NavItem(icon: Icons.card_membership_rounded, label: 'সাবস্ক্রিপশন'),
-    _NavItem(icon: Icons.business_rounded, label: 'প্রতিষ্ঠান'),
-    _NavItem(icon: Icons.notifications_rounded, label: 'নোটিফিকেশন'),
-    _NavItem(icon: Icons.settings_rounded, label: 'সেটিংস'),
-  ];
+  /// Get nav items based on admin role
+  List<_NavItem> _getNavItems(AdminRole? role) {
+    final allItems = [
+      _NavItem(icon: Icons.dashboard_rounded, label: 'ড্যাশবোর্ড', permission: AdminPermission.viewDashboard),
+      _NavItem(icon: Icons.people_rounded, label: 'ইউজার', permission: AdminPermission.viewUsers),
+      _NavItem(icon: Icons.analytics_rounded, label: 'অ্যানালিটিক্স', permission: AdminPermission.viewAnalytics),
+      _NavItem(icon: Icons.article_rounded, label: 'কন্টেন্ট', permission: AdminPermission.viewAppConfig),
+      _NavItem(icon: Icons.card_membership_rounded, label: 'সাবস্ক্রিপশন', permission: AdminPermission.viewSubscriptions),
+      _NavItem(icon: Icons.business_rounded, label: 'প্রতিষ্ঠান', permission: AdminPermission.viewOrganizations),
+      _NavItem(icon: Icons.notifications_rounded, label: 'নোটিফিকেশন', permission: AdminPermission.viewNotifications),
+      _NavItem(icon: Icons.settings_rounded, label: 'সেটিংস', permission: AdminPermission.viewSettings),
+      // Developer Tools (hidden for non-developers)
+      _NavItem(icon: Icons.developer_mode_rounded, label: 'ডেভ টুলস', permission: AdminPermission.accessDevTools),
+    ];
+    
+    if (role == null) return allItems.take(8).toList(); // Default: all except dev tools
+    
+    return allItems.where((item) => role.canAccess(item.permission)).toList();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -88,20 +98,27 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
     if (!adminSession.isSessionValid) {
       return AdminLoginScreen(
         onSuccess: () {
+          // Load admin user after successful login
+          if (user?.email != null) {
+            ref.read(adminSessionProvider.notifier).setAdminUser(user!.email!);
+          }
           // Force rebuild to show dashboard
           setState(() {});
         },
       );
     }
+    
+    // Get nav items based on role
+    final navItems = _getNavItems(adminSession.role);
 
     return Scaffold(
       body: Row(
         children: [
           // Navigation Rail / Drawer
           if (isWide)
-            _buildNavigationRail(colorScheme)
+            _buildNavigationRail(colorScheme, navItems)
           else
-            _buildMiniRail(colorScheme),
+            _buildMiniRail(colorScheme, navItems),
           
           // Divider
           VerticalDivider(thickness: 1, width: 1, color: colorScheme.outline.withOpacity(0.2)),
@@ -110,9 +127,9 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
           Expanded(
             child: Column(
               children: [
-                _buildAppBar(colorScheme, user?.name ?? 'Admin'),
+                _buildAppBar(colorScheme, user?.name ?? 'Admin', navItems),
                 Expanded(
-                  child: _buildContent(),
+                  child: _buildContent(navItems),
                 ),
               ],
             ),
@@ -122,7 +139,7 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
     );
   }
   
-  Widget _buildNavigationRail(ColorScheme colorScheme) {
+  Widget _buildNavigationRail(ColorScheme colorScheme, List<_NavItem> navItems) {
     return Container(
       width: 240,
       color: colorScheme.surface,
@@ -162,9 +179,9 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
           Expanded(
             child: ListView.builder(
               padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 12),
-              itemCount: _navItems.length,
+              itemCount: navItems.length,
               itemBuilder: (context, index) {
-                final item = _navItems[index];
+                final item = navItems[index];
                 final isSelected = index == _selectedIndex;
                 
                 return Padding(
@@ -206,7 +223,7 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
     );
   }
   
-  Widget _buildMiniRail(ColorScheme colorScheme) {
+  Widget _buildMiniRail(ColorScheme colorScheme, List<_NavItem> navItems) {
     return NavigationRail(
       selectedIndex: _selectedIndex,
       onDestinationSelected: (index) => setState(() => _selectedIndex = index),
@@ -219,14 +236,14 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
         fontSize: 11,
       ),
       unselectedLabelTextStyle: GoogleFonts.hindSiliguri(fontSize: 10),
-      destinations: _navItems.map((item) => NavigationRailDestination(
+      destinations: navItems.map((item) => NavigationRailDestination(
         icon: Icon(item.icon),
         label: Text(item.label),
       )).toList(),
     );
   }
   
-  Widget _buildAppBar(ColorScheme colorScheme, String userName) {
+  Widget _buildAppBar(ColorScheme colorScheme, String userName, List<_NavItem> navItems) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
       decoration: BoxDecoration(
@@ -236,7 +253,7 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
       child: Row(
         children: [
           Text(
-            _navItems[_selectedIndex].label,
+            _selectedIndex < navItems.length ? navItems[_selectedIndex].label : 'ড্যাশবোর্ড',
             style: GoogleFonts.hindSiliguri(
               fontSize: 24,
               fontWeight: FontWeight.bold,
@@ -302,27 +319,49 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
     );
   }
   
-  Widget _buildContent() {
-    switch (_selectedIndex) {
-      case 0:
+  Widget _buildContent(List<_NavItem> navItems) {
+    if (_selectedIndex >= navItems.length) return _buildDashboardHome();
+    
+    final permission = navItems[_selectedIndex].permission;
+    
+    switch (permission) {
+      case AdminPermission.viewDashboard:
         return _buildDashboardHome();
-      case 1:
+      case AdminPermission.viewUsers:
         return const AdminUserManagementScreen();
-      case 2:
+      case AdminPermission.viewAnalytics:
         return const AdminAnalyticsScreen();
-      case 3:
+      case AdminPermission.viewAppConfig:
         return const AdminContentScreen();
-      case 4:
+      case AdminPermission.viewSubscriptions:
         return const AdminSubscriptionScreen();
-      case 5:
+      case AdminPermission.viewOrganizations:
         return const AdminOrganizationScreen();
-      case 6:
+      case AdminPermission.viewNotifications:
         return const AdminNotificationsScreen();
-      case 7:
+      case AdminPermission.viewSettings:
         return const AdminSettingsScreen();
+      case AdminPermission.accessDevTools:
+        return _buildDevToolsScreen();
       default:
         return _buildDashboardHome();
     }
+  }
+  
+  Widget _buildDevToolsScreen() {
+    final colorScheme = Theme.of(context).colorScheme;
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(Icons.developer_mode_rounded, size: 64, color: colorScheme.primary),
+          const SizedBox(height: 16),
+          Text('ডেভেলপার টুলস', style: GoogleFonts.hindSiliguri(fontSize: 24, fontWeight: FontWeight.bold)),
+          const SizedBox(height: 8),
+          Text('এই ফিচার শীঘ্রই আসছে...', style: GoogleFonts.hindSiliguri(color: Colors.grey)),
+        ],
+      ),
+    );
   }
   
   Widget _buildDashboardHome() {
@@ -705,6 +744,7 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
 class _NavItem {
   final IconData icon;
   final String label;
+  final AdminPermission permission;
   
-  _NavItem({required this.icon, required this.label});
+  _NavItem({required this.icon, required this.label, required this.permission});
 }

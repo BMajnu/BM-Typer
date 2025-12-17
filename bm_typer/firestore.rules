@@ -42,7 +42,7 @@ service cloud.firestore {
     
     // ===== USER COLLECTION =====
     match /users/{userId} {
-      // Users can read/write their own data
+      // Users can read their own data, admins can read any user
       allow read: if isOwner(userId) || isAdmin();
       allow create: if isOwner(userId);
       allow update: if isOwner(userId) || isAdmin();
@@ -52,6 +52,11 @@ service cloud.firestore {
       match /sessions/{sessionId} {
         allow read, write: if isOwner(userId) || isAdmin();
       }
+    }
+    
+    // Allow admins to list/query all users (for search)
+    match /users/{document=**} {
+      allow list: if isAdmin();
     }
     
     // ===== LEADERBOARD COLLECTION =====
