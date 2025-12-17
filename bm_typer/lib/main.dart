@@ -17,7 +17,7 @@ import 'package:bm_typer/core/providers/theme_provider.dart';
 import 'package:bm_typer/core/providers/language_provider.dart';
 import 'package:bm_typer/core/providers/keyboard_layout_provider.dart';
 import 'package:bm_typer/core/constants/keyboard_layouts.dart';
-import 'package:bm_typer/presentation/screens/user_registration_screen.dart';
+import 'package:bm_typer/presentation/screens/auth_screen.dart';
 import 'package:bm_typer/core/models/user_model.dart';
 import 'package:bm_typer/core/models/typing_session.dart';
 import 'package:bm_typer/core/services/sound_service.dart';
@@ -26,7 +26,10 @@ import 'package:bm_typer/core/services/accessibility_service.dart';
 import 'package:bm_typer/presentation/screens/typing_speed_test_screen.dart';
 import 'package:bm_typer/presentation/screens/typing_test_results_screen.dart';
 import 'package:bm_typer/presentation/screens/profile_screen.dart';
+import 'package:bm_typer/presentation/screens/account_settings_screen.dart';
 import 'package:bm_typer/presentation/screens/leaderboard_screen.dart';
+import 'package:bm_typer/presentation/screens/subscription_screen.dart';
+import 'package:bm_typer/presentation/screens/admin/admin_dashboard_screen.dart';
 
 void main() async {
   // Ensure Flutter is initialized
@@ -98,15 +101,18 @@ class BMTyperApp extends ConsumerWidget {
       themeMode: themeState.themeMode,
       home: GlobalKeyboardShortcuts(
         child: currentUser == null
-            ? const UserRegistrationScreen()
+            ? const AuthScreen()
             : const TutorScreen(),
       ),
       routes: {
-        '/register': (context) => GlobalKeyboardShortcuts(child: const UserRegistrationScreen()),
+        '/login': (context) => GlobalKeyboardShortcuts(child: const AuthScreen()),
         '/profile': (context) => GlobalKeyboardShortcuts(child: const ProfileScreen()),
+        '/account_settings': (context) => GlobalKeyboardShortcuts(child: const AccountSettingsScreen()),
         '/leaderboard': (context) => GlobalKeyboardShortcuts(child: const LeaderboardScreen()),
         '/typing_test': (context) => GlobalKeyboardShortcuts(child: const TypingSpeedTestScreen()),
         '/typing_test_results': (context) => GlobalKeyboardShortcuts(child: const TypingTestResultsScreen()),
+        '/subscription': (context) => GlobalKeyboardShortcuts(child: const SubscriptionScreen()),
+        '/admin': (context) => GlobalKeyboardShortcuts(child: const AdminDashboardScreen()),
       },
     );
   }

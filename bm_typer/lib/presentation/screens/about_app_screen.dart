@@ -4,8 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:url_launcher/url_launcher.dart';
-// ignore: avoid_web_libraries_in_flutter
-import 'dart:html' as html;
+
 
 class AboutAppScreen extends StatelessWidget {
   const AboutAppScreen({super.key});
@@ -265,12 +264,8 @@ class AboutAppScreen extends StatelessWidget {
       child: InkWell(
         borderRadius: BorderRadius.circular(12),
         onTap: () {
-          // Use dart:html for web platform
-          if (kIsWeb) {
-            html.window.open(url, '_blank');
-          } else {
-            launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication);
-          }
+          // Use url_launcher for all platforms (works on web too)
+          launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication);
         },
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),

@@ -64,7 +64,9 @@ class CloudSyncService {
         'profile': {
           'name': user.name,
           'email': user.email,
-          'createdAt': user.createdAt?.toIso8601String(),
+          'customUserId': user.customUserId,
+          'photoUrl': user.photoUrl,
+          'phoneNumber': user.phoneNumber,
           'lastLoginDate': user.lastLoginDate?.toIso8601String(),
         },
         'stats': {
@@ -103,6 +105,75 @@ class CloudSyncService {
     } catch (e) {
       debugPrint('❌ Error fetching user: $e');
       return null;
+    }
+  }
+
+  /// Get user email by custom User ID
+  Future<String?> getUserEmailByCustomId(String customUserId) async {
+    try {
+      final querySnapshot = await _firestore
+          .collection('users')
+          .where('profile.customUserId', isEqualTo: customUserId)
+          .limit(1)
+          .get();
+
+      if (querySnapshot.docs.isEmpty) {
+        // Try searching in root level for backward compatibility or different structure
+        final rootQuery = await _firestore
+            .collection('users')
+            .where('customUserId', isEqualTo: customUserId)
+            .limit(1)
+            .get();
+            
+        if (rootQuery.docs.isNotEmpty) {
+           final data = rootQuery.docs.first.data();
+           return data['email'] ?? data['profile']['email'];
+        }
+        return null;
+      }
+
+      final data = querySnapshot.docs.first.data();
+      return data['profile']['email'] as String?;
+    } catch (e) {
+      debugPrint('❌ Error fetching user email by ID: $e');
+      return null;
+    }
+  }
+
+  /// Check if a User ID is already taken
+  Future<bool> isUserIdTaken(String customUserId) async {
+    try {
+       debugPrint('🔍 Checking if User ID is taken: $customUserId');
+       
+       final querySnapshot = await _firestore
+          .collection('users')
+          .where('profile.customUserId', isEqualTo: customUserId)
+          .limit(1)
+          .get();
+          
+       if (querySnapshot.docs.isNotEmpty) {
+         debugPrint('❌ User ID already taken (profile.customUserId match)');
+         return true;
+       }
+
+       final rootQuery = await _firestore
+            .collection('users')
+            .where('customUserId', isEqualTo: customUserId)
+            .limit(1)
+            .get();
+       
+       if (rootQuery.docs.isNotEmpty) {
+         debugPrint('❌ User ID already taken (root customUserId match)');
+         return true;
+       }
+       
+       debugPrint('✅ User ID is available: $customUserId');
+       return false;
+    } catch (e) {
+      debugPrint('⚠️ Error checking User ID availability: $e');
+      // Return false on error to allow signup (not secure but better UX)
+      // The actual uniqueness will be enforced by Firebase Auth email
+      return false;
     }
   }
 

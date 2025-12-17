@@ -3,16 +3,26 @@ import 'package:bm_typer/core/models/user_model.dart';
 import 'package:bm_typer/core/models/achievement_model.dart';
 import 'package:bm_typer/core/services/database_service.dart';
 import 'package:bm_typer/core/services/achievement_service.dart';
+import 'package:bm_typer/core/services/cloud_sync_service.dart';
+import 'package:bm_typer/core/services/sync_queue_service.dart';
+import 'package:bm_typer/core/services/connectivity_service.dart';
+import 'package:bm_typer/core/models/sync_operation.dart';
+import 'package:flutter/foundation.dart';
 
 /// Provider for the current user
 final currentUserProvider =
     StateNotifierProvider<UserNotifier, UserModel?>((ref) {
-  return UserNotifier();
+  return UserNotifier(ref);
 });
 
 /// Notifier to manage user state
 class UserNotifier extends StateNotifier<UserModel?> {
-  UserNotifier() : super(null) {
+  final Ref _ref;
+  final CloudSyncService _cloudSync = CloudSyncService();
+  final SyncQueueService _syncQueue = SyncQueueService();
+  final ConnectivityService _connectivity = ConnectivityService();
+
+  UserNotifier(this._ref) : super(null) {
     _initialize();
   }
 
@@ -56,6 +66,46 @@ class UserNotifier extends StateNotifier<UserModel?> {
       // Save and update state
       await DatabaseService.saveUser(finalUser);
       state = finalUser;
+      
+      // Sync to cloud
+      await _syncToCloud(finalUser);
+    }
+  }
+
+  /// Sync user data to cloud (with offline queue fallback)
+  Future<void> _syncToCloud(UserModel user) async {
+    try {
+      if (_connectivity.isOnline) {
+        await _cloudSync.syncUser(user);
+        debugPrint('☁️ User synced to cloud: ${user.name}');
+      } else {
+        // Add to offline queue
+        await _syncQueue.addOperation(SyncOperation(
+          collection: 'users',
+          documentId: user.id,
+          data: {
+            'profile': {
+              'name': user.name,
+              'email': user.email,
+              'lastLoginDate': user.lastLoginDate?.toIso8601String(),
+            },
+            'stats': {
+              'highestWpm': user.highestWpm,
+              'xpPoints': user.xpPoints,
+              'level': user.level,
+              'streakCount': user.streakCount,
+            },
+            'progress': {
+              'completedLessons': user.completedLessons,
+              'unlockedAchievements': user.unlockedAchievements,
+            },
+          },
+          operationType: 'update',
+        ));
+        debugPrint('📥 User queued for sync: ${user.name}');
+      }
+    } catch (e) {
+      debugPrint('❌ Sync error: $e');
     }
   }
 
@@ -96,14 +146,20 @@ class UserNotifier extends StateNotifier<UserModel?> {
     }
 
     state = finalUser;
+    
+    // Sync new user to cloud
+    await _syncToCloud(finalUser);
   }
 
   /// Update the user information
   Future<void> updateUser(UserModel updatedUser) async {
-    if (state == null) return;
+    // if (state == null) return; // Removed to allow login/initialization
 
     await DatabaseService.saveUser(updatedUser);
     state = updatedUser;
+    
+    // Sync to cloud
+    await _syncToCloud(updatedUser);
   }
 
   /// Update user typing goals
@@ -117,6 +173,9 @@ class UserNotifier extends StateNotifier<UserModel?> {
 
     await DatabaseService.saveUser(updatedUser);
     state = updatedUser;
+    
+    // Sync goals to cloud
+    await _syncToCloud(updatedUser);
   }
 
   /// Mark an achievement notification as shown
@@ -187,6 +246,14 @@ class UserNotifier extends StateNotifier<UserModel?> {
     // Save and update state
     await DatabaseService.saveUser(finalUser);
     state = finalUser;
+
+    // Sync user stats and typing session to cloud
+    await _syncToCloud(finalUser);
+    await _cloudSync.syncTypingSession(
+      wpm: wpm,
+      accuracy: accuracy,
+      lessonId: completedLesson,
+    );
 
     return achievements;
   }

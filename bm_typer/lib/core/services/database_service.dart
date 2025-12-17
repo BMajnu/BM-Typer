@@ -39,9 +39,20 @@ class DatabaseService {
     await _userBox.put(user.id, user);
   }
 
-  /// Get user by ID
+  /// Get user by ID (Firebase UID)
   static UserModel? getUserById(String id) {
     return _userBox.get(id);
+  }
+
+  /// Get user by Custom User ID
+  static UserModel? getUserByCustomId(String customUserId) {
+    try {
+      return _userBox.values.firstWhere(
+        (user) => user.customUserId == customUserId,
+      );
+    } catch (e) {
+      return null;
+    }
   }
 
   /// Get all users

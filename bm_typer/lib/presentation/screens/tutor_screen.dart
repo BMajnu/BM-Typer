@@ -10,15 +10,19 @@ import 'package:bm_typer/core/providers/user_provider.dart';
 import 'package:bm_typer/core/providers/theme_provider.dart';
 import 'package:bm_typer/core/providers/language_provider.dart';
 import 'package:bm_typer/core/providers/keyboard_layout_provider.dart';
+import 'package:bm_typer/core/providers/subscription_provider.dart';
 import 'package:bm_typer/core/constants/keyboard_layouts.dart';
 import 'package:bm_typer/core/models/achievement_model.dart';
 import 'package:bm_typer/core/models/lesson_model.dart';
+import 'package:bm_typer/core/models/subscription_model.dart';
 
 import 'package:bm_typer/core/services/notification_service.dart';
 import 'package:bm_typer/core/services/reminder_service.dart';
 import 'package:bm_typer/core/services/leaderboard_service.dart';
 import 'package:bm_typer/data/local_lesson_data.dart';
+import 'package:bm_typer/core/services/auth_service.dart';
 import 'package:bm_typer/presentation/screens/profile_screen.dart';
+import 'package:bm_typer/presentation/widgets/notifications_panel.dart';
 
 import 'package:bm_typer/presentation/screens/leaderboard_screen.dart';
 import 'package:bm_typer/presentation/screens/level_details_screen.dart';
@@ -31,9 +35,11 @@ import 'package:bm_typer/presentation/widgets/typing_guide.dart';
 import 'package:bm_typer/presentation/widgets/typing_session_history.dart';
 import 'package:bm_typer/presentation/widgets/bangla_virtual_keyboard.dart';
 import 'package:bm_typer/presentation/widgets/xp_gain_animation.dart';
+import 'package:bm_typer/presentation/widgets/feature_lock_overlay.dart';
 
 import 'package:bm_typer/presentation/widgets/settings_panel.dart';
 import 'package:bm_typer/presentation/utils/responsive_helper.dart';
+
 
 class TutorScreen extends ConsumerStatefulWidget {
   const TutorScreen({super.key});
@@ -59,7 +65,15 @@ class _TutorScreenState extends ConsumerState<TutorScreen> {
       _recordPracticeSession();
       _checkForPendingAchievements();
       _initLeaderboard();
+      _initSubscription();
     });
+  }
+  
+  Future<void> _initSubscription() async {
+    final user = ref.read(currentUserProvider);
+    if (user != null) {
+      await ref.read(subscriptionStateProvider.notifier).initialize(user.id);
+    }
   }
 
   Future<void> _initLeaderboard() async {
@@ -123,6 +137,18 @@ class _TutorScreenState extends ConsumerState<TutorScreen> {
   void _onFocusChange() {
     ref.read(tutorProvider.notifier).setFocus(_focusNode.hasFocus);
   }
+  
+  /// Check if current user is admin
+  bool _isAdminUser() {
+    final user = ref.read(currentUserProvider);
+    const adminEmails = [
+      'badiuzzamanmajnu786@gmail.com',
+    ];
+    return adminEmails.contains(user?.email?.toLowerCase()) ||
+           user?.email?.contains('admin') == true ||
+           user?.customUserId?.toLowerCase() == 'admin';
+  }
+
 
   /// Auto-switch to first lesson matching the new keyboard layout
   void _autoSwitchLessonForLayout(KeyboardLayout layout) {
@@ -326,7 +352,20 @@ class _TutorScreenState extends ConsumerState<TutorScreen> {
                 children: [
                    Padding(
                      padding: const EdgeInsets.all(16.0),
-                     child: Text("BM Typer", style: GoogleFonts.hindSiliguri(fontSize: 24, fontWeight: FontWeight.bold, color: colorScheme.primary)),
+                     child: Row(
+                       children: [
+                         Expanded(
+                           child: Text("BM Typer", style: GoogleFonts.hindSiliguri(fontSize: 24, fontWeight: FontWeight.bold, color: colorScheme.primary)),
+                         ),
+                         // Admin button for admin users
+                         if (_isAdminUser())
+                           IconButton(
+                             icon: Icon(Icons.admin_panel_settings, color: Colors.deepPurple),
+                             tooltip: 'অ্যাডমিন প্যানেল',
+                             onPressed: () => Navigator.pushNamed(context, '/admin'),
+                           ),
+                       ],
+                     ),
                    ),
                    Divider(height: 1),
                    
@@ -411,6 +450,9 @@ class _TutorScreenState extends ConsumerState<TutorScreen> {
                 IconButton(icon: Icon(Icons.menu), onPressed: () => _scaffoldKey.currentState?.openDrawer()),
                 Text("BM Typer", style: GoogleFonts.hindSiliguri(fontWeight: FontWeight.bold, fontSize: 18)),
                 Spacer(),
+                // Notification Bell
+                const NotificationBell(size: 22),
+                const SizedBox(width: 4),
                 // Compact Stats Row for Mobile
                 _buildCompactStatsRow(colorScheme),
               ],
@@ -503,6 +545,39 @@ class _TutorScreenState extends ConsumerState<TutorScreen> {
                colorScheme: colorScheme,
                isDark: isDark,
                isPrimary: true,
+             ),
+             const SizedBox(width: 8),
+             // Logout Button
+             _buildHeaderButton(
+               icon: Icons.logout_rounded,
+               onPressed: () async {
+                 // Show confirmation dialog
+                 final shouldLogout = await showDialog<bool>(
+                   context: context,
+                   builder: (context) => AlertDialog(
+                     title: Text('লগআউট', style: GoogleFonts.hindSiliguri(fontWeight: FontWeight.bold)),
+                     content: Text('আপনি কি নিশ্চিত যে আপনি লগআউট করতে চান?', style: GoogleFonts.hindSiliguri()),
+                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                     actions: [
+                       TextButton(
+                         onPressed: () => Navigator.pop(context, false),
+                         child: Text('না', style: GoogleFonts.hindSiliguri(color: Colors.grey)),
+                       ),
+                       TextButton(
+                         onPressed: () => Navigator.pop(context, true),
+                         child: Text('হ্যাঁ', style: GoogleFonts.hindSiliguri(color: Colors.red)),
+                       ),
+                     ],
+                   ),
+                 );
+
+                 if (shouldLogout == true) {
+                   await AuthService().signOut();
+                   await ref.read(currentUserProvider.notifier).logout();
+                 }
+               },
+               colorScheme: colorScheme,
+               isDark: isDark,
              ),
           ],
        ),
@@ -1021,7 +1096,7 @@ class _TutorScreenState extends ConsumerState<TutorScreen> {
 // ================================================================
 enum LessonFilter { all, qwerty, bijoy, phonetic }
 
-class _LessonPickerSheet extends StatefulWidget {
+class _LessonPickerSheet extends ConsumerStatefulWidget {
   final ColorScheme colorScheme;
   final Function(int) onLessonSelected;
   final int currentLessonIndex;
@@ -1033,10 +1108,10 @@ class _LessonPickerSheet extends StatefulWidget {
   });
 
   @override
-  State<_LessonPickerSheet> createState() => _LessonPickerSheetState();
+  ConsumerState<_LessonPickerSheet> createState() => _LessonPickerSheetState();
 }
 
-class _LessonPickerSheetState extends State<_LessonPickerSheet> {
+class _LessonPickerSheetState extends ConsumerState<_LessonPickerSheet> {
   LessonFilter _currentFilter = LessonFilter.all;
 
   List<MapEntry<int, Lesson>> get filteredLessons {
@@ -1096,6 +1171,10 @@ class _LessonPickerSheetState extends State<_LessonPickerSheet> {
                     final lesson = entry.value;
                     final isSelected = actualIndex == widget.currentLessonIndex;
                     
+                    // Check if lesson is locked for free users
+                    final subscriptionState = ref.watch(subscriptionStateProvider);
+                    final isLocked = !subscriptionState.isLessonAccessible(actualIndex);
+                    
                     // Determine category color
                     Color categoryColor;
                     String categoryLabel;
@@ -1110,40 +1189,114 @@ class _LessonPickerSheetState extends State<_LessonPickerSheet> {
                       categoryLabel = 'বিজয়';
                     }
                     
-                    return Container(
-                      margin: EdgeInsets.only(bottom: 8),
-                      decoration: BoxDecoration(
-                        color: isSelected ? widget.colorScheme.primaryContainer.withOpacity(0.3) : null,
-                        borderRadius: BorderRadius.circular(12),
-                        border: isSelected ? Border.all(color: widget.colorScheme.primary, width: 2) : null,
-                      ),
-                      child: ListTile(
-                        leading: Container(
-                          width: 40, height: 40,
-                          decoration: BoxDecoration(
-                            color: isSelected ? widget.colorScheme.primary : widget.colorScheme.primaryContainer.withOpacity(0.5),
-                            borderRadius: BorderRadius.circular(10),
-                          ),
-                          alignment: Alignment.center,
-                          child: Text("${actualIndex + 1}", style: TextStyle(fontWeight: FontWeight.bold, color: isSelected ? Colors.white : widget.colorScheme.primary, fontSize: 14)),
+                    return Opacity(
+                      opacity: isLocked ? 0.6 : 1.0,
+                      child: Container(
+                        margin: EdgeInsets.only(bottom: 8),
+                        decoration: BoxDecoration(
+                          color: isSelected ? widget.colorScheme.primaryContainer.withOpacity(0.3) : null,
+                          borderRadius: BorderRadius.circular(12),
+                          border: isSelected ? Border.all(color: widget.colorScheme.primary, width: 2) : null,
                         ),
-                        title: Text(lesson.title, style: GoogleFonts.hindSiliguri(fontWeight: isSelected ? FontWeight.bold : FontWeight.normal, fontSize: 13)),
-                        subtitle: Row(
-                          children: [
-                            Container(
-                              padding: EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                              decoration: BoxDecoration(
-                                color: categoryColor.withOpacity(0.2),
-                                borderRadius: BorderRadius.circular(4),
+                        child: ListTile(
+                          leading: Stack(
+                            children: [
+                              Container(
+                                width: 40, height: 40,
+                                decoration: BoxDecoration(
+                                  color: isLocked 
+                                    ? Colors.grey.shade400
+                                    : isSelected 
+                                      ? widget.colorScheme.primary 
+                                      : widget.colorScheme.primaryContainer.withOpacity(0.5),
+                                  borderRadius: BorderRadius.circular(10),
+                                ),
+                                alignment: Alignment.center,
+                                child: isLocked
+                                  ? Icon(Icons.lock_rounded, color: Colors.white, size: 18)
+                                  : Text("${actualIndex + 1}", style: TextStyle(fontWeight: FontWeight.bold, color: isSelected ? Colors.white : widget.colorScheme.primary, fontSize: 14)),
                               ),
-                              child: Text(categoryLabel, style: TextStyle(fontSize: 9, color: categoryColor, fontWeight: FontWeight.bold)),
-                            ),
-                            SizedBox(width: 6),
-                            Text("${lesson.exercises.length} এক্সারসাইজ", style: TextStyle(fontSize: 10, color: Colors.grey)),
-                          ],
+                              if (isLocked)
+                                Positioned(
+                                  right: -2,
+                                  top: -2,
+                                  child: PremiumBadge(fontSize: 8),
+                                ),
+                            ],
+                          ),
+                          title: Text(lesson.title, style: GoogleFonts.hindSiliguri(fontWeight: isSelected ? FontWeight.bold : FontWeight.normal, fontSize: 13)),
+                          subtitle: Row(
+                            children: [
+                              Container(
+                                padding: EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                decoration: BoxDecoration(
+                                  color: categoryColor.withOpacity(0.2),
+                                  borderRadius: BorderRadius.circular(4),
+                                ),
+                                child: Text(categoryLabel, style: TextStyle(fontSize: 9, color: categoryColor, fontWeight: FontWeight.bold)),
+                              ),
+                              SizedBox(width: 6),
+                              Text("${lesson.exercises.length} এক্সারসাইজ", style: TextStyle(fontSize: 10, color: Colors.grey)),
+                              if (isLocked) ...[
+                                SizedBox(width: 6),
+                                Container(
+                                  padding: EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+                                  decoration: BoxDecoration(
+                                    color: Colors.orange.withOpacity(0.2),
+                                    borderRadius: BorderRadius.circular(4),
+                                  ),
+                                  child: Text('প্রিমিয়াম', style: TextStyle(fontSize: 8, color: Colors.orange.shade700, fontWeight: FontWeight.bold)),
+                                ),
+                              ],
+                            ],
+                          ),
+                          trailing: isSelected 
+                            ? Icon(Icons.check_circle, color: widget.colorScheme.primary, size: 20) 
+                            : isLocked 
+                              ? Icon(Icons.lock_outline_rounded, color: Colors.orange, size: 18)
+                              : null,
+                          onTap: () {
+                            if (isLocked) {
+                              // Show upgrade dialog
+                              showDialog(
+                                context: context,
+                                builder: (ctx) => AlertDialog(
+                                  title: Row(
+                                    children: [
+                                      Icon(Icons.lock_rounded, color: Colors.orange),
+                                      SizedBox(width: 8),
+                                      Text('প্রিমিয়াম লেসন', style: GoogleFonts.hindSiliguri(fontWeight: FontWeight.bold)),
+                                    ],
+                                  ),
+                                  content: Text(
+                                    'এই লেসনটি প্রিমিয়াম ইউজারদের জন্য। ফ্রি প্ল্যানে প্রথম ${FreeFeatureLimits.maxLessons}টি লেসন অ্যাক্সেসযোগ্য।',
+                                    style: GoogleFonts.hindSiliguri(),
+                                  ),
+                                  actions: [
+                                    TextButton(
+                                      onPressed: () => Navigator.pop(ctx),
+                                      child: Text('বাদ দিন'),
+                                    ),
+                                    ElevatedButton.icon(
+                                      onPressed: () {
+                                        Navigator.pop(ctx);
+                                        Navigator.pushNamed(context, '/subscription');
+                                      },
+                                      icon: Icon(Icons.stars_rounded, size: 18),
+                                      label: Text('প্রিমিয়ামে আপগ্রেড'),
+                                      style: ElevatedButton.styleFrom(
+                                        backgroundColor: Colors.deepPurple,
+                                        foregroundColor: Colors.white,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              );
+                            } else {
+                              widget.onLessonSelected(actualIndex);
+                            }
+                          },
                         ),
-                        trailing: isSelected ? Icon(Icons.check_circle, color: widget.colorScheme.primary, size: 20) : null,
-                        onTap: () => widget.onLessonSelected(actualIndex),
                       ),
                     );
                   },

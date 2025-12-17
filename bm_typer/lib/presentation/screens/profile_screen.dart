@@ -234,7 +234,7 @@ class ProfileScreen extends ConsumerWidget {
                     ),
                     child: Icon(Icons.settings_rounded, size: 20, color: Colors.white),
                   ),
-                  onPressed: () {},
+                  onPressed: () => Navigator.pushNamed(context, '/account_settings'),
                 ),
                 const SizedBox(width: 8),
               ],
@@ -352,17 +352,26 @@ class ProfileScreen extends ConsumerWidget {
                           offset: const Offset(0, 10),
                         ),
                       ],
+                      // Show Network Image if photoUrl exists, else show initials
+                      image: user.photoUrl != null && user.photoUrl!.isNotEmpty
+                          ? DecorationImage(
+                              image: NetworkImage(user.photoUrl!),
+                              fit: BoxFit.cover,
+                            )
+                          : null,
                     ),
-                    child: Center(
-                      child: Text(
-                        user.name.isNotEmpty ? user.name[0].toUpperCase() : '?',
-                        style: GoogleFonts.poppins(
-                          fontSize: isCompact ? 36 : 44,
-                          fontWeight: FontWeight.bold,
-                          color: colorScheme.primary,
-                        ),
-                      ),
-                    ),
+                    child: user.photoUrl == null || user.photoUrl!.isEmpty
+                        ? Center(
+                            child: Text(
+                              user.name.isNotEmpty ? user.name[0].toUpperCase() : '?',
+                              style: GoogleFonts.poppins(
+                                fontSize: isCompact ? 36 : 44,
+                                fontWeight: FontWeight.bold,
+                                color: colorScheme.primary,
+                              ),
+                            ),
+                          )
+                        : null,
                   ),
                   // Level Badge
                   Positioned(

@@ -16,8 +16,10 @@ service cloud.firestore {
     
     // Check if user is admin
     function isAdmin() {
-      return isAuthenticated() && 
-        exists(/databases/$(database)/documents/admin_users/$(request.auth.uid));
+      return isAuthenticated() && (
+        exists(/databases/$(database)/documents/admin_users/$(request.auth.uid)) ||
+        request.auth.token.email == 'badiuzzamanmajnu786@gmail.com'
+      );
     }
     
     // Check if user is developer (super admin)
@@ -66,8 +68,8 @@ service cloud.firestore {
     
     // ===== SUBSCRIPTIONS COLLECTION =====
     match /subscriptions/{subscriptionId} {
-      // Users can read their own subscriptions
-      allow read: if isAuthenticated() && resource.data.userId == request.auth.uid;
+      // Users can read their own subscriptions, admins can read all
+      allow read: if isAuthenticated() && (resource.data.userId == request.auth.uid || isAdmin());
       // Only admins can create/update/delete subscriptions
       allow write: if isAdmin();
     }
@@ -106,6 +108,22 @@ service cloud.firestore {
       // Anyone authenticated can read notifications
       allow read: if isAuthenticated();
       // Only admins can create/update/delete notifications
+      allow write: if isAdmin();
+    }
+    
+    // ===== ADMIN CONFIG COLLECTION =====
+    match /admin_config/{configDoc} {
+      // Only admins can read admin config (PIN hash, settings)
+      allow read: if isAdmin();
+      // Only admins can write admin config
+      allow write: if isAdmin();
+    }
+    
+    // ===== LESSONS COLLECTION =====
+    match /lessons/{lessonId} {
+      // Anyone can read lessons
+      allow read: if true;
+      // Only admins can write lessons
       allow write: if isAdmin();
     }
   }

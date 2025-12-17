@@ -13,6 +13,18 @@ class UserModel {
   @HiveField(1)
   final String name;
 
+  @HiveField(16)
+  final String? customUserId;
+
+  @HiveField(17)
+  final String? photoUrl;
+
+  @HiveField(18)
+  final String? phoneNumber;
+
+  @HiveField(19)
+  final String? organizationId;
+
   @HiveField(2)
   final String email;
 
@@ -72,6 +84,10 @@ class UserModel {
     double? goalWpm,
     double? goalAccuracy,
     List<TypingSession>? typingSessions,
+    this.customUserId,
+    this.photoUrl,
+    this.phoneNumber,
+    this.organizationId,
   })  : id = id ?? const Uuid().v4(),
         wpmHistory = wpmHistory ?? [],
         accuracyHistory = accuracyHistory ?? [],
@@ -101,6 +117,10 @@ class UserModel {
   /// Create a copy of this user with updated fields
   UserModel copyWith({
     String? name,
+    String? customUserId,
+    String? photoUrl,
+    String? phoneNumber,
+    String? organizationId,
     String? email,
     List<double>? wpmHistory,
     List<double>? accuracyHistory,
@@ -118,6 +138,10 @@ class UserModel {
   }) {
     return UserModel(
       id: this.id,
+      customUserId: customUserId ?? this.customUserId,
+      photoUrl: photoUrl ?? this.photoUrl,
+      phoneNumber: phoneNumber ?? this.phoneNumber,
+      organizationId: organizationId ?? this.organizationId,
       name: name ?? this.name,
       email: email ?? this.email,
       wpmHistory: wpmHistory ?? this.wpmHistory,

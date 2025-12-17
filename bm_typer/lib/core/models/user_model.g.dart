@@ -33,17 +33,29 @@ class UserModelAdapter extends TypeAdapter<UserModel> {
       goalWpm: fields[13] as double?,
       goalAccuracy: fields[14] as double?,
       typingSessions: (fields[15] as List?)?.cast<TypingSession>(),
+      customUserId: fields[16] as String?,
+      photoUrl: fields[17] as String?,
+      phoneNumber: fields[18] as String?,
+      organizationId: fields[19] as String?,
     );
   }
 
   @override
   void write(BinaryWriter writer, UserModel obj) {
     writer
-      ..writeByte(16)
+      ..writeByte(20)
       ..writeByte(0)
       ..write(obj.id)
       ..writeByte(1)
       ..write(obj.name)
+      ..writeByte(16)
+      ..write(obj.customUserId)
+      ..writeByte(17)
+      ..write(obj.photoUrl)
+      ..writeByte(18)
+      ..write(obj.phoneNumber)
+      ..writeByte(19)
+      ..write(obj.organizationId)
       ..writeByte(2)
       ..write(obj.email)
       ..writeByte(3)
