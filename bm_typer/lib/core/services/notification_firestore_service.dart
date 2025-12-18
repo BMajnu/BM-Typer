@@ -10,21 +10,28 @@ class NotificationFirestoreService {
   /// Collection reference
   CollectionReference get _notificationsRef => _firestore.collection('notifications');
   
-  /// Get notifications for a user (including broadcasts)
+  /// Get notifications for a user (broadcasts + user-specific merged client-side)
   Stream<List<AppNotification>> getNotificationsForUser(String userId) {
+    // Fetch broadcasts (targetUserId is null) - simpler query without index requirement
     return _notificationsRef
-        .where(Filter.or(
-          Filter('targetUserId', isNull: true), // Broadcasts
-          Filter('targetUserId', isEqualTo: userId), // User-specific
-        ))
         .orderBy('createdAt', descending: true)
         .limit(50)
         .snapshots()
         .map((snapshot) {
+          debugPrint('📬 Fetched ${snapshot.docs.length} notifications');
           return snapshot.docs
               .map((doc) => AppNotification.fromFirestore(doc))
-              .where((n) => n.expiresAt == null || n.expiresAt!.isAfter(DateTime.now()))
+              .where((n) {
+                // Include if broadcast (no target) or targeted to this user
+                final isForUser = n.targetUserId == null || n.targetUserId == userId;
+                final notExpired = n.expiresAt == null || n.expiresAt!.isAfter(DateTime.now());
+                return isForUser && notExpired;
+              })
               .toList();
+        })
+        .handleError((e) {
+          debugPrint('❌ Error fetching notifications: $e');
+          return <AppNotification>[];
         });
   }
   
@@ -36,24 +43,26 @@ class NotificationFirestoreService {
         .collection('read_notifications')
         .snapshots()
         .asyncMap((readSnapshot) async {
-          final readIds = readSnapshot.docs.map((d) => d.id).toSet();
-          
-          final notifSnapshot = await _notificationsRef
-              .where(Filter.or(
-                Filter('targetUserId', isNull: true),
-                Filter('targetUserId', isEqualTo: userId),
-              ))
-              .orderBy('createdAt', descending: true)
-              .limit(50)
-              .get();
-          
-          final unread = notifSnapshot.docs.where((doc) {
-            final notif = AppNotification.fromFirestore(doc);
-            return !readIds.contains(doc.id) && 
-                   (notif.expiresAt == null || notif.expiresAt!.isAfter(DateTime.now()));
-          }).length;
-          
-          return unread;
+          try {
+            final readIds = readSnapshot.docs.map((d) => d.id).toSet();
+            
+            final notifSnapshot = await _notificationsRef
+                .orderBy('createdAt', descending: true)
+                .limit(50)
+                .get();
+            
+            final unread = notifSnapshot.docs.where((doc) {
+              final notif = AppNotification.fromFirestore(doc);
+              final isForUser = notif.targetUserId == null || notif.targetUserId == userId;
+              final notExpired = notif.expiresAt == null || notif.expiresAt!.isAfter(DateTime.now());
+              return isForUser && notExpired && !readIds.contains(doc.id);
+            }).length;
+            
+            return unread;
+          } catch (e) {
+            debugPrint('❌ Error getting unread count: $e');
+            return 0;
+          }
         });
   }
   
@@ -77,20 +86,22 @@ class NotificationFirestoreService {
   Future<void> markAllAsRead(String userId) async {
     try {
       final notifications = await _notificationsRef
-          .where(Filter.or(
-            Filter('targetUserId', isNull: true),
-            Filter('targetUserId', isEqualTo: userId),
-          ))
+          .orderBy('createdAt', descending: true)
+          .limit(50)
           .get();
       
       final batch = _firestore.batch();
       for (final doc in notifications.docs) {
-        final readRef = _firestore
-            .collection('users')
-            .doc(userId)
-            .collection('read_notifications')
-            .doc(doc.id);
-        batch.set(readRef, {'readAt': FieldValue.serverTimestamp()});
+        final notif = AppNotification.fromFirestore(doc);
+        // Only mark if it's for this user (broadcast or targeted)
+        if (notif.targetUserId == null || notif.targetUserId == userId) {
+          final readRef = _firestore
+              .collection('users')
+              .doc(userId)
+              .collection('read_notifications')
+              .doc(doc.id);
+          batch.set(readRef, {'readAt': FieldValue.serverTimestamp()});
+        }
       }
       await batch.commit();
       

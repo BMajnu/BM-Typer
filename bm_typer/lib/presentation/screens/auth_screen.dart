@@ -175,6 +175,8 @@ class _AuthScreenState extends ConsumerState<AuthScreen> with SingleTickerProvid
             name: profile['name'] ?? firebaseUser.displayName ?? 'Unknown',
             email: profile['email'] ?? firebaseUser.email ?? '',
             customUserId: profile['customUserId'],
+            photoUrl: profile['photoUrl'] ?? firebaseUser.photoURL, // Restore from Firestore!
+            phoneNumber: profile['phoneNumber'], // Restore phone too
             xpPoints: stats['xpPoints'] ?? 0,
             level: stats['level'] ?? 1,
             streakCount: stats['streakCount'] ?? 1,

@@ -9,6 +9,7 @@ import 'package:bm_typer/core/services/cloudinary_service.dart';
 import 'package:bm_typer/core/services/database_service.dart';
 import 'package:bm_typer/core/services/auth_service.dart';
 import 'package:bm_typer/core/services/subscription_service.dart';
+import 'package:bm_typer/core/services/cloud_sync_service.dart';
 import 'package:bm_typer/core/models/subscription_model.dart';
 
 class AccountSettingsScreen extends ConsumerStatefulWidget {
@@ -483,6 +484,11 @@ class _AccountSettingsScreenState extends ConsumerState<AccountSettingsScreen> {
           
           await DatabaseService.saveUser(updatedUser);
           await ref.read(currentUserProvider.notifier).updateUser(updatedUser);
+          
+          // CRITICAL: Sync to Firestore so admin panel can see it!
+          final cloudSync = ref.read(cloudSyncServiceProvider);
+          await cloudSync.syncUser(updatedUser);
+          debugPrint('☁️ User synced to Firestore with new photoUrl');
           
           if (mounted) {
             ScaffoldMessenger.of(context).showSnackBar(

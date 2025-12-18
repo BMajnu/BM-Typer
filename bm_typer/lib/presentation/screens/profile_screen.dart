@@ -1,4 +1,5 @@
 import 'dart:ui';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -208,7 +209,7 @@ class ProfileScreen extends ConsumerWidget {
           slivers: [
             // Modern App Bar with Glassmorphism
             SliverAppBar(
-              expandedHeight: isCompact ? 200 : 240,
+              expandedHeight: isCompact ? 260 : 300,
               floating: false,
               pinned: true,
               backgroundColor: Colors.transparent,
@@ -332,81 +333,144 @@ class ProfileScreen extends ConsumerWidget {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.end,
             children: [
-              // Avatar with Level Ring
-              Stack(
-                alignment: Alignment.center,
-                children: [
-                  // Level Ring
-                  Container(
-                    width: isCompact ? 90 : 110,
-                    height: isCompact ? 90 : 110,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      border: Border.all(color: Colors.white.withOpacity(0.3), width: 3),
-                    ),
-                  ),
-                  // Avatar
-                  Container(
-                    width: isCompact ? 80 : 100,
-                    height: isCompact ? 80 : 100,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      color: Colors.white.withOpacity(0.9),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withOpacity(0.2),
-                          blurRadius: 20,
-                          offset: const Offset(0, 10),
+              // Avatar with Level Ring + Premium Ring
+              Consumer(
+                builder: (context, ref, child) {
+                  final subscriptionState = ref.watch(subscriptionStateProvider);
+                  final isPremium = subscriptionState.isPremium;
+                  
+                  return SizedBox(
+                    width: isCompact ? 110 : 130,
+                    height: isCompact ? 110 : 130,
+                    child: Stack(
+                      alignment: Alignment.center,
+                      clipBehavior: Clip.none,
+                      children: [
+                        // Premium/Normal Ring
+                        Container(
+                          width: isCompact ? 100 : 120,
+                          height: isCompact ? 100 : 120,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            gradient: isPremium 
+                              ? LinearGradient(
+                                  colors: [
+                                    Colors.amber.shade300,
+                                    Colors.amber.shade600,
+                                    Colors.orange.shade500,
+                                    Colors.amber.shade400,
+                                  ],
+                                  begin: Alignment.topLeft,
+                                  end: Alignment.bottomRight,
+                                )
+                              : null,
+                            border: isPremium 
+                              ? null 
+                              : Border.all(color: Colors.white.withOpacity(0.3), width: 3),
+                            boxShadow: isPremium 
+                              ? [
+                                  BoxShadow(
+                                    color: Colors.amber.withOpacity(0.6),
+                                    blurRadius: 20,
+                                    spreadRadius: 3,
+                                  ),
+                                ] 
+                              : null,
+                          ),
                         ),
-                      ],
-                      // Show Network Image if photoUrl exists, else show initials
-                      image: user.photoUrl != null && user.photoUrl!.isNotEmpty
-                          ? DecorationImage(
-                              image: NetworkImage(user.photoUrl!),
-                              fit: BoxFit.cover,
-                            )
-                          : null,
-                    ),
-                    child: user.photoUrl == null || user.photoUrl!.isEmpty
-                        ? Center(
+                        // Avatar
+                        Container(
+                          width: isCompact ? 80 : 100,
+                          height: isCompact ? 80 : 100,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            color: Colors.white,
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withOpacity(0.1),
+                                blurRadius: 10,
+                              ),
+                            ],
+                          ),
+                          child: ClipOval(
+                            child: user.photoUrl != null && user.photoUrl!.isNotEmpty
+                                ? Image.network(
+                                    user.photoUrl!,
+                                    fit: BoxFit.cover,
+                                    width: isCompact ? 80 : 100,
+                                    height: isCompact ? 80 : 100,
+                                    errorBuilder: (context, error, stackTrace) {
+                                      debugPrint('❌ Profile image error: $error');
+                                      return _buildInitialAvatar(user.name, colorScheme, isCompact);
+                                    },
+                                    loadingBuilder: (context, child, loadingProgress) {
+                                      if (loadingProgress == null) return child;
+                                      return Center(
+                                        child: CircularProgressIndicator(
+                                          strokeWidth: 2,
+                                          value: loadingProgress.expectedTotalBytes != null
+                                              ? loadingProgress.cumulativeBytesLoaded / loadingProgress.expectedTotalBytes!
+                                              : null,
+                                          color: colorScheme.primary,
+                                        ),
+                                      );
+                                    },
+                                  )
+                                : _buildInitialAvatar(user.name, colorScheme, isCompact),
+                          ),
+                        ),
+                        // Premium Badge (top-left)
+                        if (isPremium)
+                          Positioned(
+                            top: 0,
+                            left: 0,
+                            child: Container(
+                              padding: const EdgeInsets.all(5),
+                              decoration: BoxDecoration(
+                                color: Colors.amber,
+                                shape: BoxShape.circle,
+                                border: Border.all(color: Colors.white, width: 2),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: Colors.amber.withOpacity(0.5),
+                                    blurRadius: 8,
+                                  ),
+                                ],
+                              ),
+                              child: const Icon(Icons.workspace_premium_rounded, size: 14, color: Colors.white),
+                            ),
+                          ),
+                        // Level Badge (bottom-right)
+                        Positioned(
+                          bottom: 0,
+                          right: 0,
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                            decoration: BoxDecoration(
+                              color: Colors.amber,
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(color: Colors.white, width: 2),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.amber.withOpacity(0.4),
+                                  blurRadius: 8,
+                                ),
+                              ],
+                            ),
                             child: Text(
-                              user.name.isNotEmpty ? user.name[0].toUpperCase() : '?',
+                              'Lv ${user.level}',
                               style: GoogleFonts.poppins(
-                                fontSize: isCompact ? 36 : 44,
+                                fontSize: 11,
                                 fontWeight: FontWeight.bold,
-                                color: colorScheme.primary,
+                                color: Colors.black87,
                               ),
                             ),
-                          )
-                        : null,
-                  ),
-                  // Level Badge
-                  Positioned(
-                    bottom: 0,
-                    right: 0,
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                      decoration: BoxDecoration(
-                        color: Colors.amber,
-                        borderRadius: BorderRadius.circular(12),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.amber.withOpacity(0.4),
-                            blurRadius: 8,
                           ),
-                        ],
-                      ),
-                      child: Text(
-                        'Lv ${user.level}',
-                        style: GoogleFonts.poppins(
-                          fontSize: 12,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.black87,
                         ),
-                      ),
+                      ],
                     ),
-                  ),
-                ],
+                  );
+                },
               ),
               
               SizedBox(height: isCompact ? 12 : 16),
@@ -1124,5 +1188,23 @@ class ProfileScreen extends ConsumerWidget {
         ),
       );
     }
+  }
+
+  Widget _buildInitialAvatar(String name, ColorScheme colorScheme, bool isCompact) {
+    return Container(
+      width: isCompact ? 80 : 100,
+      height: isCompact ? 80 : 100,
+      color: Colors.white,
+      child: Center(
+        child: Text(
+          name.isNotEmpty ? name[0].toUpperCase() : '?',
+          style: GoogleFonts.poppins(
+            fontSize: isCompact ? 36 : 44,
+            fontWeight: FontWeight.bold,
+            color: colorScheme.primary,
+          ),
+        ),
+      ),
+    );
   }
 }

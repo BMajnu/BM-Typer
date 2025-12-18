@@ -584,10 +584,21 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                         ? (data['lastSynced'] as Timestamp).toDate()
                         : DateTime.now();
                     
+                    final photoUrl = profile['photoUrl'] as String?;
+                    
                     return ListTile(
                       leading: CircleAvatar(
-                        backgroundColor: Colors.green.withOpacity(0.1),
-                        child: Icon(Icons.person_add, color: Colors.green, size: 20),
+                        radius: 20,
+                        backgroundImage: (photoUrl != null && photoUrl.isNotEmpty) 
+                            ? NetworkImage(photoUrl) 
+                            : null,
+                        backgroundColor: Colors.green.withOpacity(0.15),
+                        child: (photoUrl == null || photoUrl.isEmpty)
+                            ? Text(
+                                name.toString().isNotEmpty ? name.toString()[0].toUpperCase() : 'U',
+                                style: TextStyle(color: Colors.green.shade700, fontWeight: FontWeight.bold),
+                              )
+                            : null,
                       ),
                       title: Text('ইউজার: $name', style: GoogleFonts.hindSiliguri(fontSize: 14)),
                       subtitle: Text(email, style: TextStyle(fontSize: 11, color: Colors.grey)),

@@ -23,6 +23,7 @@ import 'package:bm_typer/data/local_lesson_data.dart';
 import 'package:bm_typer/core/services/auth_service.dart';
 import 'package:bm_typer/presentation/screens/profile_screen.dart';
 import 'package:bm_typer/presentation/widgets/notifications_panel.dart';
+import 'package:bm_typer/core/services/notification_firestore_service.dart';
 
 import 'package:bm_typer/presentation/screens/leaderboard_screen.dart';
 import 'package:bm_typer/presentation/screens/level_details_screen.dart';
@@ -39,6 +40,9 @@ import 'package:bm_typer/presentation/widgets/feature_lock_overlay.dart';
 
 import 'package:bm_typer/presentation/widgets/settings_panel.dart';
 import 'package:bm_typer/presentation/utils/responsive_helper.dart';
+import 'package:bm_typer/core/services/feature_limit_service.dart';
+import 'package:bm_typer/presentation/widgets/paywall_widget.dart' hide PremiumBadge;
+import 'dart:async';
 
 
 class TutorScreen extends ConsumerStatefulWidget {
@@ -55,6 +59,11 @@ class _TutorScreenState extends ConsumerState<TutorScreen> {
   final Set<String> _pressedKeys = {}; // For string-based keys
   KeyboardLayout? _previousLayout; // Track previous layout for revert on double-press
   
+  // Practice time tracking for feature limits
+  Timer? _practiceTimer;
+  int _sessionMinutes = 0;
+  bool _limitReached = false;
+  
   @override
   void initState() {
     super.initState();
@@ -66,6 +75,7 @@ class _TutorScreenState extends ConsumerState<TutorScreen> {
       _checkForPendingAchievements();
       _initLeaderboard();
       _initSubscription();
+      _startPracticeTimer();
     });
   }
   
@@ -129,9 +139,58 @@ class _TutorScreenState extends ConsumerState<TutorScreen> {
 
   @override
   void dispose() {
+    _practiceTimer?.cancel();
     _focusNode.removeListener(_onFocusChange);
     _focusNode.dispose();
     super.dispose();
+  }
+
+  /// Start practice time tracking timer for feature limits
+  void _startPracticeTimer() {
+    final subscriptionState = ref.read(subscriptionStateProvider);
+    
+    // No timer needed for premium users
+    if (subscriptionState.isPremium) return;
+    
+    _practiceTimer = Timer.periodic(const Duration(minutes: 1), (timer) {
+      if (!mounted) {
+        timer.cancel();
+        return;
+      }
+      
+      final limitService = ref.read(featureLimitServiceProvider);
+      final isPremium = ref.read(subscriptionStateProvider).isPremium;
+      
+      // Premium users don't need tracking
+      if (isPremium) {
+        timer.cancel();
+        return;
+      }
+      
+      // Record 1 minute of practice
+      limitService.recordPracticeTime(1);
+      _sessionMinutes++;
+      
+      // Check if limit reached
+      final canContinue = limitService.canPractice(false);
+      if (!canContinue.allowed && !_limitReached) {
+        _limitReached = true;
+        timer.cancel();
+        
+        // Show paywall dialog
+        if (mounted) {
+          showPaywallDialog(
+            context,
+            title: 'দৈনিক অনুশীলনের সময় শেষ!',
+            message: 'আপনি আজ ${FeatureLimits.maxDailyPracticeMinutes} মিনিট অনুশীলন করেছেন। আনলিমিটেড অনুশীলনের জন্য প্রিমিয়াম নিন!',
+            onUpgrade: () => Navigator.pushNamed(context, '/subscription'),
+          );
+        }
+      }
+      
+      // Trigger UI rebuild to update banner
+      if (mounted) setState(() {});
+    });
   }
 
   void _onFocusChange() {
@@ -407,6 +466,9 @@ class _TutorScreenState extends ConsumerState<TutorScreen> {
                 // Slim Header (Breadcrumbs / Menu)
                 _buildSlimHeader(colorScheme),
                 
+                // Practice Time Limit Banner (for free users only)
+                _buildPracticeLimitBanner(colorScheme),
+                
                 // Typing Area - Flexible
                 Expanded(
                   child: _buildTypingAreaAndGuide(isCompact: false),
@@ -482,6 +544,103 @@ class _TutorScreenState extends ConsumerState<TutorScreen> {
 
   // --- REFACTORED WIDGETS ---
 
+  /// Build practice time limit banner for free users
+  Widget _buildPracticeLimitBanner(ColorScheme colorScheme) {
+    final subscriptionState = ref.watch(subscriptionStateProvider);
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    
+    // Premium users - no banner
+    if (subscriptionState.isPremium) {
+      return const SizedBox.shrink();
+    }
+    
+    final limitService = ref.watch(featureLimitServiceProvider);
+    final remaining = limitService.getRemainingPracticeMinutes(false);
+    final total = FeatureLimits.maxDailyPracticeMinutes;
+    final used = total - remaining;
+    final progress = used / total;
+    
+    // Determine colors based on remaining time
+    Color bannerColor;
+    Color textColor;
+    IconData icon;
+    
+    if (remaining <= 0) {
+      bannerColor = Colors.red.shade100;
+      textColor = Colors.red.shade700;
+      icon = Icons.block;
+    } else if (remaining <= 3) {
+      bannerColor = Colors.orange.shade100;
+      textColor = Colors.orange.shade700;
+      icon = Icons.warning_rounded;
+    } else {
+      bannerColor = Colors.blue.shade50;
+      textColor = Colors.blue.shade700;
+      icon = Icons.timer;
+    }
+    
+    return Container(
+      margin: const EdgeInsets.only(bottom: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+      decoration: BoxDecoration(
+        color: isDark ? bannerColor.withOpacity(0.15) : bannerColor,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: textColor.withOpacity(0.3)),
+      ),
+      child: Row(
+        children: [
+          Icon(icon, color: textColor, size: 20),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  remaining <= 0 
+                      ? 'দৈনিক অনুশীলনের সময় শেষ!'
+                      : 'বাকি আছে: $remaining মিনিট (মোট $total মিনিট)',
+                  style: GoogleFonts.hindSiliguri(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    color: textColor,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(4),
+                  child: LinearProgressIndicator(
+                    value: progress.clamp(0.0, 1.0),
+                    backgroundColor: (isDark ? Colors.white : Colors.black).withOpacity(0.1),
+                    valueColor: AlwaysStoppedAnimation(textColor),
+                    minHeight: 6,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 12),
+          TextButton(
+            onPressed: () => Navigator.pushNamed(context, '/subscription'),
+            style: TextButton.styleFrom(
+              backgroundColor: Colors.amber,
+              foregroundColor: Colors.white,
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Icon(Icons.workspace_premium, size: 16),
+                const SizedBox(width: 6),
+                Text('আপগ্রেড', style: GoogleFonts.hindSiliguri(fontSize: 12, fontWeight: FontWeight.bold)),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
    Widget _buildSlimHeader(ColorScheme colorScheme) {
      final isDark = Theme.of(context).brightness == Brightness.dark;
      return Container(
@@ -513,22 +672,8 @@ class _TutorScreenState extends ConsumerState<TutorScreen> {
              const SizedBox(width: 12),
              Text("Interactive Bangla Typing Tutor", style: GoogleFonts.inter(fontWeight: FontWeight.w600, fontSize: 15)),
              const Spacer(),
-             // Notification Button (for future Firebase integration)
-             _buildHeaderButton(
-               icon: Icons.notifications_outlined,
-               onPressed: () {
-                 ScaffoldMessenger.of(context).showSnackBar(
-                   SnackBar(
-                     content: Text('শীঘ্রই আসছে! নোটিফিকেশন ফিচার Firebase এর সাথে ইন্টিগ্রেট করা হবে।', style: GoogleFonts.hindSiliguri()),
-                     behavior: SnackBarBehavior.floating,
-                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                   ),
-                 );
-               },
-               colorScheme: colorScheme,
-               isDark: isDark,
-               badge: true,
-             ),
+             // Notification Bell with real-time unread count
+             _buildNotificationBell(colorScheme, isDark),
              const SizedBox(width: 8),
              // Settings Button
              _buildHeaderButton(
@@ -538,14 +683,8 @@ class _TutorScreenState extends ConsumerState<TutorScreen> {
                isDark: isDark,
              ),
              const SizedBox(width: 8),
-             // Profile Button
-             _buildHeaderButton(
-               icon: Icons.person_rounded,
-               onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const ProfileScreen())),
-               colorScheme: colorScheme,
-               isDark: isDark,
-               isPrimary: true,
-             ),
+             // Profile Avatar Button
+             _buildProfileAvatarButton(colorScheme, isDark),
              const SizedBox(width: 8),
              // Logout Button
              _buildHeaderButton(
@@ -625,6 +764,185 @@ class _TutorScreenState extends ConsumerState<TutorScreen> {
            ),
        ],
      );
+  }
+
+  Widget _buildNotificationBell(ColorScheme colorScheme, bool isDark) {
+    final user = ref.watch(currentUserProvider);
+    
+    // If not logged in, show disabled bell
+    if (user == null) {
+      return Container(
+        padding: const EdgeInsets.all(8),
+        decoration: BoxDecoration(
+          color: (isDark ? Colors.white : Colors.black).withOpacity(0.08),
+          borderRadius: BorderRadius.circular(10),
+        ),
+        child: Icon(
+          Icons.notifications_outlined,
+          size: 20,
+          color: (isDark ? Colors.white70 : Colors.black54).withOpacity(0.5),
+        ),
+      );
+    }
+    
+    final unreadCountAsync = ref.watch(unreadNotificationCountProvider(user.id));
+    
+    return GestureDetector(
+      onTap: () => _showNotificationsPanel(),
+      child: Container(
+        padding: const EdgeInsets.all(8),
+        decoration: BoxDecoration(
+          color: (isDark ? Colors.white : Colors.black).withOpacity(0.08),
+          borderRadius: BorderRadius.circular(10),
+        ),
+        child: Badge(
+          isLabelVisible: unreadCountAsync.when(
+            data: (count) => count > 0,
+            loading: () => false,
+            error: (_, __) => false,
+          ),
+          label: unreadCountAsync.when(
+            data: (count) => Text(
+              count > 9 ? '9+' : '$count',
+              style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold),
+            ),
+            loading: () => null,
+            error: (_, __) => null,
+          ),
+          backgroundColor: Colors.red,
+          child: Icon(
+            Icons.notifications_outlined,
+            size: 20,
+            color: isDark ? Colors.white70 : Colors.black54,
+          ),
+        ),
+      ),
+    );
+  }
+  
+  void _showNotificationsPanel() {
+    showDialog(
+      context: context,
+      barrierColor: Colors.black26,
+      builder: (ctx) => Align(
+        alignment: Alignment.topRight,
+        child: Padding(
+          padding: const EdgeInsets.only(top: 70, right: 16),
+          child: Material(
+            color: Colors.transparent,
+            child: NotificationsPanel(
+              onClose: () => Navigator.pop(ctx),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildProfileAvatarButton(ColorScheme colorScheme, bool isDark) {
+    final user = ref.watch(currentUserProvider);
+    final subscriptionState = ref.watch(subscriptionStateProvider);
+    final isPremium = subscriptionState.isPremium;
+    
+    return GestureDetector(
+      onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const ProfileScreen())),
+      child: SizedBox(
+        width: 46,
+        height: 46,
+        child: Stack(
+          alignment: Alignment.center,
+          children: [
+            // Ring (Premium golden ring or normal ring)
+            Container(
+              width: 42,
+              height: 42,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                gradient: isPremium 
+                  ? LinearGradient(
+                      colors: [
+                        Colors.amber.shade300,
+                        Colors.amber.shade600,
+                        Colors.orange.shade500,
+                        Colors.amber.shade400,
+                      ],
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                    )
+                  : null,
+                border: isPremium 
+                  ? null 
+                  : Border.all(color: colorScheme.primary, width: 2),
+                boxShadow: isPremium 
+                  ? [
+                      BoxShadow(
+                        color: Colors.amber.withOpacity(0.5),
+                        blurRadius: 8,
+                        spreadRadius: 1,
+                      ),
+                    ] 
+                  : null,
+              ),
+            ),
+            // Avatar
+            Container(
+              width: 34,
+              height: 34,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: colorScheme.primaryContainer,
+              ),
+              child: ClipOval(
+                child: user?.photoUrl != null && user!.photoUrl!.isNotEmpty
+                    ? Image.network(
+                        user.photoUrl!,
+                        fit: BoxFit.cover,
+                        width: 34,
+                        height: 34,
+                        errorBuilder: (context, error, stackTrace) {
+                          return Center(
+                            child: Text(
+                              user.name.isNotEmpty ? user.name[0].toUpperCase() : '?',
+                              style: GoogleFonts.poppins(
+                                fontSize: 14,
+                                fontWeight: FontWeight.bold,
+                                color: colorScheme.primary,
+                              ),
+                            ),
+                          );
+                        },
+                      )
+                    : Center(
+                        child: Text(
+                          user?.name.isNotEmpty == true ? user!.name[0].toUpperCase() : '?',
+                          style: GoogleFonts.poppins(
+                            fontSize: 14,
+                            fontWeight: FontWeight.bold,
+                            color: colorScheme.primary,
+                          ),
+                        ),
+                      ),
+              ),
+            ),
+            // Premium Badge (if premium)
+            if (isPremium)
+              Positioned(
+                bottom: 0,
+                right: 0,
+                child: Container(
+                  padding: const EdgeInsets.all(2),
+                  decoration: BoxDecoration(
+                    color: Colors.amber,
+                    shape: BoxShape.circle,
+                    border: Border.all(color: isDark ? const Color(0xFF1a1a2e) : Colors.white, width: 1.5),
+                  ),
+                  child: const Icon(Icons.workspace_premium_rounded, size: 10, color: Colors.white),
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
   }
 
   // --- MODERN LESSON SWITCHER ---

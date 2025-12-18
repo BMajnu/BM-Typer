@@ -3,6 +3,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:bm_typer/core/services/csv_export_service.dart';
 
 /// Admin User Management Screen - Professional Master-Detail Layout
 class AdminUserManagementScreen extends ConsumerStatefulWidget {
@@ -94,6 +95,23 @@ class _AdminUserManagementScreenState extends ConsumerState<AdminUserManagementS
                     child: _buildFilterChip('ব্যান', 'banned', colorScheme),
                   ),
                 ],
+              ),
+              const SizedBox(height: 12),
+              
+              // Export Button
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton.icon(
+                  onPressed: _exportUsers,
+                  icon: const Icon(Icons.download_rounded, size: 18),
+                  label: Text('CSV এক্সপোর্ট', style: GoogleFonts.hindSiliguri(fontWeight: FontWeight.w600)),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.green,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                  ),
+                ),
               ),
             ],
           ),
@@ -820,6 +838,44 @@ class _AdminUserManagementScreenState extends ConsumerState<AdminUserManagementS
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('ত্রুটি: $e', style: GoogleFonts.hindSiliguri()),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
+  Future<void> _exportUsers() async {
+    try {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Row(
+            children: [
+              const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white)),
+              const SizedBox(width: 12),
+              Text('ইউজার ডাটা এক্সপোর্ট হচ্ছে...', style: GoogleFonts.hindSiliguri()),
+            ],
+          ),
+          duration: const Duration(seconds: 2),
+        ),
+      );
+      
+      final exportService = ref.read(csvExportServiceProvider);
+      await exportService.exportUsersToCSV();
+      
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('✅ ইউজার ডাটা সফলভাবে এক্সপোর্ট হয়েছে!', style: GoogleFonts.hindSiliguri()),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('❌ এক্সপোর্ট ত্রুটি: $e', style: GoogleFonts.hindSiliguri()),
             backgroundColor: Colors.red,
           ),
         );
