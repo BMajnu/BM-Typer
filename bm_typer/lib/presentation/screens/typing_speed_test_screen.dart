@@ -4,7 +4,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:bm_typer/core/providers/user_provider.dart';
-import 'package:bm_typer/core/services/sound_service.dart';
 import 'package:bm_typer/core/providers/sound_provider.dart';
 import 'package:bm_typer/data/english_paragraph_data.dart';
 
@@ -41,7 +40,6 @@ class _TypingSpeedTestScreenState extends ConsumerState<TypingSpeedTestScreen> {
   int _correctChars = 0;
   int _incorrectChars = 0;
 
-  Map<String, dynamic> _testResults = {};
 
   @override
   void initState() {
@@ -100,7 +98,6 @@ class _TypingSpeedTestScreenState extends ConsumerState<TypingSpeedTestScreen> {
       _incorrectChars = 0;
       _typedText = '';
       _textEditingController.text = '';
-      _testResults = {};
     });
 
     _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
@@ -154,16 +151,10 @@ class _TypingSpeedTestScreenState extends ConsumerState<TypingSpeedTestScreen> {
     _timer?.cancel();
     _calculateStats();
 
-    _testResults = {
-      'wpm': _currentWpm,
-      'accuracy': _accuracy,
-      'correctChars': _correctChars,
-      'incorrectChars': _incorrectChars,
-      'totalChars': _typedText.length,
-      'duration': _getDurationInMinutes(),
-      'difficulty': _selectedDifficulty.toString().split('.').last,
-      'timestamp': DateTime.now(),
-    };
+    _calculateStats();
+    
+    // Results logic simplified/removed as per analyzer warning about unused _testResults
+
 
     setState(() {
       _isTestActive = false;
@@ -197,6 +188,9 @@ class _TypingSpeedTestScreenState extends ConsumerState<TypingSpeedTestScreen> {
     });
 
     final soundService = ref.read(soundServiceProvider);
+    // Sound logic can be re-enabled here if needed, removing unused warning for now.
+    // soundService.playKeyClick(); 
+
 
     if (_typedText.length >= _targetText.length) {
       _completeTest();

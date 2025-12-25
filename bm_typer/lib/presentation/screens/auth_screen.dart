@@ -1,3 +1,4 @@
+import 'dart:io' show Platform;
 import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -241,11 +242,46 @@ class _AuthScreenState extends ConsumerState<AuthScreen> with SingleTickerProvid
         throw Exception('এই User ID টি ইতিমধ্যে ব্যবহৃত হচ্ছে। অন্য একটি চেষ্টা করুন।');
       }
 
-      // 2. Create Auth User
-      final userCred = await authService.signUpWithEmail(email: email, password: password);
+      UserCredential? userCred;
+      
+      // 2. Create Auth User - Email or Phone based
+      if (email.isNotEmpty) {
+        // Email-based signup
+        userCred = await authService.signUpWithEmail(email: email, password: password);
+      } else if (phoneNumber.isNotEmpty) {
+        // Phone-based signup - need to verify phone first
+        await authService.verifyPhoneNumber(
+          phoneNumber: phoneNumber,
+          onCodeSent: (verId) {
+            setState(() {
+              _verificationId = verId;
+              _showOtpInput = true;
+              _isLoading = false;
+            });
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('OTP পাঠানো হয়েছে। কোড দিয়ে যাচাই করুন।')),
+            );
+          },
+          onVerificationFailed: (msg) {
+            setState(() => _isLoading = false);
+            _showError(msg);
+          },
+          onVerificationCompleted: (cred) async {
+            // Auto verify (Android only)
+            final result = await FirebaseAuth.instance.signInWithCredential(cred);
+            if (result.user != null && mounted) {
+              await _createUserAfterPhoneAuth(result.user!, name, userId, phoneNumber);
+            }
+          },
+        );
+        return; // Wait for OTP verification
+      } else {
+        throw Exception('ইমেইল অথবা ফোন নম্বর দিতে হবে');
+      }
+      
+      if (userCred == null) return;
       
       // 3. Create Database User Model
-      // Note: We use the Firebase UID for the primary ID, but store customUserId
       final newUser = UserModel(
         id: userCred.user!.uid,
         customUserId: userId,
@@ -264,13 +300,13 @@ class _AuthScreenState extends ConsumerState<AuthScreen> with SingleTickerProvid
       // 5. Update Provider
       await ref.read(currentUserProvider.notifier).updateUser(newUser);
 
-      // 6. Sync to Cloud explicit call (User Notifier does it too but safe to ensure)
+      // 6. Sync to Cloud
       debugPrint('📝 Saving user with customUserId: ${newUser.customUserId}, phone: ${newUser.phoneNumber}');
       await cloudService.syncUser(newUser);
 
       if (mounted) {
          ScaffoldMessenger.of(context).showSnackBar(
-           const SnackBar(content: Text('অ্যাকাউন্ট তৈরি সফল হয়েছে!')),
+           const SnackBar(content: Text('অ্যাকাউন্ট তৈরি সফল হয়েছে!')),
          );
       }
 
@@ -278,6 +314,32 @@ class _AuthScreenState extends ConsumerState<AuthScreen> with SingleTickerProvid
       _showError(e.toString().replaceAll('Exception:', ''));
     } finally {
       if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
+  /// Helper to create user after phone auth
+  Future<void> _createUserAfterPhoneAuth(User firebaseUser, String name, String userId, String phoneNumber) async {
+    final cloudService = ref.read(cloudSyncServiceProvider);
+    
+    final newUser = UserModel(
+      id: firebaseUser.uid,
+      customUserId: userId,
+      name: name,
+      email: '', // Phone-only signup has no email
+      phoneNumber: phoneNumber,
+      streakCount: 1,
+      lastLoginDate: DateTime.now(),
+    );
+
+    await DatabaseService.saveUser(newUser);
+    await DatabaseService.setCurrentUser(newUser);
+    await ref.read(currentUserProvider.notifier).updateUser(newUser);
+    await cloudService.syncUser(newUser);
+
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('অ্যাকাউন্ট তৈরি সফল হয়েছে!')),
+      );
     }
   }
   
@@ -337,7 +399,7 @@ class _AuthScreenState extends ConsumerState<AuthScreen> with SingleTickerProvid
                       color: Colors.white.withOpacity(0.2),
                       shape: BoxShape.circle,
                     ),
-                    child: const Icon(Icons.keyboard, size: 48, color: Colors.white),
+                    child: ClipOval(child: Image.asset('assets/BMT.png', width: 64, height: 64)),
                   ),
                   const SizedBox(height: 16),
                   Text(
@@ -419,62 +481,67 @@ class _AuthScreenState extends ConsumerState<AuthScreen> with SingleTickerProvid
     return Form(
       key: _signInFormKey,
       child: SingleChildScrollView(
-         child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          _buildTextField(
-            controller: _signInIdentifierController,
-            label: 'User ID / ফোন / ইমেইল',
-            icon: Icons.person_outline,
-            validator: (v) => v!.isEmpty ? 'অনুগ্রহ করে এটি পূরণ করুন' : null,
-          ),
-          const SizedBox(height: 16),
-          
-          if (_isPhoneLogin) ...[
-             if (_showOtpInput) 
-                _buildTextField(
-                  controller: _otpController,
-                  label: 'OTP কোড',
-                  icon: Icons.lock_clock_outlined,
-                  isNumber: true,
-                  validator: (v) => v!.length < 6 ? 'সঠিক OTP দিন' : null,
-                ),
-          ] else
-            _buildTextField(
-              controller: _signInPasswordController,
-              label: 'পাসওয়ার্ড',
-              icon: Icons.lock_outline,
-              isPassword: true,
-            ),
-            
-          const SizedBox(height: 24),
-          
-          _buildGradientButton(
-            text: _showOtpInput ? 'যাচাই করুন' : (_isPhoneLogin ? 'OTP পাঠান' : 'লগইন করুন'),
-            onPressed: _handleSignIn,
-          ),
-
-          const SizedBox(height: 24),
-          Row(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 4),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              Expanded(child: Divider(color: Colors.white.withOpacity(0.3))),
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16),
-                child: Text('অথবা', style: GoogleFonts.hindSiliguri(color: Colors.white60)),
+              _buildSavedUsersList(),
+              
+              _buildTextField(
+                controller: _signInIdentifierController,
+                label: 'User ID / ফোন / ইমেইল',
+                icon: Icons.person_outline,
+                validator: (v) => v!.isEmpty ? 'অনুগ্রহ করে এটি পূরণ করুন' : null,
               ),
-              Expanded(child: Divider(color: Colors.white.withOpacity(0.3))),
+              const SizedBox(height: 16),
+              
+              if (_isPhoneLogin) ...[
+                if (_showOtpInput) 
+                  _buildTextField(
+                    controller: _otpController,
+                    label: 'OTP কোড',
+                    icon: Icons.lock_clock_outlined,
+                    isNumber: true,
+                    validator: (v) => v!.length < 6 ? 'সঠিক OTP দিন' : null,
+                  ),
+              ] else
+                _buildTextField(
+                  controller: _signInPasswordController,
+                  label: 'পাসওয়ার্ড',
+                  icon: Icons.lock_outline,
+                  isPassword: true,
+                ),
+                
+              const SizedBox(height: 24),
+              
+              _buildGradientButton(
+                text: _showOtpInput ? 'যাচাই করুন' : (_isPhoneLogin ? 'OTP পাঠান' : 'লগইন করুন'),
+                onPressed: _handleSignIn,
+              ),
+
+              const SizedBox(height: 24),
+              Row(
+                children: [
+                  Expanded(child: Divider(color: Colors.white.withOpacity(0.3))),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    child: Text('অথবা', style: GoogleFonts.hindSiliguri(color: Colors.white60)),
+                  ),
+                  Expanded(child: Divider(color: Colors.white.withOpacity(0.3))),
+                ],
+              ),
+              const SizedBox(height: 24),
+              
+              // Google Sign In Button
+              _buildSocialButton(
+                text: 'Google দিয়ে সাইন ইন',
+                icon: Icons.g_mobiledata,
+                onPressed: _handleGoogleSignIn,
+              ),
             ],
           ),
-          const SizedBox(height: 24),
-          
-          // Google Sign In Button
-          _buildSocialButton(
-            text: 'Google দিয়ে সাইন ইন',
-            icon: Icons.g_mobiledata, // Replace with asset if available
-            onPressed: _handleGoogleSignIn,
-          ),
-        ],
-      ),
+        ),
       ),
     );
   }
@@ -507,11 +574,11 @@ class _AuthScreenState extends ConsumerState<AuthScreen> with SingleTickerProvid
           const SizedBox(height: 16),
           _buildTextField(
             controller: _emailController,
-            label: 'ইমেইল (Gmail)',
+            label: 'ইমেইল (Gmail) - ঐচ্ছিক',
             icon: Icons.email_outlined,
             validator: (v) {
-              if (v!.isEmpty) return 'ইমেইল প্রয়োজন';
-              if (!v.toLowerCase().endsWith('@gmail.com')) {
+              // Email is optional, but if provided must be Gmail
+              if (v != null && v.isNotEmpty && !v.toLowerCase().endsWith('@gmail.com')) {
                 return 'শুধুমাত্র Gmail ব্যবহার করুন';
               }
               return null;
@@ -520,9 +587,18 @@ class _AuthScreenState extends ConsumerState<AuthScreen> with SingleTickerProvid
           const SizedBox(height: 16),
            _buildTextField(
             controller: _phoneController,
-            label: 'ফোন নম্বর (ঐচ্ছিক)',
+            label: 'ফোন নম্বর (যেমন: +8801712345678)',
             icon: Icons.phone_android,
             isNumber: true,
+            validator: (v) {
+              // At least one of email or phone is required
+              final email = _emailController.text.trim();
+              final phone = v?.trim() ?? '';
+              if (email.isEmpty && phone.isEmpty) {
+                return 'ইমেইল অথবা ফোন নম্বর দিতে হবে';
+              }
+              return null;
+            },
           ),
           const SizedBox(height: 16),
           _buildTextField(
@@ -552,6 +628,115 @@ class _AuthScreenState extends ConsumerState<AuthScreen> with SingleTickerProvid
         ],
       ),
       ),
+    );
+  }
+
+  Widget _buildSavedUsersList() {
+    // Get saved users from UserNotifier
+    final savedUsers = ref.read(currentUserProvider.notifier).getAllSavedUsers();
+
+    if (savedUsers.isEmpty) return const SizedBox.shrink();
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Saved Accounts',
+          style: GoogleFonts.hindSiliguri(
+            color: Colors.white70,
+            fontSize: 14,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+        const SizedBox(height: 12),
+        SizedBox(
+          height: 90,
+          child: ListView.separated(
+            scrollDirection: Axis.horizontal,
+            itemCount: savedUsers.length,
+            separatorBuilder: (c, i) => const SizedBox(width: 16),
+            itemBuilder: (context, index) {
+              final user = savedUsers[index];
+              return Stack(
+                children: [
+                  InkWell(
+                    onTap: () async {
+                      // Switch to this saved user directly
+                      await ref.read(currentUserProvider.notifier).switchToUser(user);
+                      // Navigate to main app
+                      if (mounted) {
+                        Navigator.of(context).pushNamedAndRemoveUntil('/', (route) => false);
+                      }
+                    },
+                    child: Column(
+                      children: [
+                        Container(
+                          width: 60,
+                          height: 60,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            border: Border.all(color: Colors.white.withOpacity(0.2)),
+                            image: user.photoUrl != null
+                                ? DecorationImage(image: NetworkImage(user.photoUrl!))
+                                : null,
+                            color: Colors.white.withOpacity(0.1),
+                          ),
+                          child: user.photoUrl == null
+                              ? Center(
+                                  child: Text(
+                                    user.name[0].toUpperCase(),
+                                    style: GoogleFonts.poppins(
+                                      color: Colors.white,
+                                      fontSize: 24,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                )
+                              : null,
+                        ),
+                        const SizedBox(height: 8),
+                        SizedBox(
+                          width: 70,
+                          child: Text(
+                            user.name,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            textAlign: TextAlign.center,
+                            style: GoogleFonts.hindSiliguri(
+                              color: Colors.white,
+                              fontSize: 12,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  Positioned(
+                    top: 0,
+                    right: 0,
+                    child: InkWell(
+                      onTap: () async {
+                        // Remove user
+                        await ref.read(currentUserProvider.notifier).removeSavedUser(user.id);
+                        setState(() {}); // Refresh list
+                      },
+                      child: Container(
+                        padding: const EdgeInsets.all(4),
+                        decoration: const BoxDecoration(
+                          color: Colors.redAccent,
+                          shape: BoxShape.circle,
+                        ),
+                        child: const Icon(Icons.close, size: 12, color: Colors.white),
+                      ),
+                    ),
+                  ),
+                ],
+              );
+            },
+          ),
+        ),
+        const SizedBox(height: 24),
+      ],
     );
   }
 

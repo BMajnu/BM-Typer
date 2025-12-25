@@ -16,6 +16,7 @@ import 'package:bm_typer/core/models/achievement_model.dart';
 import 'package:bm_typer/core/models/lesson_model.dart';
 import 'package:bm_typer/core/models/subscription_model.dart';
 
+import 'package:bm_typer/core/services/subscription_service.dart';
 import 'package:bm_typer/core/services/notification_service.dart';
 import 'package:bm_typer/core/services/reminder_service.dart';
 import 'package:bm_typer/core/services/leaderboard_service.dart';
@@ -26,16 +27,7 @@ import 'package:bm_typer/presentation/widgets/notifications_panel.dart';
 import 'package:bm_typer/core/services/notification_firestore_service.dart';
 
 import 'package:bm_typer/presentation/screens/leaderboard_screen.dart';
-import 'package:bm_typer/presentation/screens/level_details_screen.dart';
-
-import 'package:bm_typer/presentation/widgets/lesson_navigation.dart';
-import 'package:bm_typer/presentation/widgets/progress_indicator_widget.dart';
-import 'package:bm_typer/presentation/widgets/stats_card.dart';
-import 'package:bm_typer/presentation/widgets/typing_area.dart';
-import 'package:bm_typer/presentation/widgets/typing_guide.dart';
-import 'package:bm_typer/presentation/widgets/typing_session_history.dart';
 import 'package:bm_typer/presentation/widgets/bangla_virtual_keyboard.dart';
-import 'package:bm_typer/presentation/widgets/xp_gain_animation.dart';
 import 'package:bm_typer/presentation/widgets/feature_lock_overlay.dart';
 
 import 'package:bm_typer/presentation/widgets/settings_panel.dart';
@@ -43,6 +35,11 @@ import 'package:bm_typer/presentation/utils/responsive_helper.dart';
 import 'package:bm_typer/core/services/feature_limit_service.dart';
 import 'package:bm_typer/presentation/widgets/paywall_widget.dart' hide PremiumBadge;
 import 'dart:async';
+import 'package:bm_typer/presentation/widgets/typing_area.dart';
+import 'package:bm_typer/presentation/widgets/typing_session_history.dart';
+import 'package:bm_typer/presentation/widgets/typing_guide.dart';
+import 'package:bm_typer/core/enums/user_role.dart';
+import 'package:bm_typer/core/services/admin_auth_service.dart';
 
 
 class TutorScreen extends ConsumerStatefulWidget {
@@ -61,8 +58,10 @@ class _TutorScreenState extends ConsumerState<TutorScreen> {
   
   // Practice time tracking for feature limits
   Timer? _practiceTimer;
-  int _sessionMinutes = 0;
+  int _sessionMinutes = 0; // Keeping it as it is incremented in timer, even if not read elsewhere, logic depends on it for tracking
+
   bool _limitReached = false;
+  bool _isTimeLimitExceeded = false; // New state variable for blocking input
   
   @override
   void initState() {
@@ -119,7 +118,60 @@ class _TutorScreenState extends ConsumerState<TutorScreen> {
       for (final achievement in achievementsToShow) {
         userNotifier.markAchievementAsShown(achievement.id);
       }
+      
+      // Update local state regarding daily limit
+      // This check is for initial load, the timer handles ongoing limits.
+      final currentUser = ref.read(currentUserProvider);
+      final subscriptionState = ref.read(subscriptionStateProvider);
+
+      if (currentUser != null && !subscriptionState.isPremium) {
+         final limitService = ref.read(featureLimitServiceProvider);
+         final canContinue = limitService.canPractice(false);
+         if (!canContinue.allowed && !_isTimeLimitExceeded) {
+            _isTimeLimitExceeded = true;
+            if (mounted) {
+               _showTimeLimitExceededDialog();
+            }
+         }
+      }
     }
+  }
+
+  void _showTimeLimitExceededDialog() {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => AlertDialog(
+        title: Row(
+          children: [
+            Icon(Icons.timer_off, color: Colors.red),
+            SizedBox(width: 8),
+            Text('সময় শেষ!', style: GoogleFonts.hindSiliguri(fontWeight: FontWeight.bold)),
+          ],
+        ),
+        content: Text(
+          'আজকের ফ্রি ${FeatureLimits.maxDailyPracticeMinutes} মিনিটের অনুশীলন সময় শেষ। অনুগ্রহ করে আগামীকাল চেষ্টা করুন অথবা সাবস্ক্রিপশন আপগ্রেড করুন।',
+          style: GoogleFonts.hindSiliguri(),
+        ),
+        actions: [
+          ElevatedButton(
+            onPressed: () {
+              Navigator.pop(ctx); // Close dialog
+              Navigator.pop(context); // Exit tutor screen
+            },
+            child: Text('মেইন মেনুতে ফিরে যান'),
+          ),
+          TextButton(
+             onPressed: () {
+               Navigator.pop(ctx);
+               Navigator.pop(context);
+               Navigator.pushNamed(context, '/subscription');
+             },
+             child: Text('আপগ্রেড করুন', style: TextStyle(color: Colors.green)),
+          )
+        ],
+      ),
+    );
   }
 
   void _showAchievementNotifications(List<Achievement> achievements) {
@@ -164,6 +216,7 @@ class _TutorScreenState extends ConsumerState<TutorScreen> {
       // Premium users don't need tracking
       if (isPremium) {
         timer.cancel();
+        _isTimeLimitExceeded = false; // Reset if user somehow became premium
         return;
       }
       
@@ -175,6 +228,7 @@ class _TutorScreenState extends ConsumerState<TutorScreen> {
       final canContinue = limitService.canPractice(false);
       if (!canContinue.allowed && !_limitReached) {
         _limitReached = true;
+        _isTimeLimitExceeded = true; // Set flag to block input
         timer.cancel();
         
         // Show paywall dialog
@@ -206,6 +260,74 @@ class _TutorScreenState extends ConsumerState<TutorScreen> {
     return adminEmails.contains(user?.email?.toLowerCase()) ||
            user?.email?.contains('admin') == true ||
            user?.customUserId?.toLowerCase() == 'admin';
+  }
+  
+  /// Check if user is super admin (legacy email or role)
+  bool _isSuperAdmin() {
+    final user = ref.read(currentUserProvider);
+    const adminEmails = ['badiuzzamanmajnu786@gmail.com'];
+    return adminEmails.contains(user?.email?.toLowerCase()) || 
+           user?.role == UserRole.superAdmin;
+  }
+  
+  /// Check if user is org admin
+  bool _isOrgAdmin() {
+    final user = ref.read(currentUserProvider);
+    return user?.role == UserRole.orgAdmin || _isSuperAdmin();
+  }
+  
+  /// Check if user is team lead
+  bool _isTeamLead() {
+    final user = ref.read(currentUserProvider);
+    return user?.role == UserRole.teamLead || _isOrgAdmin();
+  }
+  
+  /// Build role-based admin buttons
+  Widget _buildRoleBasedButtons(ColorScheme colorScheme) {
+    final buttons = <Widget>[];
+    
+    // Super Admin button
+    if (_isSuperAdmin()) {
+      buttons.add(
+        Tooltip(
+          message: 'অ্যাডমিন প্যানেল',
+          child: IconButton(
+            icon: Icon(Icons.admin_panel_settings, color: Colors.deepPurple, size: 20),
+            onPressed: () => Navigator.pushNamed(context, '/admin'),
+          ),
+        ),
+      );
+    }
+    
+    // Org Admin button
+    if (_isOrgAdmin()) {
+      buttons.add(
+        Tooltip(
+          message: 'অর্গানাইজেশন',
+          child: IconButton(
+            icon: Icon(Icons.business, color: Colors.blue, size: 20),
+            onPressed: () => Navigator.pushNamed(context, '/org_admin'),
+          ),
+        ),
+      );
+    }
+    
+    // Team Lead button
+    if (_isTeamLead()) {
+      buttons.add(
+        Tooltip(
+          message: 'টিম ড্যাশবোর্ড',
+          child: IconButton(
+            icon: Icon(Icons.groups, color: Colors.orange, size: 20),
+            onPressed: () => Navigator.pushNamed(context, '/team_lead'),
+          ),
+        ),
+      );
+    }
+    
+    if (buttons.isEmpty) return const SizedBox.shrink();
+    
+    return Row(mainAxisSize: MainAxisSize.min, children: buttons);
   }
 
 
@@ -241,6 +363,13 @@ class _TutorScreenState extends ConsumerState<TutorScreen> {
   }
 
   void _handleKeyEvent(KeyEvent event) {
+    // Check Daily Limit First
+    if (_isTimeLimitExceeded) {
+       // If the limit is exceeded, block all key input.
+       // The dialog should already be shown by _startPracticeTimer or _checkForPendingAchievements.
+       return; 
+    }
+
     if (event is KeyDownEvent) {
       setState(() {
         _logicalKeys.add(event.logicalKey);
@@ -413,16 +542,13 @@ class _TutorScreenState extends ConsumerState<TutorScreen> {
                      padding: const EdgeInsets.all(16.0),
                      child: Row(
                        children: [
+                         Image.asset('assets/BMT.png', height: 40, width: 40),
+                         const SizedBox(width: 8),
                          Expanded(
                            child: Text("BM Typer", style: GoogleFonts.hindSiliguri(fontSize: 24, fontWeight: FontWeight.bold, color: colorScheme.primary)),
                          ),
-                         // Admin button for admin users
-                         if (_isAdminUser())
-                           IconButton(
-                             icon: Icon(Icons.admin_panel_settings, color: Colors.deepPurple),
-                             tooltip: 'অ্যাডমিন প্যানেল',
-                             onPressed: () => Navigator.pushNamed(context, '/admin'),
-                           ),
+                         // Role-based admin buttons
+                         _buildRoleBasedButtons(colorScheme),
                        ],
                      ),
                    ),
@@ -510,6 +636,8 @@ class _TutorScreenState extends ConsumerState<TutorScreen> {
             child: Row(
               children: [
                 IconButton(icon: Icon(Icons.menu), onPressed: () => _scaffoldKey.currentState?.openDrawer()),
+                Image.asset('assets/BMT.png', height: 28, width: 28),
+                const SizedBox(width: 4),
                 Text("BM Typer", style: GoogleFonts.hindSiliguri(fontWeight: FontWeight.bold, fontSize: 18)),
                 Spacer(),
                 // Notification Bell
@@ -711,8 +839,18 @@ class _TutorScreenState extends ConsumerState<TutorScreen> {
                  );
 
                  if (shouldLogout == true) {
-                   await AuthService().signOut();
+                   debugPrint('🔐 Logout button pressed - calling logout()...');
+                   // Just call logout() - it now handles both Firebase signOut and local clear
                    await ref.read(currentUserProvider.notifier).logout();
+                   debugPrint('✅ Logout completed');
+                   
+                   // Explicitly navigate to login screen and remove all previous routes
+                   if (mounted) {
+                     Navigator.of(context).pushNamedAndRemoveUntil(
+                       '/login',
+                       (route) => false,
+                     );
+                   }
                  }
                },
                colorScheme: colorScheme,
@@ -1032,7 +1170,7 @@ class _TutorScreenState extends ConsumerState<TutorScreen> {
                   icon: Icons.arrow_forward_ios_rounded,
                   label: "পরের",
                   onTap: state.currentLessonIndex < lessons.length - 1
-                      ? () => ref.read(tutorProvider.notifier).selectLesson(state.currentLessonIndex + 1)
+                      ? () => _handleLessonSelection(state.currentLessonIndex + 1)
                       : null,
                   colorScheme: colorScheme,
                 ),
@@ -1082,6 +1220,88 @@ class _TutorScreenState extends ConsumerState<TutorScreen> {
     );
   }
 
+  Future<void> _handleLessonSelection(int index) async {
+    final user = ref.read(currentUserProvider);
+    
+    // Strict Progression Logic (Applies to ALL users for now)
+    if (user != null && index > 0) {
+      final previousLesson = lessons[index - 1];
+      // Check if previous lesson is strictly completed
+      final isPreviousCompleted = user.completedLessons.contains(previousLesson.title);
+
+      if (!isPreviousCompleted) {
+        // Dialog 1: First Warning
+        final proceed = await showDialog<bool>(
+          context: context,
+          builder: (ctx) => AlertDialog(
+            title: Text('সতর্কতা', style: GoogleFonts.hindSiliguri(fontWeight: FontWeight.bold, color: Colors.orange)),
+            content: Text('আপনি কি আগের লেসন সম্পন্ন না করেই পরের লেসনে যেতে চান?', style: GoogleFonts.hindSiliguri()),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(ctx, false),
+                child: Text('না', style: GoogleFonts.hindSiliguri()),
+              ),
+              TextButton(
+                onPressed: () => Navigator.pop(ctx, true),
+                child: Text('হ্যাঁ', style: GoogleFonts.hindSiliguri(color: Colors.red)),
+              ),
+            ],
+          ),
+        );
+
+        if (proceed != true) return;
+
+        // Dialog 2: Admin Notification Warning
+        final confirmSkip = await showDialog<bool>(
+          context: context,
+          builder: (ctx) => AlertDialog(
+            title: Row(children: [
+              Icon(Icons.warning_amber_rounded, color: Colors.red), 
+              SizedBox(width: 8), 
+              Text('গুরুত্বপূর্ণ সতর্কতা', style: GoogleFonts.hindSiliguri(fontWeight: FontWeight.bold))
+            ]),
+            content: Text('সতর্কতা: এটি স্কিপ করলে আপনার টিম লিড এবং এডমিনকে জানানো হবে। আপনি কি নিশ্চিত?', style: GoogleFonts.hindSiliguri()),
+             actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(ctx, false),
+                child: Text('ফিরে যান', style: GoogleFonts.hindSiliguri()),
+              ),
+              ElevatedButton(
+                style: ElevatedButton.styleFrom(backgroundColor: Colors.red, foregroundColor: Colors.white),
+                onPressed: () => Navigator.pop(ctx, true),
+                child: Text('নিশ্চিত এবং স্কিপ', style: GoogleFonts.hindSiliguri()),
+              ),
+            ],
+          ),
+        );
+
+        if (confirmSkip != true) return;
+
+        // Send Alert Notification
+        try {
+           await ref.read(notificationFirestoreServiceProvider).sendNotification(
+              title: "Lesson Skipped",
+              body: "${user.name} skipped to ${lessons[index].title} without completing previous lesson.",
+              type: "alert",
+           );
+        } catch (e) {
+          debugPrint("Failed to send skipped notification: $e");
+        }
+      }
+    }
+
+    // Proceed with Lesson Selection
+    final lesson = lessons[index];
+    if (lesson.language == 'en') {
+      ref.read(keyboardLayoutProvider.notifier).setLayout(KeyboardLayout.qwerty);
+    } else if (lesson.category == 'Phonetic') {
+      ref.read(keyboardLayoutProvider.notifier).setLayout(KeyboardLayout.phonetic);
+    } else {
+      ref.read(keyboardLayoutProvider.notifier).setLayout(KeyboardLayout.bijoy);
+    }
+    ref.read(tutorProvider.notifier).selectLesson(index);
+  }
+
   void _showLessonPicker(BuildContext context, ColorScheme colorScheme) {
     showModalBottomSheet(
       context: context,
@@ -1091,18 +1311,9 @@ class _TutorScreenState extends ConsumerState<TutorScreen> {
       builder: (ctx) {
         return _LessonPickerSheet(
           colorScheme: colorScheme,
-          onLessonSelected: (index) {
-            final lesson = lessons[index];
-            // Auto-switch keyboard layout based on lesson type
-            if (lesson.language == 'en') {
-              ref.read(keyboardLayoutProvider.notifier).setLayout(KeyboardLayout.qwerty);
-            } else if (lesson.category == 'Phonetic') {
-              ref.read(keyboardLayoutProvider.notifier).setLayout(KeyboardLayout.phonetic);
-            } else {
-              ref.read(keyboardLayoutProvider.notifier).setLayout(KeyboardLayout.bijoy);
-            }
-            ref.read(tutorProvider.notifier).selectLesson(index);
+          onLessonSelected: (index) async {
             Navigator.pop(ctx);
+            await _handleLessonSelection(index);
           },
           currentLessonIndex: ref.watch(tutorProvider).currentLessonIndex,
         );
@@ -1272,6 +1483,79 @@ class _TutorScreenState extends ConsumerState<TutorScreen> {
       );
   }
 
+  Future<void> _handleExerciseSelection(int index) async {
+    final state = ref.read(tutorProvider);
+    final user = ref.read(currentUserProvider);
+    final currentExerciseIndex = state.currentExerciseIndex;
+    
+    // Strict Progression Logic for Exercises
+    if (user != null && index > currentExerciseIndex) {
+       // Check if previous exercise is completed (conceptually)
+       // Actually 'currentExerciseIndex' points to the first INCOMPLETE exercise usually (due to auto-resume).
+       // If user clicks index > current, they are skipping 'current'.
+       
+        // Dialog 1: First Warning
+        final proceed = await showDialog<bool>(
+          context: context,
+          builder: (ctx) => AlertDialog(
+            title: Text('সতর্কতা', style: GoogleFonts.hindSiliguri(fontWeight: FontWeight.bold, color: Colors.orange)),
+            content: Text('আপনি কি বর্তমান এক্সারসাইজ সম্পন্ন না করেই পরেরটিতে যেতে চান?', style: GoogleFonts.hindSiliguri()),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(ctx, false),
+                child: Text('না', style: GoogleFonts.hindSiliguri()),
+              ),
+              TextButton(
+                onPressed: () => Navigator.pop(ctx, true),
+                child: Text('হ্যাঁ', style: GoogleFonts.hindSiliguri(color: Colors.red)),
+              ),
+            ],
+          ),
+        );
+
+        if (proceed != true) return;
+
+        // Dialog 2: Admin Notification Warning
+        final confirmSkip = await showDialog<bool>(
+          context: context,
+          builder: (ctx) => AlertDialog(
+            title: Row(children: [
+              Icon(Icons.warning_amber_rounded, color: Colors.red), 
+              SizedBox(width: 8), 
+              Text('গুরুত্বপূর্ণ সতর্কতা', style: GoogleFonts.hindSiliguri(fontWeight: FontWeight.bold))
+            ]),
+            content: Text('সতর্কতা: এটি স্কিপ করলে আপনার টিম লিড এবং এডমিনকে জানানো হবে। আপনি কি নিশ্চিত?', style: GoogleFonts.hindSiliguri()),
+             actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(ctx, false),
+                child: Text('ফিরে যান', style: GoogleFonts.hindSiliguri()),
+              ),
+              ElevatedButton(
+                style: ElevatedButton.styleFrom(backgroundColor: Colors.red, foregroundColor: Colors.white),
+                onPressed: () => Navigator.pop(ctx, true),
+                child: Text('নিশ্চিত এবং স্কিপ', style: GoogleFonts.hindSiliguri()),
+              ),
+            ],
+          ),
+        );
+
+        if (confirmSkip != true) return;
+
+        // Send Alert Notification
+        try {
+           await ref.read(notificationFirestoreServiceProvider).sendNotification(
+              title: "Exercise Skipped",
+              body: "${user.name} skipped Exercise ${index+1} in ${state.currentLesson.title}.",
+              type: "alert",
+           );
+        } catch (e) {
+          debugPrint("Failed to send skipped notification: $e");
+        }
+    }
+    
+    ref.read(tutorProvider.notifier).selectExercise(index);
+  }
+
   Widget _buildExerciseList() {
     final state = ref.watch(tutorProvider);
     final currentLesson = lessons[state.currentLessonIndex];
@@ -1318,7 +1602,7 @@ class _TutorScreenState extends ConsumerState<TutorScreen> {
               return Padding(
                 padding: EdgeInsets.only(bottom: 6),
                 child: InkWell(
-                  onTap: () => ref.read(tutorProvider.notifier).selectExercise(index),
+                  onTap: () => _handleExerciseSelection(index),
                   borderRadius: BorderRadius.circular(12),
                   child: AnimatedContainer(
                     duration: Duration(milliseconds: 200),

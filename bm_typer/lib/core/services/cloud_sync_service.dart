@@ -108,9 +108,52 @@ class CloudSyncService {
     }
   }
 
+  /// Fetch user data from Firestore by email (for user switching)
+  /// This allows fetching correct user data even when local user differs from Firebase auth user
+  Future<Map<String, dynamic>?> fetchUserByEmail(String email) async {
+    try {
+      debugPrint('🔍 Fetching user by email: $email');
+      
+      // Try profile.email first
+      final querySnapshot = await _firestore
+          .collection('users')
+          .where('profile.email', isEqualTo: email)
+          .limit(1)
+          .get();
+
+      if (querySnapshot.docs.isNotEmpty) {
+        final data = querySnapshot.docs.first.data();
+        debugPrint('✅ Found user by profile.email: ${data['profile']?['role'] ?? 'no role'}');
+        return data;
+      }
+      
+      // Try root email field for backward compatibility
+      final rootQuery = await _firestore
+          .collection('users')
+          .where('email', isEqualTo: email)
+          .limit(1)
+          .get();
+
+      if (rootQuery.docs.isNotEmpty) {
+        final data = rootQuery.docs.first.data();
+        debugPrint('✅ Found user by root email: ${data['role'] ?? data['profile']?['role'] ?? 'no role'}');
+        return data;
+      }
+      
+      debugPrint('❌ User not found by email: $email');
+      return null;
+    } catch (e) {
+      debugPrint('❌ Error fetching user by email: $e');
+      return null;
+    }
+  }
+
+
   /// Get user email by custom User ID
   Future<String?> getUserEmailByCustomId(String customUserId) async {
     try {
+      debugPrint('🔍 Looking up user by customUserId: $customUserId');
+      
       final querySnapshot = await _firestore
           .collection('users')
           .where('profile.customUserId', isEqualTo: customUserId)
@@ -127,15 +170,68 @@ class CloudSyncService {
             
         if (rootQuery.docs.isNotEmpty) {
            final data = rootQuery.docs.first.data();
-           return data['email'] ?? data['profile']['email'];
+           debugPrint('✅ Found user by root customUserId: ${data['email'] ?? data['profile']?['email']}');
+           return data['email'] ?? data['profile']?['email'];
         }
+        debugPrint('❌ User not found by customUserId: $customUserId');
         return null;
       }
 
       final data = querySnapshot.docs.first.data();
-      return data['profile']['email'] as String?;
+      debugPrint('✅ Found user by profile.customUserId: ${data['profile']?['email']}');
+      return data['profile']?['email'] as String?;
     } catch (e) {
       debugPrint('❌ Error fetching user email by ID: $e');
+      return null;
+    }
+  }
+
+  /// Get user email by phone number (for phone login)
+  Future<String?> getUserEmailByPhoneNumber(String phoneNumber) async {
+    try {
+      // Normalize phone number (remove spaces, ensure + prefix)
+      String normalizedPhone = phoneNumber.replaceAll(' ', '').replaceAll('-', '');
+      if (!normalizedPhone.startsWith('+')) {
+        // Assume Bangladesh if no country code
+        if (normalizedPhone.startsWith('0')) {
+          normalizedPhone = '+88$normalizedPhone';
+        } else {
+          normalizedPhone = '+880$normalizedPhone';
+        }
+      }
+      
+      debugPrint('🔍 Looking up user by phone: $normalizedPhone');
+      
+      // Try profile.phoneNumber first
+      final querySnapshot = await _firestore
+          .collection('users')
+          .where('profile.phoneNumber', isEqualTo: normalizedPhone)
+          .limit(1)
+          .get();
+
+      if (querySnapshot.docs.isNotEmpty) {
+        final data = querySnapshot.docs.first.data();
+        debugPrint('✅ Found user by profile.phoneNumber: ${data['profile']?['email']}');
+        return data['profile']?['email'] as String?;
+      }
+      
+      // Also try without normalization
+      final rawQuery = await _firestore
+          .collection('users')
+          .where('profile.phoneNumber', isEqualTo: phoneNumber)
+          .limit(1)
+          .get();
+          
+      if (rawQuery.docs.isNotEmpty) {
+        final data = rawQuery.docs.first.data();
+        debugPrint('✅ Found user by raw phoneNumber: ${data['profile']?['email']}');
+        return data['profile']?['email'] as String?;
+      }
+      
+      debugPrint('❌ User not found by phone: $phoneNumber');
+      return null;
+    } catch (e) {
+      debugPrint('❌ Error fetching user email by phone: $e');
       return null;
     }
   }
@@ -255,8 +351,10 @@ class CloudSyncService {
   // ============================================================
 
   /// Process a single sync operation from the queue
+  /// Returns `true` if successful, `false` if failed permanently (should be removed).
+  /// Throws exception if failed transiently (should retry).
   Future<bool> processOperation(SyncOperation operation) async {
-    if (!_connectivity.isOnline) return false;
+    if (!_connectivity.isOnline) throw Exception('Offline');
 
     try {
       final docRef = _firestore.collection(operation.collection).doc(operation.documentId);
@@ -272,9 +370,22 @@ class CloudSyncService {
       }
 
       return true;
+    } on FirebaseException catch (e) {
+      debugPrint('❌ Firebase Sync Error [${e.code}]: ${e.message}');
+      
+      // Permanent errors - should remove from queue
+      if (e.code == 'permission-denied' || 
+          e.code == 'not-found' || 
+          e.code == 'already-exists' ||
+          e.code == 'invalid-argument') {
+        return false; 
+      }
+      
+      // Transient errors (network, unavailable, etc) - retry
+      rethrow;
     } catch (e) {
-      debugPrint('❌ Error processing operation: $e');
-      return false;
+      debugPrint('❌ Unknown Sync Error: $e');
+      rethrow; // Retry on unknown errors to be safe
     }
   }
 

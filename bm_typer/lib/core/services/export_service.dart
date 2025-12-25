@@ -1,15 +1,10 @@
 import 'dart:convert';
-import 'dart:typed_data';
-import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
 import 'package:bm_typer/core/models/user_model.dart';
-import 'package:bm_typer/core/models/typing_session.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
-import 'package:universal_html/html.dart' as html;
-import 'package:path_provider/path_provider.dart';
-import 'dart:io';
+import 'package:bm_typer/core/utils/file_helper.dart';
 
 /// Service for exporting user data in various formats (PDF, CSV)
 class ExportService {
@@ -226,86 +221,14 @@ class ExportService {
     return pdf.save();
   }
 
-  /// Download a file in the browser (Web platform)
-  void downloadFileWeb(Uint8List bytes, String fileName) {
-    // Create a Blob from the bytes
-    final blob = html.Blob([bytes]);
-
-    // Create a URL for the blob
-    final url = html.Url.createObjectUrlFromBlob(blob);
-
-    // Create an anchor element to trigger the download
-    final anchor = html.AnchorElement(href: url)
-      ..setAttribute('download', fileName)
-      ..style.display = 'none';
-
-    // Add the anchor to the document body
-    html.document.body?.append(anchor);
-
-    // Trigger the download
-    anchor.click();
-
-    // Clean up
-    anchor.remove();
-    html.Url.revokeObjectUrl(url);
-  }
-
-  /// Save a file on mobile/desktop platforms
+  /// Save a file on mobile/desktop platforms or download on Web
   Future<String?> saveFile(Uint8List bytes, String fileName) async {
-    try {
-      if (kIsWeb) {
-        downloadFileWeb(bytes, fileName);
-        return null;
-      } else {
-        // Get the app documents directory
-        final directory = await getApplicationDocumentsDirectory();
-        final filePath = '${directory.path}/$fileName';
-
-        // Write the file
-        final file = File(filePath);
-        await file.writeAsBytes(bytes);
-
-        return filePath;
-      }
-    } catch (e) {
-      debugPrint('Error saving file: $e');
-      return null;
-    }
+    return await saveFileUniversal(bytes, fileName);
   }
 
   /// Download a CSV file
   Future<String?> downloadCsv(String csvContent, String fileName) async {
-    try {
-      if (kIsWeb) {
-        // For web, create a Blob and trigger a download
-        final bytes = utf8.encode(csvContent);
-        final blob = html.Blob([bytes]);
-        final url = html.Url.createObjectUrlFromBlob(blob);
-
-        final anchor = html.AnchorElement(href: url)
-          ..setAttribute('download', fileName)
-          ..style.display = 'none';
-
-        html.document.body?.append(anchor);
-        anchor.click();
-        anchor.remove();
-        html.Url.revokeObjectUrl(url);
-
-        return null;
-      } else {
-        // For mobile/desktop, save to app documents directory
-        final directory = await getApplicationDocumentsDirectory();
-        final filePath = '${directory.path}/$fileName';
-
-        final file = File(filePath);
-        await file.writeAsString(csvContent);
-
-        return filePath;
-      }
-    } catch (e) {
-      debugPrint('Error downloading CSV: $e');
-      return null;
-    }
+    return await saveStringFileUniversal(csvContent, fileName);
   }
 
   // Helper methods for PDF generation

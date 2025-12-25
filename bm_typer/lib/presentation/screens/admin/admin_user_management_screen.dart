@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/foundation.dart';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -24,23 +24,44 @@ class _AdminUserManagementScreenState extends ConsumerState<AdminUserManagementS
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
     
-    return Row(
-      children: [
-        // Left Panel - User List (35%)
-        Expanded(
-          flex: 35,
-          child: _buildUserListPanel(colorScheme),
-        ),
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final isMobile = constraints.maxWidth < 800;
         
-        // Divider
-        VerticalDivider(width: 1, thickness: 1, color: colorScheme.outline.withOpacity(0.2)),
+        if (isMobile) {
+          if (_selectedUserId != null) {
+            return PopScope(
+              canPop: false,
+              onPopInvokedWithResult: (didPop, result) {
+                if (didPop) return;
+                setState(() => _selectedUserId = null);
+              },
+              child: _buildUserDetailsPanel(colorScheme, isMobile: true),
+            );
+          } else {
+            return _buildUserListPanel(colorScheme);
+          }
+        }
         
-        // Right Panel - User Details (65%)
-        Expanded(
-          flex: 65,
-          child: _buildUserDetailsPanel(colorScheme),
-        ),
-      ],
+        return Row(
+          children: [
+            // Left Panel - User List (35%)
+            Expanded(
+              flex: 35,
+              child: _buildUserListPanel(colorScheme),
+            ),
+            
+            // Divider
+            VerticalDivider(width: 1, thickness: 1, color: colorScheme.outline.withOpacity(0.2)),
+            
+            // Right Panel - User Details (65%)
+            Expanded(
+              flex: 65,
+              child: _buildUserDetailsPanel(colorScheme),
+            ),
+          ],
+        );
+      },
     );
   }
 
@@ -361,7 +382,7 @@ class _AdminUserManagementScreenState extends ConsumerState<AdminUserManagementS
   }
 
   /// Right Panel - User Details
-  Widget _buildUserDetailsPanel(ColorScheme colorScheme) {
+  Widget _buildUserDetailsPanel(ColorScheme colorScheme, {bool isMobile = false}) {
     if (_selectedUserId == null) {
       return _buildEmptyDetailsState(colorScheme);
     }
@@ -374,7 +395,7 @@ class _AdminUserManagementScreenState extends ConsumerState<AdminUserManagementS
       return _buildEmptyDetailsState(colorScheme);
     }
     
-    return _buildUserDetails(colorScheme);
+    return _buildUserDetails(colorScheme, isMobile: isMobile);
   }
 
   Widget _buildEmptyDetailsState(ColorScheme colorScheme) {
@@ -417,7 +438,7 @@ class _AdminUserManagementScreenState extends ConsumerState<AdminUserManagementS
     );
   }
 
-  Widget _buildUserDetails(ColorScheme colorScheme) {
+  Widget _buildUserDetails(ColorScheme colorScheme, {bool isMobile = false}) {
     final data = _selectedUserData!;
     final profile = data['profile'] as Map<String, dynamic>?;
     final stats = data['stats'] as Map<String, dynamic>?;
@@ -451,6 +472,30 @@ class _AdminUserManagementScreenState extends ConsumerState<AdminUserManagementS
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          // Back Button for Mobile
+          if (isMobile)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 16),
+              child: Row(
+                children: [
+                  IconButton(
+                    onPressed: () => setState(() => _selectedUserId = null),
+                    icon: const Icon(Icons.arrow_back),
+                    style: IconButton.styleFrom(
+                      backgroundColor: colorScheme.surfaceContainerHighest,
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Text(
+                    'ফিরে যান',
+                    style: GoogleFonts.hindSiliguri(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
+              ),
+            ),
           // Profile Header Card
           Container(
             padding: const EdgeInsets.all(24),
@@ -646,6 +691,17 @@ class _AdminUserManagementScreenState extends ConsumerState<AdminUserManagementS
                   ),
                 ),
               
+              ElevatedButton.icon(
+                onPressed: () => _showGrantSubscriptionDialog(context, _selectedUserId!),
+                icon: const Icon(Icons.card_membership_rounded, size: 18),
+                label: Text('সাবস্ক্রিপশন দিন', style: GoogleFonts.hindSiliguri()),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.amber.shade700,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                ),
+              ),
+
               OutlinedButton.icon(
                 onPressed: () {
                   ScaffoldMessenger.of(context).showSnackBar(
@@ -876,6 +932,99 @@ class _AdminUserManagementScreenState extends ConsumerState<AdminUserManagementS
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('❌ এক্সপোর্ট ত্রুটি: $e', style: GoogleFonts.hindSiliguri()),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+  Future<void> _showGrantSubscriptionDialog(BuildContext context, String userId) async {
+    int selectedDuration = 30; // Default 1 month
+    String selectedPlan = 'monthly';
+    
+    await showDialog(
+      context: context,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setState) => AlertDialog(
+          title: Text('সাবস্ক্রিপশন প্রদান করুন', style: GoogleFonts.hindSiliguri(fontWeight: FontWeight.bold)),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('মেয়াদ নির্বাচন করুন:', style: GoogleFonts.hindSiliguri()),
+              const SizedBox(height: 12),
+              _buildRadioOption('১ মাস (Monthly)', 30, 'monthly', selectedDuration, (val) {
+                setState(() { selectedDuration = val!; selectedPlan = 'monthly'; });
+              }),
+              _buildRadioOption('৬ মাস (Half-Yearly)', 180, 'half_yearly', selectedDuration, (val) {
+                setState(() { selectedDuration = val!; selectedPlan = 'half_yearly'; });
+              }),
+              _buildRadioOption('১ বছর (Yearly)', 365, 'yearly', selectedDuration, (val) {
+                setState(() { selectedDuration = val!; selectedPlan = 'yearly'; });
+              }),
+              _buildRadioOption('আজীবন (Lifetime)', 36500, 'lifetime', selectedDuration, (val) {
+                setState(() { selectedDuration = val!; selectedPlan = 'lifetime'; });
+              }),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: Text('বাতিল', style: GoogleFonts.hindSiliguri(color: Colors.grey)),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                Navigator.pop(context);
+                _grantSubscription(userId, selectedDuration, selectedPlan);
+              },
+              style: ElevatedButton.styleFrom(backgroundColor: Colors.amber.shade700, foregroundColor: Colors.white),
+              child: Text('নিশ্চিত করুন', style: GoogleFonts.hindSiliguri()),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildRadioOption(String title, int value, String planKey, int groupValue, Function(int?) onChanged) {
+    return RadioListTile<int>(
+      title: Text(title, style: GoogleFonts.hindSiliguri(fontSize: 14)),
+      value: value,
+      groupValue: groupValue,
+      onChanged: onChanged,
+      contentPadding: EdgeInsets.zero,
+      dense: true,
+      activeColor: Colors.amber.shade700,
+    );
+  }
+
+  Future<void> _grantSubscription(String userId, int days, String planType) async {
+    try {
+      final expiryDate = DateTime.now().add(Duration(days: days));
+      
+      await FirebaseFirestore.instance.collection('users').doc(userId).update({
+        'isPremium': true,
+        'subscriptionType': planType,
+        'subscriptionStatus': 'active',
+        'subscriptionExpiry': Timestamp.fromDate(expiryDate),
+        'lastUpdated': FieldValue.serverTimestamp(),
+      });
+      
+      _selectUser(userId); // Refresh details
+      
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('✅ সাবস্ক্রিপশন সফলভাবে দেওয়া হয়েছে!', style: GoogleFonts.hindSiliguri()),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('❌ ত্রুটি: $e', style: GoogleFonts.hindSiliguri()),
             backgroundColor: Colors.red,
           ),
         );

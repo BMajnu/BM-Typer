@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 import 'package:hive/hive.dart';
 import 'package:uuid/uuid.dart';
 import 'package:bm_typer/core/models/typing_session.dart';
+import 'package:bm_typer/core/enums/user_role.dart';
 
 part 'user_model.g.dart';
 
@@ -67,6 +68,15 @@ class UserModel {
   @HiveField(15)
   final List<TypingSession> typingSessions;
 
+  @HiveField(20)
+  final UserRole role;
+
+  @HiveField(21)
+  final Map<String, List<int>> completedExercises; // Key: LessonTitle, Value: List of completed exercise indices
+
+  @HiveField(22)
+  final Map<String, List<int>> skippedExercises; // Key: LessonTitle, Value: List of skipped exercise indices
+
   UserModel({
     String? id,
     required this.name,
@@ -88,7 +98,12 @@ class UserModel {
     this.photoUrl,
     this.phoneNumber,
     this.organizationId,
+    this.role = UserRole.student,
+    Map<String, List<int>>? completedExercises,
+    Map<String, List<int>>? skippedExercises,
   })  : id = id ?? const Uuid().v4(),
+        completedExercises = completedExercises ?? {},
+        skippedExercises = skippedExercises ?? {},
         wpmHistory = wpmHistory ?? [],
         accuracyHistory = accuracyHistory ?? [],
         highestWpm = highestWpm ?? 0.0,
@@ -135,6 +150,9 @@ class UserModel {
     double? goalWpm,
     double? goalAccuracy,
     List<TypingSession>? typingSessions,
+    UserRole? role,
+    Map<String, List<int>>? completedExercises,
+    Map<String, List<int>>? skippedExercises,
   }) {
     return UserModel(
       id: this.id,
@@ -158,6 +176,9 @@ class UserModel {
       goalWpm: goalWpm ?? this.goalWpm,
       goalAccuracy: goalAccuracy ?? this.goalAccuracy,
       typingSessions: typingSessions ?? this.typingSessions,
+      role: role ?? this.role,
+      completedExercises: completedExercises ?? this.completedExercises,
+      skippedExercises: skippedExercises ?? this.skippedExercises,
     );
   }
 
@@ -358,7 +379,49 @@ class UserModel {
       xpPoints: xpPoints + earnedXp,
       level: calculateLevelFromXP(xpPoints + earnedXp),
       typingSessions: newTypingSessions,
+      completedExercises: completedExercises, // Unchanged by default addSessionResult unless passed? 
+      // Actually addSessionResult usually marks whole LEsson complete. 
+      // We should probably update completedExercises explicitly via separate method or updated logic?
+      // For now, keep it synced.
     );
+  }
+
+  /// Update completed exercises for a specific lesson
+  UserModel updateCompletedExercises(String lessonTitle, int exerciseIndex) {
+    Map<String, List<int>> currentCompleted = Map.from(completedExercises);
+    if (!currentCompleted.containsKey(lessonTitle)) {
+      currentCompleted[lessonTitle] = [];
+    }
+    
+    if (!currentCompleted[lessonTitle]!.contains(exerciseIndex)) {
+       currentCompleted[lessonTitle]!.add(exerciseIndex);
+    }
+
+    return copyWith(completedExercises: currentCompleted);
+  }
+
+  /// Mark an exercise as skipped for a specific lesson
+  UserModel markExerciseSkipped(String lessonTitle, int exerciseIndex) {
+    Map<String, List<int>> currentSkipped = Map.from(skippedExercises);
+    if (!currentSkipped.containsKey(lessonTitle)) {
+      currentSkipped[lessonTitle] = [];
+    }
+    
+    if (!currentSkipped[lessonTitle]!.contains(exerciseIndex)) {
+       currentSkipped[lessonTitle]!.add(exerciseIndex);
+    }
+
+    return copyWith(skippedExercises: currentSkipped);
+  }
+
+  /// Check if an exercise was skipped
+  bool isExerciseSkipped(String lessonTitle, int exerciseIndex) {
+    return skippedExercises[lessonTitle]?.contains(exerciseIndex) ?? false;
+  }
+
+  /// Check if an exercise was completed (not skipped)
+  bool isExerciseCompleted(String lessonTitle, int exerciseIndex) {
+    return completedExercises[lessonTitle]?.contains(exerciseIndex) ?? false;
   }
 
   /// Calculate how much of the course has been completed in percentage.
@@ -384,7 +447,8 @@ class UserModel {
         listEquals(other.unlockedAchievements, unlockedAchievements) &&
         other.xpPoints == xpPoints &&
         other.level == level &&
-        other.streakCount == streakCount;
+        other.streakCount == streakCount &&
+        other.role == role;
   }
 
   @override
@@ -399,6 +463,7 @@ class UserModel {
         unlockedAchievements.hashCode ^
         xpPoints.hashCode ^
         level.hashCode ^
-        streakCount.hashCode;
+        streakCount.hashCode ^
+        role.hashCode;
   }
 }

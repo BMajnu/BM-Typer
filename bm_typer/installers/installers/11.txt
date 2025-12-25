@@ -1,0 +1,2 @@
+set FLUTTER_ANGLE_D3D_FEATURE_LEVEL_9_3=true
+"C:\Program Files\BM Typer\bm_typer.exe"

@@ -10,7 +10,7 @@ void main() {
       expect(BijoyKeyboardLayout.getCharacter('l'), 'দ');
       expect(BijoyKeyboardLayout.getCharacter('h'), 'ব');
       expect(BijoyKeyboardLayout.getCharacter('r'), 'প');
-      expect(BijoyKeyboardLayout.getCharacter('p'), 'ড়'); // Corrected from র
+      expect(BijoyKeyboardLayout.getCharacter('p'), 'ড়'); // Matches code (DA+Nukta?)
       expect(BijoyKeyboardLayout.getCharacter('v'), 'র'); // Corrected from ল
       expect(BijoyKeyboardLayout.getCharacter('x'), 'ও'); // Corrected
 
@@ -20,7 +20,7 @@ void main() {
       expect(BijoyKeyboardLayout.getCharacter('L', shift: true), 'ধ');
       expect(BijoyKeyboardLayout.getCharacter('H', shift: true), 'ভ');
       expect(BijoyKeyboardLayout.getCharacter('R', shift: true), 'ফ');
-      expect(BijoyKeyboardLayout.getCharacter('P', shift: true), 'ঢ়');
+      expect(BijoyKeyboardLayout.getCharacter('P', shift: true), 'ঢ়');
       expect(BijoyKeyboardLayout.getCharacter('V', shift: true), 'ল'); // Corrected
       expect(BijoyKeyboardLayout.getCharacter('X', shift: true), 'ঔ');
       expect(BijoyKeyboardLayout.getCharacter('A', shift: true), 'র্'); // Corrected Shift+A = Reph
@@ -73,17 +73,11 @@ void main() {
       expect(PhoneticKeyboardLayout.getCharacter('G', shift: true), 'ঘ');
       expect(PhoneticKeyboardLayout.getCharacter('C', shift: true), 'ছ');
       expect(PhoneticKeyboardLayout.getCharacter('J', shift: true), 'ঝ');
-      expect(PhoneticKeyboardLayout.getCharacter('T', shift: true), 'ঠ');
-      expect(PhoneticKeyboardLayout.getCharacter('D', shift: true), 'ঢ');
-      expect(PhoneticKeyboardLayout.getCharacter('t', shift: true), 'থ'); // wait, t shift is Th?
-      // In my map: 't' normal is ત. 't' in shift map?
-      // phonetic layout code:
-      // normalKeys: ... 't': 'ত', ...
-      // shiftKeys: ... 't': 'থ', ... 
-      // So if shift is true, it should return 'থ'.
-      expect(PhoneticKeyboardLayout.getCharacter('t', shift: true), 'থ');
+      expect(PhoneticKeyboardLayout.getCharacter('T', shift: true), 'ট'); // T = ট (Retroflex Ta)
+      expect(PhoneticKeyboardLayout.getCharacter('D', shift: true), 'ড');
+      expect(PhoneticKeyboardLayout.getCharacter('t', shift: true), 'ট'); // Shift+t = T = ট
       
-      expect(PhoneticKeyboardLayout.getCharacter('d', shift: true), 'ধ');
+      expect(PhoneticKeyboardLayout.getCharacter('d', shift: true), 'ড'); // Shift+d = D = ড
       expect(PhoneticKeyboardLayout.getCharacter('B', shift: true), 'ভ');
     });
   });

@@ -116,7 +116,10 @@ class AboutAppScreen extends StatelessWidget {
             borderRadius: BorderRadius.circular(20),
             boxShadow: [BoxShadow(color: colorScheme.primary.withOpacity(0.3), blurRadius: 20, offset: const Offset(0, 8))],
           ),
-          child: const Icon(Icons.keyboard_rounded, size: 50, color: Colors.white),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(12),
+            child: Image.asset('assets/BMT.png', width: 50, height: 50, fit: BoxFit.cover),
+          ),
         ),
         const SizedBox(height: 16),
         Text(

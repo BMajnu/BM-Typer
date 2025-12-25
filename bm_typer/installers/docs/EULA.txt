@@ -1,0 +1,27 @@
+END USER LICENSE AGREEMENT (EULA) for BM Typer
+
+IMPORTANT: PLEASE READ THIS AGREEMENT CAREFULLY.
+
+This End-User License Agreement ("EULA") is a legal agreement between you (either an individual or a single entity) and TechZone IT for the BM Typer software product, which includes computer software and may include associated media, printed materials, and "online" or electronic documentation ("SOFTWARE PRODUCT").
+
+By installing, copying, or otherwise using the SOFTWARE PRODUCT, you agree to be bound by the terms of this EULA. If you do not agree to the terms of this EULA, do not install or use the SOFTWARE PRODUCT.
+
+1. GRANT OF LICENSE.
+TechZone IT grants you the following rights provided that you comply with all terms and conditions of this EULA: You may install and use an unlimited number of copies of the SOFTWARE PRODUCT.
+
+2. COPYRIGHT.
+All title and copyrights in and to the SOFTWARE PRODUCT (including but not limited to any images, photographs, animations, video, audio, music, text, and "applets" incorporated into the SOFTWARE PRODUCT), the accompanying printed materials, and any copies of the SOFTWARE PRODUCT are owned by TechZone IT or its suppliers. The SOFTWARE PRODUCT is protected by copyright laws and international treaty provisions. Therefore, you must treat the SOFTWARE PRODUCT like any other copyrighted material.
+
+3. DESCRIPTION OF OTHER RIGHTS AND LIMITATIONS.
+- Limitations on Reverse Engineering, Decompilation, and Disassembly: You may not reverse engineer, decompile, or disassemble the SOFTWARE PRODUCT, except and only to the extent that such activity is expressly permitted by applicable law notwithstanding this limitation.
+- Separation of Components: The SOFTWARE PRODUCT is licensed as a single product. Its component parts may not be separated for use on more than one computer.
+- Termination: Without prejudice to any other rights, TechZone IT may terminate this EULA if you fail to comply with the terms and conditions of this EULA. In such event, you must destroy all copies of the SOFTWARE PRODUCT and all of its component parts.
+
+4. NO WARRANTIES.
+TechZone IT expressly disclaims any warranty for the SOFTWARE PRODUCT. The SOFTWARE PRODUCT is provided 'As Is' without any express or implied warranty of any kind, including but not limited to any warranties of merchantability, noninfringement, or fitness of a particular purpose. TechZone IT does not warrant or assume responsibility for the accuracy or completeness of any information, text, graphics, links or other items contained within the SOFTWARE PRODUCT. TechZone IT makes no warranties respecting any harm that may be caused by the transmission of a computer virus, worm, time bomb, logic bomb, or other such computer program. TechZone IT further expressly disclaims any warranty or representation to Authorized Users or to any third party.
+
+5. LIMITATION OF LIABILITY.
+In no event shall TechZone IT be liable for any damages (including, without limitation, lost profits, business interruption, or lost information) rising out of 'Authorized Users' use of or inability to use the SOFTWARE PRODUCT, even if TechZone IT has been advised of the possibility of such damages. In no event will TechZone IT be liable for loss of data or for indirect, special, incidental, consequential (including lost profit), or other damages based in contract, tort or otherwise. TechZone IT shall have no liability with respect to the content of the SOFTWARE PRODUCT or any part thereof, including but not limited to errors or omissions contained therein, libel, infringements of rights of publicity, privacy, trademark rights, business interruption, personal injury, loss of privacy, moral rights or the disclosure of confidential information.
+
+Copyright (c) 2025 TechZone IT
+All rights reserved.

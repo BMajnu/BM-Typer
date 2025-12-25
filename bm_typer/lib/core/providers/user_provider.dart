@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:bm_typer/core/models/user_model.dart';
+import 'package:uuid/uuid.dart';
 import 'package:bm_typer/core/models/achievement_model.dart';
 import 'package:bm_typer/core/services/database_service.dart';
 import 'package:bm_typer/core/services/achievement_service.dart';
@@ -7,6 +8,8 @@ import 'package:bm_typer/core/services/cloud_sync_service.dart';
 import 'package:bm_typer/core/services/sync_queue_service.dart';
 import 'package:bm_typer/core/services/connectivity_service.dart';
 import 'package:bm_typer/core/models/sync_operation.dart';
+import 'package:bm_typer/core/enums/user_role.dart';
+import 'package:bm_typer/core/services/auth_service.dart';
 import 'package:flutter/foundation.dart';
 
 /// Provider for the current user
@@ -67,8 +70,34 @@ class UserNotifier extends StateNotifier<UserModel?> {
       await DatabaseService.saveUser(finalUser);
       state = finalUser;
       
-      // Sync to cloud
+      // Sync to cloud (Push local stats)
       await _syncToCloud(finalUser);
+
+      // Sync from cloud (Fetch Role/Org updates)
+      if (_connectivity.isOnline) {
+        try {
+          final cloudData = await _cloudSync.fetchUser();
+          if (cloudData != null) {
+            // Check for Role update
+            if (cloudData['profile']?['role'] != null) {
+              final roleStr = cloudData['profile']['role'] as String;
+              final role = UserRole.values.firstWhere(
+                (e) => e.name == roleStr,
+                orElse: () => UserRole.student,
+              );
+              
+              if (finalUser.role != role) {
+                finalUser = finalUser.copyWith(role: role);
+                await DatabaseService.saveUser(finalUser);
+                state = finalUser;
+                debugPrint('♻️ Role synced from cloud: ${role.name}');
+              }
+            }
+          }
+        } catch (e) {
+          debugPrint('⚠️ Error syncing role from cloud: $e');
+        }
+      }
     }
   }
 
@@ -249,13 +278,51 @@ class UserNotifier extends StateNotifier<UserModel?> {
 
     // Sync user stats and typing session to cloud
     await _syncToCloud(finalUser);
-    await _cloudSync.syncTypingSession(
-      wpm: wpm,
-      accuracy: accuracy,
-      lessonId: completedLesson,
-    );
+
+    if (_connectivity.isOnline) {
+      // Online: Direct upload
+      await _cloudSync.syncTypingSession(
+        wpm: wpm,
+        accuracy: accuracy,
+        lessonId: completedLesson,
+      );
+    } else {
+      // Offline: Queue session upload
+      final sessionId = Uuid().v4();
+      await _syncQueue.addOperation(SyncOperation(
+        collection: 'users/${finalUser.id}/sessions',
+        documentId: sessionId,
+        operationType: 'create',
+        data: {
+          'wpm': wpm,
+          'accuracy': accuracy,
+          'lessonId': completedLesson,
+          'timestamp': DateTime.now().toIso8601String(),
+        },
+      ));
+      debugPrint('📥 Session queued for sync: WPM=$wpm');
+    }
 
     return achievements;
+  }
+
+  /// Mark an exercise as completed efficiently
+  Future<void> markExerciseCompleted(String lessonTitle, int exerciseIndex) async {
+     if (state == null) return;
+     
+     // Update user state
+     UserModel updatedUser = state!.updateCompletedExercises(lessonTitle, exerciseIndex);
+     state = updatedUser;
+     await DatabaseService.saveUser(updatedUser);
+
+     // Debounced sync to cloud could go here, or just wait for next major sync
+     // For now, let's sync to ensure persistence across devices if needed
+     if (_connectivity.isOnline) {
+       // We can optimize this later to not sync FULL user object every exercise
+       _cloudSync.syncUser(updatedUser); 
+     } else {
+        // Queue light update? Or just full user for now
+     }
   }
 
   /// Add XP to the user
@@ -267,10 +334,93 @@ class UserNotifier extends StateNotifier<UserModel?> {
     state = updatedUser;
   }
 
-  /// Logout the current user
+  /// Logout the current user (both Firebase and local)
   Future<void> logout() async {
+    try {
+      // Sign out from Firebase first
+      await AuthService().signOut();
+      debugPrint('✅ Firebase signOut completed');
+    } catch (e) {
+      debugPrint('⚠️ Firebase signOut error (continuing anyway): $e');
+    }
+    
+    // Always clear local state regardless of Firebase result
     await DatabaseService.clearCurrentUser();
     state = null;
+    debugPrint('✅ Local user cleared');
+  }
+
+  /// Get all saved users from local database (for user switching)
+  List<UserModel> getAllSavedUsers() {
+    return DatabaseService.getAllUsers();
+  }
+
+  /// Switch to a different saved user (local switch only, no Firebase re-auth)
+  /// NOTE: This also syncs role from cloud to ensure proper role detection
+  Future<void> switchToUser(UserModel user) async {
+    await DatabaseService.setCurrentUser(user);
+    state = user;
+    debugPrint('🔄 Switched to user: ${user.name} (${user.email})');
+    
+    // Sync role from cloud using EMAIL (important: fetchUser uses Firebase UID which may differ)
+    if (_connectivity.isOnline) {
+      try {
+        // Use fetchUserByEmail to get the CORRECT user's cloud data
+        final cloudData = await _cloudSync.fetchUserByEmail(user.email);
+        if (cloudData != null) {
+          UserModel updatedUser = user;
+          
+          // Check for Role update from cloud (try multiple paths)
+          String? roleStr = cloudData['profile']?['role'] as String?;
+          roleStr ??= cloudData['role'] as String?;
+          
+          if (roleStr != null) {
+            final role = UserRole.values.firstWhere(
+              (e) => e.name == roleStr,
+              orElse: () => UserRole.student,
+            );
+            
+            if (user.role != role) {
+              updatedUser = user.copyWith(role: role);
+              debugPrint('♻️ Role synced from cloud for ${user.name}: ${role.name}');
+            }
+          }
+          
+          // Also check for organizationId update
+          String? orgId = cloudData['profile']?['organizationId'] as String?;
+          orgId ??= cloudData['organizationId'] as String?;
+          
+          if (orgId != null && user.organizationId != orgId) {
+            updatedUser = updatedUser.copyWith(organizationId: orgId);
+            debugPrint('♻️ OrgId synced from cloud: $orgId');
+          }
+          
+          // Save updated user if any changes were made
+          if (updatedUser != user) {
+            await DatabaseService.saveUser(updatedUser);
+            state = updatedUser;
+            debugPrint('✅ User data updated from cloud sync');
+          }
+        } else {
+          debugPrint('⚠️ No cloud data found for user: ${user.email}');
+        }
+      } catch (e) {
+        debugPrint('⚠️ Error syncing role from cloud during user switch: $e');
+        // Continue with local user data even if cloud sync fails
+      }
+    }
+  }
+
+  /// Add a new user to saved users list (for multi-user support)
+  Future<void> addSavedUser(UserModel user) async {
+    await DatabaseService.saveUser(user);
+    debugPrint('➕ Added user to saved list: ${user.name}');
+  }
+
+  /// Remove a user from saved users list
+  Future<void> removeSavedUser(String userId) async {
+    await DatabaseService.deleteUser(userId);
+    debugPrint('🗑️ Removed user from saved list: $userId');
   }
 
   /// Fetch current user from database

@@ -12,7 +12,20 @@
           "package_name": "com.example.bm_typer"
         }
       },
-      "oauth_client": [],
+      "oauth_client": [
+        {
+          "client_id": "121426968554-7mtffdo7hc6mf07o8cl5f9ejnina894b.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.example.bm_typer",
+            "certificate_hash": "f1e63808f19eb93a29a47d88fe32e51d7439e303"
+          }
+        },
+        {
+          "client_id": "121426968554-rpvgac48m5s3rnjg87iobkajv8s40p85.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
       "api_key": [
         {
           "current_key": "AIzaSyAdQTo2z4p19AEhHrq7RiVZ7RW_IFmT2nU"
@@ -20,7 +33,55 @@
       ],
       "services": {
         "appinvite_service": {
-          "other_platform_oauth_client": []
+          "other_platform_oauth_client": [
+            {
+              "client_id": "121426968554-rpvgac48m5s3rnjg87iobkajv8s40p85.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "121426968554-87sk3e0stpgcr07npb34edg93h67gdck.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.example.bmTyper"
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:121426968554:android:327d75df5e5fc89b2e7c93",
+        "android_client_info": {
+          "package_name": "com.techzoneit.bm_typer"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "121426968554-rpvgac48m5s3rnjg87iobkajv8s40p85.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAdQTo2z4p19AEhHrq7RiVZ7RW_IFmT2nU"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "121426968554-rpvgac48m5s3rnjg87iobkajv8s40p85.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "121426968554-87sk3e0stpgcr07npb34edg93h67gdck.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.example.bmTyper"
+              }
+            }
+          ]
         }
       }
     }

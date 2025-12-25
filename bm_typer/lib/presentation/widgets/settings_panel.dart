@@ -2,7 +2,6 @@ import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:bm_typer/core/providers/theme_provider.dart';
 import 'package:bm_typer/presentation/screens/theme_settings_screen.dart';
 import 'package:bm_typer/presentation/screens/audio_settings_screen.dart';
 import 'package:bm_typer/presentation/screens/tts_settings_screen.dart';
@@ -11,7 +10,7 @@ import 'package:bm_typer/presentation/screens/reminder_settings_screen.dart';
 import 'package:bm_typer/presentation/screens/leaderboard_screen.dart';
 import 'package:bm_typer/presentation/screens/profile_screen.dart';
 import 'package:bm_typer/presentation/screens/achievements_screen.dart';
-import 'package:bm_typer/presentation/screens/typing_speed_test_screen.dart';
+import 'package:bm_typer/presentation/screens/achievements_screen.dart';
 import 'package:bm_typer/presentation/screens/about_app_screen.dart';
 import 'package:share_plus/share_plus.dart';
 

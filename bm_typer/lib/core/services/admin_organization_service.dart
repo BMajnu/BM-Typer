@@ -486,6 +486,22 @@ class AdminOrganizationService {
       return false;
     }
   }
+  /// Get members for a Team Lead (based on their organization ID)
+  Stream<List<OrgMemberModel>> getMembersForTeamLead(String organizationId) {
+    if (organizationId.isEmpty) {
+       return Stream.value([]);
+    }
+    
+    return _firestore
+        .collection('organizations')
+        .doc(organizationId)
+        .collection('members')
+        .orderBy('joinedAt', descending: true)
+        .snapshots()
+        .map((snapshot) => snapshot.docs
+            .map((doc) => OrgMemberModel.fromFirestore(doc))
+            .toList());
+  }
 }
 
 /// Provider for admin organization service

@@ -3,6 +3,7 @@ import 'package:hive_flutter/hive_flutter.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:flutter/foundation.dart';
 import 'package:bm_typer/core/models/user_model.dart';
+import 'package:bm_typer/core/enums/user_role.dart';
 
 class DatabaseService {
   static const String _userBoxName = 'users';
@@ -21,6 +22,9 @@ class DatabaseService {
     // Register adapters
     if (!Hive.isAdapterRegistered(0)) {
       Hive.registerAdapter(UserModelAdapter());
+    }
+    if (!Hive.isAdapterRegistered(20)) {
+      Hive.registerAdapter(UserRoleAdapter());
     }
 
     // Open boxes

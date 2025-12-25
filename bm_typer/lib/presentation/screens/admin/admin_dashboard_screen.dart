@@ -446,48 +446,55 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                     final date = (lastSynced as Timestamp).toDate();
                     return date.isAfter(todayStart);
                   }).length ?? 0;
-                  
-                  return Wrap(
-                    spacing: 16,
-                    runSpacing: 16,
-                    children: [
-                      _buildStatCard(
-                        icon: Icons.people_rounded,
-                        label: 'মোট ইউজার',
-                        value: '$totalUsers',
-                        trend: '',
-                        trendUp: true,
-                        color: Colors.blue,
-                        width: cardWidth,
-                      ),
-                      _buildStatCard(
-                        icon: Icons.person_add_rounded,
-                        label: 'নতুন ইউজার (আজ)',
-                        value: '$newUsersToday',
-                        trend: '',
-                        trendUp: newUsersToday > 0,
-                        color: Colors.green,
-                        width: cardWidth,
-                      ),
-                      _buildStatCard(
-                        icon: Icons.star_rounded,
-                        label: 'প্রিমিয়াম ইউজার',
-                        value: '$premiumUsers',
-                        trend: '',
-                        trendUp: premiumUsers > 0,
-                        color: Colors.purple,
-                        width: cardWidth,
-                      ),
-                      _buildStatCard(
-                        icon: Icons.notifications_rounded,
-                        label: 'নোটিফিকেশন',
-                        value: '-',
-                        trend: '',
-                        trendUp: true,
-                        color: Colors.orange,
-                        width: cardWidth,
-                      ),
-                    ],
+
+                  return StreamBuilder<QuerySnapshot>(
+                    stream: FirebaseFirestore.instance.collection('notifications').snapshots(),
+                    builder: (context, notifSnapshot) {
+                      final totalNotifs = notifSnapshot.data?.docs.length ?? 0;
+                      
+                      return Wrap(
+                        spacing: 16,
+                        runSpacing: 16,
+                        children: [
+                          _buildStatCard(
+                            icon: Icons.people_rounded,
+                            label: 'মোট ইউজার',
+                            value: '$totalUsers',
+                            trend: '',
+                            trendUp: true,
+                            color: Colors.blue,
+                            width: cardWidth,
+                          ),
+                          _buildStatCard(
+                            icon: Icons.person_add_rounded,
+                            label: 'নতুন ইউজার (আজ)',
+                            value: '$newUsersToday',
+                            trend: '',
+                            trendUp: newUsersToday > 0,
+                            color: Colors.green,
+                            width: cardWidth,
+                          ),
+                          _buildStatCard(
+                            icon: Icons.star_rounded,
+                            label: 'প্রিমিয়াম ইউজার',
+                            value: '$premiumUsers',
+                            trend: '',
+                            trendUp: premiumUsers > 0,
+                            color: Colors.purple,
+                            width: cardWidth,
+                          ),
+                          _buildStatCard(
+                            icon: Icons.notifications_rounded,
+                            label: 'নোটিফিকেশন',
+                            value: '$totalNotifs',
+                            trend: '',
+                            trendUp: true,
+                            color: Colors.orange,
+                            width: cardWidth,
+                          ),
+                        ],
+                      );
+                    },
                   );
                 },
               );

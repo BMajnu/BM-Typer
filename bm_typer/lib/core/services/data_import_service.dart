@@ -1,7 +1,5 @@
 import 'dart:convert';
-import 'dart:io';
-import 'package:flutter/foundation.dart';
-import 'package:path_provider/path_provider.dart';
+import 'package:bm_typer/core/utils/file_helper.dart';
 import 'package:bm_typer/core/models/user_model.dart';
 import 'package:bm_typer/core/services/database_service.dart';
 
@@ -10,38 +8,13 @@ class DataImportService {
   /// Import user data from a legacy JSON file
   static Future<UserModel?> importFromJson() async {
     try {
-      if (kIsWeb) {
-        // Web platform implementation would require a different approach
-        // For now, we'll return a placeholder message
-        debugPrint('Web import not implemented in this version');
-        return null;
-      } else {
-        return _importFromJsonMobile();
+      final jsonString = await importFileUniversal();
+      if (jsonString != null) {
+        return _processJsonData(jsonString);
       }
+      return null;
     } catch (e) {
       debugPrint('Error importing data: $e');
-      return null;
-    }
-  }
-
-  /// Import user data on mobile platforms
-  static Future<UserModel?> _importFromJsonMobile() async {
-    try {
-      // In a real implementation, we would use a file picker
-      // For now, we'll look for a predefined file in the app documents directory
-      final directory = await getApplicationDocumentsDirectory();
-      final filePath = '${directory.path}/bm_typer_import.json';
-
-      final file = File(filePath);
-      if (!await file.exists()) {
-        debugPrint('Import file not found at: $filePath');
-        return null;
-      }
-
-      final jsonString = await file.readAsString();
-      return _processJsonData(jsonString);
-    } catch (e) {
-      debugPrint('Error importing data from mobile: $e');
       return null;
     }
   }
@@ -128,22 +101,10 @@ class DataImportService {
 
       final jsonString = jsonEncode(userData);
 
-      if (kIsWeb) {
-        // Web platform doesn't support file system directly
-        // Would require a download mechanism
-        return jsonString;
-      } else {
-        // Mobile/desktop platforms - save to file
-        final directory = await getApplicationDocumentsDirectory();
-        final fileName =
-            'bm_typer_data_${DateTime.now().millisecondsSinceEpoch}.json';
-        final filePath = '${directory.path}/$fileName';
-
-        final file = File(filePath);
-        await file.writeAsString(jsonString);
-
-        return filePath;
-      }
+      final fileName = 'bm_typer_data_${DateTime.now().millisecondsSinceEpoch}.json';
+      
+      // Delegate to helper
+      return await saveStringFileUniversal(jsonString, fileName);
     } catch (e) {
       debugPrint('Error exporting user data: $e');
       return null;

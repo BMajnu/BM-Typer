@@ -1,19 +1,36 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:hive/hive.dart';
+
+part 'organization_model.g.dart';
 
 /// Organization model for team/company management
+@HiveType(typeId: 21)
 class OrganizationModel {
+  @HiveField(0)
   final String id;
+  @HiveField(1)
   final String name;
+  @HiveField(2)
   final String adminEmail;
+  @HiveField(3)
   final String? adminUserId;
+  @HiveField(4)
   final int memberCount;
+  @HiveField(5)
   final int maxMembers;
+  @HiveField(6)
   final String subscriptionType; // 'team_monthly', 'team_yearly', 'enterprise'
+  @HiveField(7)
   final DateTime? expiryDate;
+  @HiveField(8)
   final DateTime createdAt;
+  @HiveField(9)
   final bool isActive;
+  @HiveField(10)
   final String? logoUrl;
+  @HiveField(11)
   final String? address;
+  @HiveField(12)
   final String? phone;
 
   OrganizationModel({
@@ -156,14 +173,28 @@ class OrganizationModel {
 }
 
 /// Organization member model
+@HiveType(typeId: 22)
 class OrgMemberModel {
+  @HiveField(0)
   final String id;
+  @HiveField(1)
   final String userId;
+  @HiveField(2)
   final String email;
+  @HiveField(3)
   final String name;
+  @HiveField(4)
   final String role; // 'admin', 'member'
+  @HiveField(5)
   final DateTime joinedAt;
+  @HiveField(6)
   final bool isActive;
+  @HiveField(7)
+  final String? teamLeadId; // User ID of assigned team lead (if this member is a team lead)
+  @HiveField(8)
+  final bool isTeamLead;
+  @HiveField(9)
+  final String? photoUrl;
 
   OrgMemberModel({
     required this.id,
@@ -173,6 +204,9 @@ class OrgMemberModel {
     this.role = 'member',
     required this.joinedAt,
     this.isActive = true,
+    this.teamLeadId,
+    this.isTeamLead = false,
+    this.photoUrl,
   });
 
   Map<String, dynamic> toJson() => {
@@ -183,6 +217,9 @@ class OrgMemberModel {
         'role': role,
         'joinedAt': joinedAt.toIso8601String(),
         'isActive': isActive,
+        'teamLeadId': teamLeadId,
+        'isTeamLead': isTeamLead,
+        'photoUrl': photoUrl,
       };
 
   factory OrgMemberModel.fromJson(Map<String, dynamic> json) {
@@ -196,6 +233,9 @@ class OrgMemberModel {
           ? DateTime.parse(json['joinedAt'] as String)
           : DateTime.now(),
       isActive: json['isActive'] as bool? ?? true,
+      teamLeadId: json['teamLeadId'] as String?,
+      isTeamLead: json['isTeamLead'] as bool? ?? false,
+      photoUrl: json['photoUrl'] as String?,
     );
   }
 

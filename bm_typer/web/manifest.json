@@ -1,11 +1,11 @@
 {
-    "name": "bm_typer",
-    "short_name": "bm_typer",
+    "name": "BM Typer - বাংলা টাইপিং টিউটর",
+    "short_name": "BM Typer",
     "start_url": ".",
     "display": "standalone",
     "background_color": "#0175C2",
     "theme_color": "#0175C2",
-    "description": "A new Flutter project.",
+    "description": "Interactive Bangla Typing Tutor to learn typing fast and accurately.",
     "orientation": "portrait-primary",
     "prefer_related_applications": false,
     "icons": [

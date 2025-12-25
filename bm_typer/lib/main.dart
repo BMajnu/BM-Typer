@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:bm_typer/firebase_options.dart';
 import 'package:bm_typer/presentation/screens/tutor_screen.dart';
 import 'package:bm_typer/core/services/database_service.dart';
@@ -29,50 +30,103 @@ import 'package:bm_typer/presentation/screens/profile_screen.dart';
 import 'package:bm_typer/presentation/screens/account_settings_screen.dart';
 import 'package:bm_typer/presentation/screens/leaderboard_screen.dart';
 import 'package:bm_typer/presentation/screens/subscription_screen.dart';
+import 'package:bm_typer/presentation/screens/subscription_screen.dart';
 import 'package:bm_typer/presentation/screens/admin/admin_dashboard_screen.dart';
+import 'package:bm_typer/presentation/screens/team_lead/team_lead_dashboard_screen.dart';
+import 'package:bm_typer/presentation/screens/org_admin/org_admin_dashboard_screen.dart';
+import 'package:bm_typer/presentation/wrappers/role_based_home_wrapper.dart';
+import 'package:bm_typer/core/utils/route_guard.dart';
+import 'package:bm_typer/core/enums/user_role.dart';
+
+import 'package:google_fonts/google_fonts.dart';
 
 void main() async {
   // Ensure Flutter is initialized
   WidgetsFlutterBinding.ensureInitialized();
 
-  // Initialize Firebase
-  await Firebase.initializeApp(
-    options: DefaultFirebaseOptions.currentPlatform,
-  );
+  // Disable runtime font fetching - use only bundled fonts
+  // This fixes the AssetManifest.json error on Windows desktop
+  GoogleFonts.config.allowRuntimeFetching = false;
 
-  // Initialize database
-  await DatabaseService.initialize();
+  // Set up a global error handler to catch Flutter errors that would crash the app
+  FlutterError.onError = (FlutterErrorDetails details) {
+    print('CRITICAL FLUTTER ERROR: ${details.exception}');
+    print('Stack trace: ${details.stack}');
+  };
 
-  // Register Hive adapters
-  Hive.registerAdapter(LeaderboardEntryAdapter());
-  Hive.registerAdapter(TypingSessionAdapter());
+  print('--- APP STARTUP BEGIN ---');
 
-  // Check for and run migrations if needed
-  await MigrationService.checkAndMigrateIfNeeded();
-  await MigrationService.migrateDatabaseFormats();
+  try {
+    print('Initializing Firebase...');
+    // Initialize Firebase
+    await Firebase.initializeApp(
+      options: DefaultFirebaseOptions.currentPlatform,
+    );
+    print('Firebase initialized successfully');
+    
+    // Note: Do NOT clear Firestore persistence or disable it
+  } catch (e) {
+    print('Firebase initialization failed: $e');
+  }
 
-  // Initialize the leaderboard service
-  await LeaderboardService.initialize();
+  try {
+    print('Initializing Database (Hive)...');
+    // Initialize database
+    await DatabaseService.initialize();
+    print('DatabaseService initialized.');
 
-  // Initialize connectivity and cloud sync services
-  await ConnectivityService().initialize();
-  await CloudSyncService().initialize();
+    // Register Hive adapters
+    Hive.registerAdapter(LeaderboardEntryAdapter());
+    Hive.registerAdapter(TypingSessionAdapter());
+    print('Hive adapters registered.');
 
-  // Initialize services
-  final soundService = SoundService();
-  await soundService.initialize();
+    // Check for and run migrations if needed
+    print('Checking migrations...');
+    await MigrationService.checkAndMigrateIfNeeded();
+    await MigrationService.migrateDatabaseFormats();
+    print('Migrations completed.');
 
-  final ttsService = TtsService();
-  await ttsService.initialize();
+    // Initialize the leaderboard service
+    print('Initializing LeaderboardService...');
+    await LeaderboardService.initialize();
+    print('LeaderboardService initialized.');
+  } catch (e) {
+    print('Database/Hive initialization failed: $e');
+  }
 
-  final accessibilityService = AccessibilityService();
-  await accessibilityService.initialize();
+  try {
+    print('Initializing Connectivity/CloudSync...');
+    // Initialize connectivity and cloud sync services
+    await ConnectivityService().initialize();
+    await CloudSyncService().initialize();
+    print('Connectivity/CloudSync initialized.');
+  } catch (e) {
+    print('Connectivity services failed: $e');
+  }
 
+  try {
+    print('Initializing Audio/TTS/Accessibility...');
+    // Initialize services
+    final soundService = SoundService();
+    await soundService.initialize();
+
+    final ttsService = TtsService();
+    await ttsService.initialize();
+
+    final accessibilityService = AccessibilityService();
+    await accessibilityService.initialize();
+    print('Audio/TTS/Accessibility initialized.');
+  } catch (e) {
+    print('Audio/TTS services failed: $e');
+  }
+
+  print('Calling runApp()...');
   runApp(
     const ProviderScope(
       child: BMTyperApp(),
     ),
   );
+  print('runApp() called.');
 }
 
 class BMTyperApp extends ConsumerWidget {
@@ -100,9 +154,7 @@ class BMTyperApp extends ConsumerWidget {
       darkTheme: themeState.getDarkTheme(),
       themeMode: themeState.themeMode,
       home: GlobalKeyboardShortcuts(
-        child: currentUser == null
-            ? const AuthScreen()
-            : const TutorScreen(),
+        child: const RoleBasedHomeWrapper(),
       ),
       routes: {
         '/login': (context) => GlobalKeyboardShortcuts(child: const AuthScreen()),
@@ -112,7 +164,25 @@ class BMTyperApp extends ConsumerWidget {
         '/typing_test': (context) => GlobalKeyboardShortcuts(child: const TypingSpeedTestScreen()),
         '/typing_test_results': (context) => GlobalKeyboardShortcuts(child: const TypingTestResultsScreen()),
         '/subscription': (context) => GlobalKeyboardShortcuts(child: const SubscriptionScreen()),
-        '/admin': (context) => GlobalKeyboardShortcuts(child: const AdminDashboardScreen()),
+        '/admin': (context) => GlobalKeyboardShortcuts(
+          child: const RouteGuard(
+            allowedRoles: [UserRole.superAdmin],
+            child: AdminDashboardScreen(),
+          ),
+        ),
+        '/team_lead': (context) => GlobalKeyboardShortcuts(
+          child: const RouteGuard(
+            allowedRoles: [UserRole.teamLead, UserRole.orgAdmin, UserRole.superAdmin],
+            child: TeamLeadDashboardScreen(),
+          ),
+        ),
+        '/org_admin': (context) => GlobalKeyboardShortcuts(
+          child: const RouteGuard(
+            allowedRoles: [UserRole.orgAdmin, UserRole.superAdmin],
+            child: OrgAdminDashboardScreen(),
+          ),
+        ),
+        '/practice': (context) => GlobalKeyboardShortcuts(child: const TutorScreen()),
       },
     );
   }

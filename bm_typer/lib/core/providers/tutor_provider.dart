@@ -160,7 +160,10 @@ class TutorNotifier extends StateNotifier<TutorState> {
 
   /// Skip space characters in drill exercises (display spacing without requiring typing)
   void _skipSpaces() {
+    // Only skip spaces for Drill exercises in Bengali mode
+    // English mode requires typing spaces
     if (state.currentExercise.type != ExerciseType.drill) return;
+    if (!_ref.read(keyboardLayoutProvider).isBengali) return;
     
     while (state.charIndex < state.exerciseText.length &&
            state.exerciseText[state.charIndex] == ' ') {
@@ -201,6 +204,22 @@ class TutorNotifier extends StateNotifier<TutorState> {
         lastKeyPress: null,
         pendingPreBaseVowel: null,
       );
+      
+      // Auto-resume: Check user progress for this lesson
+      final user = _ref.read(currentUserProvider);
+      if (user != null) {
+         final lessonTitle = lessons[index].title;
+         final completed = user.completedExercises[lessonTitle] ?? [];
+         
+         // Find first uncompleted exercise
+         for (int i = 0; i < lessons[index].exercises.length; i++) {
+             if (!completed.contains(i)) {
+                 // Found first incomplete - jump to it
+                 state = state.copyWith(currentExerciseIndex: i);
+                 break;
+             }
+         }
+      }
     }
   }
 
@@ -867,6 +886,10 @@ class TutorNotifier extends StateNotifier<TutorState> {
                 accuracy: state.accuracy.toDouble(),
                 earnedXp: 5, // Award XP for each successful repetition
               );
+              
+          // Persist Exercise Completion
+          final lessonTitle = state.currentLesson.title;
+          _ref.read(currentUserProvider.notifier).markExerciseCompleted(lessonTitle, state.currentExerciseIndex);
         }
 
         if (newRepsCompleted < exercise.repetitions) {
@@ -916,6 +939,10 @@ class TutorNotifier extends StateNotifier<TutorState> {
               accuracy: state.accuracy.toDouble(),
               earnedXp: 3, // Award some XP for completing an exercise
             );
+
+        // Persist Exercise Completion (No reps case)
+        final lessonTitle = state.currentLesson.title;
+        _ref.read(currentUserProvider.notifier).markExerciseCompleted(lessonTitle, state.currentExerciseIndex);
 
         // If this is the last exercise, mark lesson as completed
         if (state.isLastExerciseInLesson) {
