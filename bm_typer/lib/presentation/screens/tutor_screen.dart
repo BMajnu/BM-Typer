@@ -122,9 +122,9 @@ class _TutorScreenState extends ConsumerState<TutorScreen> {
       // Update local state regarding daily limit
       // This check is for initial load, the timer handles ongoing limits.
       final currentUser = ref.read(currentUserProvider);
-      final subscriptionState = ref.read(subscriptionStateProvider);
+      final isPremium = ref.read(enhancedIsPremiumProvider);
 
-      if (currentUser != null && !subscriptionState.isPremium) {
+      if (currentUser != null && !isPremium) {
          final limitService = ref.read(featureLimitServiceProvider);
          final canContinue = limitService.canPractice(false);
          if (!canContinue.allowed && !_isTimeLimitExceeded) {
@@ -199,10 +199,10 @@ class _TutorScreenState extends ConsumerState<TutorScreen> {
 
   /// Start practice time tracking timer for feature limits
   void _startPracticeTimer() {
-    final subscriptionState = ref.read(subscriptionStateProvider);
+    final isPremium = ref.read(enhancedIsPremiumProvider);
     
     // No timer needed for premium users
-    if (subscriptionState.isPremium) return;
+    if (isPremium) return;
     
     _practiceTimer = Timer.periodic(const Duration(minutes: 1), (timer) {
       if (!mounted) {
@@ -211,7 +211,7 @@ class _TutorScreenState extends ConsumerState<TutorScreen> {
       }
       
       final limitService = ref.read(featureLimitServiceProvider);
-      final isPremium = ref.read(subscriptionStateProvider).isPremium;
+      final isPremium = ref.read(enhancedIsPremiumProvider);
       
       // Premium users don't need tracking
       if (isPremium) {
@@ -674,11 +674,11 @@ class _TutorScreenState extends ConsumerState<TutorScreen> {
 
   /// Build practice time limit banner for free users
   Widget _buildPracticeLimitBanner(ColorScheme colorScheme) {
-    final subscriptionState = ref.watch(subscriptionStateProvider);
+    final isPremium = ref.watch(enhancedIsPremiumProvider);
     final isDark = Theme.of(context).brightness == Brightness.dark;
     
     // Premium users - no banner
-    if (subscriptionState.isPremium) {
+    if (isPremium) {
       return const SizedBox.shrink();
     }
     
@@ -979,8 +979,7 @@ class _TutorScreenState extends ConsumerState<TutorScreen> {
 
   Widget _buildProfileAvatarButton(ColorScheme colorScheme, bool isDark) {
     final user = ref.watch(currentUserProvider);
-    final subscriptionState = ref.watch(subscriptionStateProvider);
-    final isPremium = subscriptionState.isPremium;
+    final isPremium = ref.watch(enhancedIsPremiumProvider);
     
     return GestureDetector(
       onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const ProfileScreen())),
@@ -1774,8 +1773,9 @@ class _LessonPickerSheetState extends ConsumerState<_LessonPickerSheet> {
                     final isSelected = actualIndex == widget.currentLessonIndex;
                     
                     // Check if lesson is locked for free users
-                    final subscriptionState = ref.watch(subscriptionStateProvider);
-                    final isLocked = !subscriptionState.isLessonAccessible(actualIndex);
+                    // Check if lesson is locked for free users (using enhanced provider)
+                    final isPremium = ref.watch(enhancedIsPremiumProvider);
+                    final isLocked = !isPremium && actualIndex >= FreeFeatureLimits.maxLessons;
                     
                     // Determine category color
                     Color categoryColor;

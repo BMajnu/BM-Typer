@@ -108,6 +108,11 @@ class CloudSyncService {
     }
   }
 
+  /// Stream user data from Firestore for real-time updates
+  Stream<DocumentSnapshot> streamUserData(String uid) {
+    return _firestore.collection('users').doc(uid).snapshots();
+  }
+
   /// Fetch user data from Firestore by email (for user switching)
   /// This allows fetching correct user data even when local user differs from Firebase auth user
   Future<Map<String, dynamic>?> fetchUserByEmail(String email) async {

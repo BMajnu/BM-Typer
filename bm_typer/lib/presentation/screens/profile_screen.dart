@@ -1,9 +1,11 @@
+import 'package:flutter/material.dart';
 import 'dart:ui';
 import 'package:flutter/foundation.dart';
-import 'package:flutter/material.dart';
+import 'package:bm_typer/core/providers/organization_provider.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:bm_typer/core/providers/user_provider.dart';
+import 'package:bm_typer/core/enums/user_role.dart';
 import 'package:bm_typer/core/providers/subscription_provider.dart';
 import 'package:bm_typer/core/services/feature_limit_service.dart';
 import 'package:bm_typer/presentation/screens/reminder_settings_screen.dart';
@@ -12,6 +14,7 @@ import 'package:bm_typer/presentation/screens/export_screen.dart';
 import 'package:bm_typer/presentation/widgets/streak_counter.dart';
 import 'package:bm_typer/presentation/widgets/xp_progress_bar.dart';
 import 'package:bm_typer/core/models/user_model.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 class ProfileScreen extends ConsumerWidget {
   const ProfileScreen({super.key});
@@ -1015,77 +1018,254 @@ class ProfileScreen extends ConsumerWidget {
 
   Widget _buildSubscriptionStatusCard(BuildContext context, WidgetRef ref, ColorScheme colorScheme, bool isDark) {
     final subscriptionState = ref.watch(subscriptionStateProvider);
-    final isPremium = subscriptionState.isPremium;
+    // Use enhanced isPremiumProvider that also checks role and org membership
+    final isPremium = ref.watch(enhancedIsPremiumProvider);
     
-    if (isPremium) {
-      // Premium user card
-      return Container(
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            colors: [Colors.amber.shade600, Colors.orange.shade400],
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
+
+    // -------------------------------------------------------------------------
+    // NEW: Multi-Subscription Logic (Generic & Robust)
+    // -------------------------------------------------------------------------
+    final user = ref.watch(currentUserProvider);
+    final List<_ActivePlan> activePlans = [];
+
+    // 1. Organization Plan (Generic & Data-Driven)
+    if (user?.organizationId != null && user!.organizationId!.isNotEmpty) {
+      final orgId = user.organizationId!;
+      
+      // Attempt to get real Organization details
+      final orgAsync = ref.watch(currentOrgProvider);
+      final realOrg = orgAsync.value;
+
+      // Default Display Values (Fallback from ID)
+      // Convert "some_id" -> "Some Id", but keep raw hashes generic if they fail
+      String displayOrgName = orgId.split('_').map((word) => word.isNotEmpty ? word[0].toUpperCase() + word.substring(1) : '').join(' ');
+      
+      // Heuristic: If name is too long and looks like a hash (single word, mixed alphanum), make it generic
+      if (displayOrgName.length > 15 && !displayOrgName.contains(' ')) {
+        displayOrgName = 'Organization Membership';
+      }
+
+      String planType = 'Organization Member';
+      String validityText = 'Membership Active';
+      bool isLifetime = false;
+
+      // Override with Real Data if available
+      if (realOrg != null) {
+        displayOrgName = realOrg.name; // Use the real name (e.g. "TechZone IT")
+        
+        // Generic: Check if user is an Admin of this organization
+        if (user.role == UserRole.orgAdmin || user.role == UserRole.superAdmin) {
+            planType = 'Organization Admin';
+            validityText = 'Management Access';
+            isLifetime = true;
+        } else if (user.role == UserRole.teamLead) {
+            planType = 'Team Leader';
+            validityText = 'Team Access';
+        } else {
+            // Standard Member
+            if (realOrg.subscriptionType == 'enterprise') {
+                planType = 'Enterprise Plan';
+            } else {
+                planType = '${realOrg.memberCount} Member Team'; 
+            }
+        }
+      } else {
+        // Special handling for known Legacy IDs (if fetching fails or is slow)
+        if (orgId == 'techzone_pro' || orgId == 'techzone_student' || orgId == 'techzone_agency') {
+          displayOrgName = 'TechZone IT';
+          planType = 'Organization Student';
+        } else if (orgId == 'techzone_admin') {
+          displayOrgName = 'TechZone IT';
+          planType = 'Organization Admin';
+          validityText = 'Lifetime Access';
+          isLifetime = true;
+        }
+      }
+
+      activePlans.add(_ActivePlan(
+        orgName: displayOrgName,
+        planName: planType,
+        validity: validityText, 
+        startDate: realOrg?.createdAt, // Use real creation date if available
+        expiryDate: realOrg?.expiryDate, // Use real expiry if available
+        colorStart: isLifetime ? Colors.blueGrey.shade800 : Colors.indigo.shade600,
+        colorEnd: isLifetime ? Colors.black : Colors.deepPurple.shade700,
+        icon: isLifetime ? Icons.admin_panel_settings_rounded : Icons.business_rounded,
+        isSpecial: isLifetime,
+      ));
+    }
+
+    // 2. Purchased Subscription
+    if (subscriptionState.isPremium && subscriptionState.subscription != null) {
+      final sub = subscriptionState.subscription!;
+      // Only add if it's NOT a free plan disguised as premium
+      if (sub.type != 'free') {
+        String validityStr = 'Active';
+        if (sub.endDate != null) {
+          final days = sub.remainingDays;
+          validityStr = '$days Days Left';
+        }
+        
+        activePlans.add(_ActivePlan(
+          orgName: 'Premium Member',
+          planName: '${sub.type.toUpperCase()} PLAN',
+          validity: validityStr,
+          startDate: sub.startDate,
+          expiryDate: sub.endDate,
+          colorStart: Colors.amber.shade600,
+          colorEnd: Colors.orange.shade600,
+          icon: Icons.workspace_premium_rounded,
+        ));
+      }
+    }
+
+    // 3. Fallback: Role-based Premium (e.g. manually assigned 'pro' role without Org ID)
+    if (activePlans.isEmpty && isPremium) {
+       activePlans.add(_ActivePlan(
+        orgName: 'Premium User',
+        planName: 'Pro Access',
+        validity: 'Lifetime / Manual', 
+        startDate: null,
+        expiryDate: null,
+        colorStart: Colors.amber.shade600,
+        colorEnd: Colors.orange.shade600,
+        icon: Icons.star_rounded,
+      ));
+    }
+
+    // RENDER logic
+    if (activePlans.isNotEmpty) {
+      return Column(
+        children: [
+          SizedBox(
+            height: 220, // Increased height to prevent overflow
+            child: PageView.builder(
+              itemCount: activePlans.length,
+              itemBuilder: (context, index) {
+                final plan = activePlans[index];
+                return Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 4), // Spacing between cards
+                  child: Container(
+                    padding: const EdgeInsets.all(20),
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        colors: [plan.colorStart, plan.colorEnd],
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                      ),
+                      borderRadius: BorderRadius.circular(20),
+                      boxShadow: [
+                        BoxShadow(
+                          color: plan.colorStart.withOpacity(0.4),
+                          blurRadius: 12,
+                          offset: const Offset(0, 6),
+                        ),
+                      ],
+                    ),
+                    child: Column(
+                      children: [
+                        Row(
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.all(12),
+                              decoration: BoxDecoration(
+                                color: Colors.white.withOpacity(0.15),
+                                shape: BoxShape.circle,
+                                border: Border.all(color: Colors.white.withOpacity(0.2)),
+                              ),
+                              child: Icon(plan.icon, color: Colors.white, size: 32),
+                            ),
+                            const SizedBox(width: 16),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    plan.orgName,
+                                    style: GoogleFonts.poppins(
+                                      fontSize: 18,
+                                      fontWeight: FontWeight.bold,
+                                      color: Colors.white,
+                                    ),
+                                  ),
+                                  Text(
+                                    'Subscription Active ✓',
+                                    style: GoogleFonts.hindSiliguri(
+                                      fontSize: 13,
+                                      color: Colors.white.withOpacity(0.8),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                              decoration: BoxDecoration(
+                                color: Colors.white.withOpacity(0.2),
+                                borderRadius: BorderRadius.circular(20),
+                                border: Border.all(color: Colors.white.withOpacity(0.5)),
+                              ),
+                              child: Text(
+                                'PRO',
+                                style: GoogleFonts.poppins(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.white,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 20),
+                        Container(
+                          padding: const EdgeInsets.all(16),
+                          decoration: BoxDecoration(
+                            color: Colors.black.withOpacity(0.2),
+                            borderRadius: BorderRadius.circular(16),
+                          ),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              _buildPlanInfoItem('Plan', plan.planName),
+                              if (plan.startDate != null)
+                                _buildPlanInfoItem('Started', '${plan.startDate!.day}/${plan.startDate!.month}/${plan.startDate!.year}'),
+                              if (plan.expiryDate != null)
+                                _buildPlanInfoItem('Expires', '${plan.expiryDate!.day}/${plan.expiryDate!.month}/${plan.expiryDate!.year}'),
+                              // Only show validity if we have room (max 4 items)
+                              if (plan.startDate == null || plan.expiryDate == null)
+                                _buildPlanInfoItem('Validity', plan.validity),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                );
+              },
+            ),
           ),
-          borderRadius: BorderRadius.circular(16),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.amber.withOpacity(0.3),
-              blurRadius: 10,
-              offset: const Offset(0, 4),
-            ),
-          ],
-        ),
-        child: Row(
-          children: [
-            Container(
-              padding: const EdgeInsets.all(10),
-              decoration: BoxDecoration(
-                color: Colors.white.withOpacity(0.2),
-                shape: BoxShape.circle,
-              ),
-              child: const Icon(Icons.workspace_premium_rounded, color: Colors.white, size: 28),
-            ),
-            const SizedBox(width: 16),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'প্রিমিয়াম অ্যাক্টিভ ✓',
-                    style: GoogleFonts.hindSiliguri(
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.white,
+          // Dots indicator if > 1 plan
+          if (activePlans.length > 1)
+            Padding(
+              padding: const EdgeInsets.only(top: 12),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: List.generate(activePlans.length, (index) {
+                  return Container(
+                    margin: const EdgeInsets.symmetric(horizontal: 4),
+                    width: 8,
+                    height: 8,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: isDark ? Colors.white.withOpacity(0.2) : Colors.black.withOpacity(0.1),
                     ),
-                  ),
-                  Text(
-                    'সব ফিচার আনলক আছে',
-                    style: GoogleFonts.hindSiliguri(
-                      fontSize: 12,
-                      color: Colors.white.withOpacity(0.9),
-                    ),
-                  ),
-                ],
+                  );
+                }),
               ),
             ),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-              decoration: BoxDecoration(
-                color: Colors.white.withOpacity(0.2),
-                borderRadius: BorderRadius.circular(20),
-              ),
-              child: Text(
-                (subscriptionState.subscription?.type ?? 'premium').toUpperCase(),
-                style: GoogleFonts.poppins(
-                  fontSize: 11,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.white,
-                ),
-              ),
-            ),
-          ],
-        ),
+
+
+        ],
       );
     } else {
       // Free user card with limits
@@ -1190,6 +1370,26 @@ class ProfileScreen extends ConsumerWidget {
     }
   }
 
+
+      return Container(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          children: [
+            InkWell(
+              onTap: () => _forceJoinTechZone(ref, context),
+              child: Container(
+                 width: double.infinity,
+                 padding: const EdgeInsets.all(12),
+                 color: Colors.purple,
+                 child: const Center(child: Text('FORCE JOIN TECHZONE (Click if Free Plan)', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold))),
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+  }
+
   Widget _buildInitialAvatar(String name, ColorScheme colorScheme, bool isCompact) {
     return Container(
       width: isCompact ? 80 : 100,
@@ -1207,4 +1407,99 @@ class ProfileScreen extends ConsumerWidget {
       ),
     );
   }
+  Widget _buildPlanInfoItem(String label, String value) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.center,
+      children: [
+        Text(
+          value,
+          style: GoogleFonts.poppins(
+            fontSize: 14,
+            fontWeight: FontWeight.bold,
+            color: Colors.white,
+          ),
+        ),
+        const SizedBox(height: 4),
+        Text(
+          label,
+          style: GoogleFonts.hindSiliguri(
+            fontSize: 12,
+            color: Colors.white.withOpacity(0.7),
+          ),
+        ),
+      ],
+    );
+  }
+
+
+
+  // HARD REPAIR: TechZone
+  Future<void> _forceJoinTechZone(WidgetRef ref, BuildContext context) async {
+     final user = ref.read(currentUserProvider);
+     if (user == null) return;
+     
+     final orgId = 'xFcwEjJnFN445RZ43fZO'; // TechZone IT Org ID
+     final firestore = FirebaseFirestore.instance;
+
+     try {
+       // 1. Link User to Org
+       await firestore.collection('users').doc(user.id).update({
+         'organizationId': orgId,
+         'profile.organizationId': orgId, // Just in case
+       });
+
+       // 2. Add Member Doc
+       await firestore.collection('organizations').doc(orgId).collection('members').doc(user.id).set({
+         'uid': user.id,
+         'email': user.email,
+         'role': 'admin',
+         'joinedAt': FieldValue.serverTimestamp(),
+         'status': 'active',
+       }, SetOptions(merge: true));
+       
+       // 3. Ensure Global Admin (Best effort)
+       try {
+         await firestore.collection('admin_users').doc(user.id).set({
+          'email': user.email,
+          'role': 'admin',
+          'createdAt': FieldValue.serverTimestamp(),
+          'createdBy': 'Hard Repair',
+        }, SetOptions(merge: true));
+       } catch (e) {
+         debugPrint('⚠️ Admin promote failed (expected if rules locked): $e');
+       }
+       
+       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('✅ JOINED TECHZONE! Refreshing...')));
+       ref.refresh(currentUserProvider); // Refresh user to get new orgId
+       ref.refresh(currentOrgProvider);
+       
+     } catch (e) {
+       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('❌ Error: $e')));
+     }
+  }
 }
+
+class _ActivePlan {
+  final String orgName;
+  final String planName;
+  final String validity;
+  final DateTime? startDate;
+  final DateTime? expiryDate;
+  final Color colorStart;
+  final Color colorEnd;
+  final IconData icon;
+  final bool isSpecial;
+
+  _ActivePlan({
+    required this.orgName,
+    required this.planName,
+    required this.validity,
+    this.startDate,
+    required this.expiryDate,
+    required this.colorStart,
+    required this.colorEnd,
+    required this.icon,
+    this.isSpecial = false,
+  });
+}
+

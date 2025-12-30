@@ -1,4 +1,7 @@
+import 'dart:async';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:bm_typer/core/models/user_model.dart';
 import 'package:uuid/uuid.dart';
 import 'package:bm_typer/core/models/achievement_model.dart';
@@ -28,6 +31,8 @@ class UserNotifier extends StateNotifier<UserModel?> {
   UserNotifier(this._ref) : super(null) {
     _initialize();
   }
+
+  StreamSubscription<DocumentSnapshot>? _userSubscription;
 
   /// Initialize the notifier by loading the current user from storage
   Future<void> _initialize() async {
@@ -73,32 +78,119 @@ class UserNotifier extends StateNotifier<UserModel?> {
       // Sync to cloud (Push local stats)
       await _syncToCloud(finalUser);
 
-      // Sync from cloud (Fetch Role/Org updates)
-      if (_connectivity.isOnline) {
-        try {
-          final cloudData = await _cloudSync.fetchUser();
-          if (cloudData != null) {
-            // Check for Role update
-            if (cloudData['profile']?['role'] != null) {
-              final roleStr = cloudData['profile']['role'] as String;
-              final role = UserRole.values.firstWhere(
-                (e) => e.name == roleStr,
-                orElse: () => UserRole.student,
-              );
-              
-              if (finalUser.role != role) {
-                finalUser = finalUser.copyWith(role: role);
-                await DatabaseService.saveUser(finalUser);
-                state = finalUser;
-                debugPrint('♻️ Role synced from cloud: ${role.name}');
-              }
+      // 1. Force Sync from Custom Claims (FASTEST & MOST RELIABLE)
+      // This works even if Firestore document is missing
+      try {
+        final authUser = FirebaseAuth.instance.currentUser;
+        if (authUser != null) {
+          final tokenResult = await authUser.getIdTokenResult(true); // true = force refresh
+          final claims = tokenResult.claims ?? {};
+          
+          bool claimsChanged = false;
+          UserModel claimUser = state!; // Current state
+
+          // Apply Role Claim
+          if (claims.containsKey('role')) {
+            final roleStr = claims['role'] as String;
+            final role = UserRole.values.firstWhere(
+              (e) => e.name == roleStr,
+              orElse: () => UserRole.student,
+            );
+            if (claimUser.role != role) {
+              claimUser = claimUser.copyWith(role: role);
+              claimsChanged = true;
+              debugPrint('🔐 Role applied from Custom Claims: ${role.name}');
             }
           }
-        } catch (e) {
-          debugPrint('⚠️ Error syncing role from cloud: $e');
+
+          // Apply Organization Claim
+          if (claims.containsKey('organizationId')) {
+            final orgId = claims['organizationId'] as String;
+            if (claimUser.organizationId != orgId) {
+              claimUser = claimUser.copyWith(organizationId: orgId);
+              claimsChanged = true;
+              debugPrint('🔐 OrganizationId applied from Custom Claims: $orgId');
+            }
+          }
+
+          if (claimsChanged) {
+            await DatabaseService.saveUser(claimUser);
+            state = claimUser;
+            // Also sync this back to Firestore to ensure consistency
+            _cloudSync.syncUser(claimUser);
+          }
         }
+      } catch (e) {
+        debugPrint('⚠️ Error reading custom claims: $e');
       }
+
+      // 2. Setup real-time listener for Role/Org updates (Firestore)
+      _setupRealtimeSync(finalUser.id);
     }
+  }
+
+  /// Setup real-time listener for user data
+  void _setupRealtimeSync(String userId) {
+    // Cancel existing subscription if any
+    _userSubscription?.cancel();
+
+    if (!_connectivity.isOnline) return;
+
+    debugPrint('🔌 Setting up real-time sync for user: $userId');
+    
+    _userSubscription = _cloudSync.streamUserData(userId).listen(
+      (snapshot) async {
+        if (!snapshot.exists || state == null) return;
+        
+        final data = snapshot.data() as Map<String, dynamic>;
+        bool hasChanges = false;
+        UserModel currentUser = state!;
+
+        // 1. Check for ROLE update
+        // Support both root 'role' and 'profile.role' for backward compatibility
+        String? roleStr = data['profile']?['role'] as String?;
+        roleStr ??= data['role'] as String?;
+
+        if (roleStr != null) {
+          final newRole = UserRole.values.firstWhere(
+            (e) => e.name == roleStr,
+            orElse: () => UserRole.student,
+          );
+
+          if (currentUser.role != newRole) {
+            currentUser = currentUser.copyWith(role: newRole);
+            hasChanges = true;
+            debugPrint('⚡ Real-time ROLE update: ${newRole.name}');
+          }
+        }
+
+        // 2. Check for ORGANIZATION update (Premium status)
+        String? orgId = data['profile']?['organizationId'] as String?;
+        orgId ??= data['organizationId'] as String?;
+
+        if (orgId != null && currentUser.organizationId != orgId) {
+          currentUser = currentUser.copyWith(organizationId: orgId);
+          hasChanges = true;
+          debugPrint('⚡ Real-time ORG update: $orgId');
+        }
+
+        // 3. Apply changes if any
+        if (hasChanges) {
+          await DatabaseService.saveUser(currentUser);
+          state = currentUser;
+          debugPrint('✅ User state updated from real-time stream');
+        }
+      },
+      onError: (e) {
+        debugPrint('❌ Real-time sync error: $e');
+      },
+    );
+  }
+
+  @override
+  void dispose() {
+    _userSubscription?.cancel();
+    super.dispose();
   }
 
   /// Sync user data to cloud (with offline queue fallback)

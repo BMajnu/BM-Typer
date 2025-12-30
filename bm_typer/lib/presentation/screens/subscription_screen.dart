@@ -11,6 +11,7 @@ class SubscriptionScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final subscriptionState = ref.watch(subscriptionStateProvider);
+    final isPremium = ref.watch(enhancedIsPremiumProvider);
     final colorScheme = Theme.of(context).colorScheme;
     
     return Scaffold(
@@ -24,7 +25,7 @@ class SubscriptionScreen extends ConsumerWidget {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             // Current Plan Card
-            _buildCurrentPlanCard(context, subscriptionState, colorScheme),
+            _buildCurrentPlanCard(context, subscriptionState, isPremium, colorScheme),
             
             const SizedBox(height: 24),
             
@@ -104,8 +105,7 @@ class SubscriptionScreen extends ConsumerWidget {
     );
   }
   
-  Widget _buildCurrentPlanCard(BuildContext context, SubscriptionState state, ColorScheme colorScheme) {
-    final isPremium = state.isPremium;
+  Widget _buildCurrentPlanCard(BuildContext context, SubscriptionState state, bool isPremium, ColorScheme colorScheme) {
     
     return Container(
       padding: const EdgeInsets.all(20),

@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:bm_typer/core/models/subscription_model.dart';
 import 'package:bm_typer/core/services/subscription_service.dart';
 import 'package:bm_typer/core/providers/user_provider.dart';
+import 'package:bm_typer/core/enums/user_role.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 /// State class for subscription with usage tracking
@@ -176,10 +177,30 @@ final lessonAccessProvider = Provider.family<bool, int>((ref, lessonIndex) {
   return state.isLessonAccessible(lessonIndex);
 });
 
-/// Helper provider for premium status
-final isPremiumProvider = Provider<bool>((ref) {
-  final state = ref.watch(subscriptionStateProvider);
-  return state.isPremium;
+/// Helper provider for premium status (enhanced version)
+/// Checks: (1) direct subscription, (2) admin/superAdmin role, (3) organization membership
+final enhancedIsPremiumProvider = Provider<bool>((ref) {
+  // 1. Check subscription state
+  final subscriptionState = ref.watch(subscriptionStateProvider);
+  if (subscriptionState.isPremium) return true;
+  
+  // 2. Check user role - admins always get premium access
+  final user = ref.watch(currentUserProvider);
+  if (user != null) {
+    final role = user.role;
+    if (role == UserRole.superAdmin || role == UserRole.orgAdmin || role == UserRole.teamLead) {
+      debugPrint('👑 Premium access via role: ${role.name}');
+      return true;
+    }
+    
+    // 3. Check organization membership - org members get premium access
+    if (user.organizationId != null && user.organizationId!.isNotEmpty) {
+      debugPrint('🏢 Premium access via organization: ${user.organizationId}');
+      return true;
+    }
+  }
+  
+  return subscriptionState.isPremium;
 });
 
 /// Helper provider for remaining minutes

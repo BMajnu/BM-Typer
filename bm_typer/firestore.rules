@@ -16,10 +16,7 @@ service cloud.firestore {
     
     // Check if user is admin
     function isAdmin() {
-      return isAuthenticated() && (
-        exists(/databases/$(database)/documents/admin_users/$(request.auth.uid)) ||
-        request.auth.token.email == 'badiuzzamanmajnu786@gmail.com'
-      );
+      return isAuthenticated() && exists(/databases/$(database)/documents/admin_users/$(request.auth.uid));
     }
     
     // Check if user is developer (super admin)
@@ -34,10 +31,11 @@ service cloud.firestore {
         exists(/databases/$(database)/documents/organizations/$(orgId)/members/$(request.auth.uid));
     }
     
-    // Check if user is org admin
+    // Check if user is org admin (checks Parent Doc Owner OR Member Role)
     function isOrgAdmin(orgId) {
-      return isOrgMember(orgId) && 
-        get(/databases/$(database)/documents/organizations/$(orgId)/members/$(request.auth.uid)).data.role == 'admin';
+      // Check Parent Doc first to avoid 'get' errors on missing member docs
+      return get(/databases/$(database)/documents/organizations/$(orgId)).data.adminUserId == request.auth.uid ||
+             (isOrgMember(orgId) && get(/databases/$(database)/documents/organizations/$(orgId)/members/$(request.auth.uid)).data.role == 'admin');
     }
     
     // ===== USER COLLECTION =====
@@ -81,15 +79,18 @@ service cloud.firestore {
     
     // ===== ORGANIZATIONS COLLECTION =====
     match /organizations/{orgId} {
-      // Org members can read org info
-      allow read: if isOrgMember(orgId) || isAdmin();
-      // Only admins can create/update/delete orgs
-      allow write: if isAdmin();
+      // Allow any authenticated user to read org info (fixes display issues)
+      allow read: if isAuthenticated();
+      // Allow any auth user to CREATE an org (Bootstrapping)
+      allow create: if isAuthenticated();
+      // Update/Delete requires Admin/OrgAdmin rights
+      allow update, delete: if isOrgAdmin(orgId) || isAdmin();
       
       // Members subcollection
       match /members/{memberId} {
-        allow read: if isOrgMember(orgId) || isAdmin();
-        allow write: if isOrgAdmin(orgId) || isAdmin();
+        allow read: if isOrgMember(orgId) || isAdmin() || isOrgAdmin(orgId);
+        // Allow self-registration (you can add yourself) + normal admin permissions
+        allow write: if (memberId == request.auth.uid) || isOrgAdmin(orgId) || isAdmin();
       }
     }
     
@@ -103,7 +104,7 @@ service cloud.firestore {
     
     // ===== ADMIN USERS COLLECTION =====
     match /admin_users/{adminId} {
-      // Only developers can read/write admin users
+      // Only admins can read, only Developers can write
       allow read: if isAdmin();
       allow write: if isDeveloper();
     }
