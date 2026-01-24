@@ -4,8 +4,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:bm_typer/presentation/screens/theme_settings_screen.dart';
 import 'package:bm_typer/presentation/screens/audio_settings_screen.dart';
-import 'package:bm_typer/presentation/screens/tts_settings_screen.dart';
-import 'package:bm_typer/presentation/screens/accessibility_settings_screen.dart';
+// import 'package:bm_typer/presentation/screens/tts_settings_screen.dart';
+// import 'package:bm_typer/presentation/screens/accessibility_settings_screen.dart';
 import 'package:bm_typer/presentation/screens/reminder_settings_screen.dart';
 import 'package:bm_typer/presentation/screens/leaderboard_screen.dart';
 import 'package:bm_typer/presentation/screens/profile_screen.dart';
@@ -209,8 +209,6 @@ class SettingsPanel extends ConsumerWidget {
     final settings = [
       {'icon': Icons.palette_rounded, 'label': 'থিম সেটিংস', 'subtitle': 'রঙ এবং থিম কাস্টমাইজ করুন', 'screen': const ThemeSettingsScreen()},
       {'icon': Icons.volume_up_rounded, 'label': 'অডিও সেটিংস', 'subtitle': 'সাউন্ড এফেক্ট ও ভলিউম', 'screen': const AudioSettingsScreen()},
-      {'icon': Icons.record_voice_over_rounded, 'label': 'টেক্সট টু স্পীচ', 'subtitle': 'ভয়েস ও ভাষা সেটিংস', 'screen': const TtsSettingsScreen()},
-      {'icon': Icons.accessibility_new_rounded, 'label': 'অ্যাকসেসিবিলিটি', 'subtitle': 'ব্যবহার সহজতা সেটিংস', 'screen': const AccessibilitySettingsScreen()},
       {'icon': Icons.notifications_rounded, 'label': 'রিমাইন্ডার', 'subtitle': 'প্র্যাকটিস রিমাইন্ডার সেট করুন', 'screen': const ReminderSettingsScreen()},
     ];
 

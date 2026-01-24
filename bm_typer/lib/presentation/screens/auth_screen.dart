@@ -9,6 +9,8 @@ import 'package:bm_typer/core/services/cloud_sync_service.dart';
 import 'package:bm_typer/core/services/database_service.dart';
 import 'package:bm_typer/core/models/user_model.dart';
 import 'package:bm_typer/core/providers/user_provider.dart';
+import 'package:bm_typer/core/enums/user_role.dart';
+import 'package:bm_typer/core/services/admin_auth_service.dart';
 
 class AuthScreen extends ConsumerStatefulWidget {
   const AuthScreen({super.key});
@@ -170,7 +172,22 @@ class _AuthScreenState extends ConsumerState<AuthScreen> with SingleTickerProvid
           final profile = cloudData['profile'] as Map<String, dynamic>? ?? {};
           final stats = cloudData['stats'] as Map<String, dynamic>? ?? {};
           final progress = cloudData['progress'] as Map<String, dynamic>? ?? {};
-          
+
+          final roleStr = (profile['role'] ?? cloudData['role']) as String?;
+          final parsedRole = UserRole.values.firstWhere(
+            (e) => e.name == roleStr,
+            orElse: () => UserRole.student,
+          );
+
+          final isLegacyAdmin = AdminAuthService.legacyAdminEmails
+              .contains((profile['email'] ?? firebaseUser.email ?? '').toString().toLowerCase());
+
+          final safeRole = (!isLegacyAdmin && parsedRole == UserRole.superAdmin)
+              ? UserRole.student
+              : parsedRole;
+
+          final organizationId = (profile['organizationId'] ?? cloudData['organizationId']) as String?;
+
           user = UserModel(
             id: firebaseUser.uid,
             name: profile['name'] ?? firebaseUser.displayName ?? 'Unknown',
@@ -178,6 +195,8 @@ class _AuthScreenState extends ConsumerState<AuthScreen> with SingleTickerProvid
             customUserId: profile['customUserId'],
             photoUrl: profile['photoUrl'] ?? firebaseUser.photoURL, // Restore from Firestore!
             phoneNumber: profile['phoneNumber'], // Restore phone too
+            organizationId: organizationId,
+            role: parsedRole,
             xpPoints: stats['xpPoints'] ?? 0,
             level: stats['level'] ?? 1,
             streakCount: stats['streakCount'] ?? 1,
@@ -203,12 +222,52 @@ class _AuthScreenState extends ConsumerState<AuthScreen> with SingleTickerProvid
           user = user.copyWith(photoUrl: firebaseUser.photoURL);
       }
 
+      final currentUser = user!;
+
+      // Always pull role/org from Firestore to avoid stale local state
+      try {
+        final cloudData = await cloudService.fetchUser();
+        if (cloudData != null) {
+          final profile = cloudData['profile'] as Map<String, dynamic>? ?? {};
+
+          final roleStr = (profile['role'] ?? cloudData['role']) as String?;
+          final parsedRole = UserRole.values.firstWhere(
+            (e) => e.name == roleStr,
+            orElse: () => UserRole.student,
+          );
+
+          final isLegacyAdmin = AdminAuthService.legacyAdminEmails
+              .contains((currentUser.email).toLowerCase());
+
+          final safeRole = (!isLegacyAdmin && parsedRole == UserRole.superAdmin)
+              ? UserRole.student
+              : parsedRole;
+
+          final cloudOrgId = (profile['organizationId'] ?? cloudData['organizationId']) as String?;
+
+          var mergedUser = currentUser;
+          if (cloudOrgId != null && cloudOrgId != currentUser.organizationId) {
+            mergedUser = mergedUser.copyWith(organizationId: cloudOrgId);
+          }
+          if (roleStr != null && safeRole != currentUser.role) {
+            mergedUser = mergedUser.copyWith(role: safeRole);
+          }
+          user = mergedUser;
+        }
+      } catch (_) {}
+
+      if (user == null) {
+        throw Exception('User model could not be resolved after login');
+      }
+
+      final resolvedUser = user!;
+
       // 4. Save to Local DB + Set Current
-      await DatabaseService.saveUser(user);
-      await DatabaseService.setCurrentUser(user);
+      await DatabaseService.saveUser(resolvedUser);
+      await DatabaseService.setCurrentUser(resolvedUser);
       
       // 5. Update Provider (Triggers Redirect)
-      await userNotifier.updateUser(user);
+      await userNotifier.updateUser(resolvedUser);
       
     } catch (e) {
       debugPrint('Login post-processing error: $e');

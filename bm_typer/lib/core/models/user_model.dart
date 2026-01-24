@@ -77,6 +77,15 @@ class UserModel {
   @HiveField(22)
   final Map<String, List<int>> skippedExercises; // Key: LessonTitle, Value: List of skipped exercise indices
 
+  @HiveField(23)
+  final Map<String, int> exerciseRepProgress; // Key: "lessonIndex_exerciseIndex", Value: reps completed
+
+  @HiveField(24)
+  final int lastLessonIndex; // Last lesson the user was on
+
+  @HiveField(25)
+  final int lastExerciseIndex; // Last exercise the user was on
+
   UserModel({
     String? id,
     required this.name,
@@ -101,9 +110,15 @@ class UserModel {
     this.role = UserRole.student,
     Map<String, List<int>>? completedExercises,
     Map<String, List<int>>? skippedExercises,
+    Map<String, int>? exerciseRepProgress,
+    int? lastLessonIndex,
+    int? lastExerciseIndex,
   })  : id = id ?? const Uuid().v4(),
         completedExercises = completedExercises ?? {},
         skippedExercises = skippedExercises ?? {},
+        exerciseRepProgress = exerciseRepProgress ?? {},
+        lastLessonIndex = lastLessonIndex ?? 0,
+        lastExerciseIndex = lastExerciseIndex ?? 0,
         wpmHistory = wpmHistory ?? [],
         accuracyHistory = accuracyHistory ?? [],
         highestWpm = highestWpm ?? 0.0,
@@ -153,6 +168,9 @@ class UserModel {
     UserRole? role,
     Map<String, List<int>>? completedExercises,
     Map<String, List<int>>? skippedExercises,
+    Map<String, int>? exerciseRepProgress,
+    int? lastLessonIndex,
+    int? lastExerciseIndex,
   }) {
     return UserModel(
       id: this.id,
@@ -179,6 +197,9 @@ class UserModel {
       role: role ?? this.role,
       completedExercises: completedExercises ?? this.completedExercises,
       skippedExercises: skippedExercises ?? this.skippedExercises,
+      exerciseRepProgress: exerciseRepProgress ?? this.exerciseRepProgress,
+      lastLessonIndex: lastLessonIndex ?? this.lastLessonIndex,
+      lastExerciseIndex: lastExerciseIndex ?? this.lastExerciseIndex,
     );
   }
 
@@ -388,6 +409,7 @@ class UserModel {
 
   /// Update completed exercises for a specific lesson
   UserModel updateCompletedExercises(String lessonTitle, int exerciseIndex) {
+    // Update Completed List
     Map<String, List<int>> currentCompleted = Map.from(completedExercises);
     if (!currentCompleted.containsKey(lessonTitle)) {
       currentCompleted[lessonTitle] = [];
@@ -397,7 +419,19 @@ class UserModel {
        currentCompleted[lessonTitle]!.add(exerciseIndex);
     }
 
-    return copyWith(completedExercises: currentCompleted);
+    // Remove from Skipped List if present
+    Map<String, List<int>> currentSkipped = Map.from(skippedExercises);
+    if (currentSkipped.containsKey(lessonTitle) && currentSkipped[lessonTitle]!.contains(exerciseIndex)) {
+      currentSkipped[lessonTitle]!.remove(exerciseIndex);
+      if (currentSkipped[lessonTitle]!.isEmpty) {
+        currentSkipped.remove(lessonTitle);
+      }
+    }
+
+    return copyWith(
+      completedExercises: currentCompleted,
+      skippedExercises: currentSkipped,
+    );
   }
 
   /// Mark an exercise as skipped for a specific lesson
@@ -422,6 +456,28 @@ class UserModel {
   /// Check if an exercise was completed (not skipped)
   bool isExerciseCompleted(String lessonTitle, int exerciseIndex) {
     return completedExercises[lessonTitle]?.contains(exerciseIndex) ?? false;
+  }
+
+  /// Get the rep progress for a specific exercise
+  int getExerciseRepProgress(int lessonIndex, int exerciseIndex) {
+    final key = '${lessonIndex}_$exerciseIndex';
+    return exerciseRepProgress[key] ?? 0;
+  }
+
+  /// Update rep progress for a specific exercise
+  UserModel updateExerciseRepProgress(int lessonIndex, int exerciseIndex, int repsCompleted) {
+    final key = '${lessonIndex}_$exerciseIndex';
+    final newProgress = Map<String, int>.from(exerciseRepProgress);
+    newProgress[key] = repsCompleted;
+    return copyWith(exerciseRepProgress: newProgress);
+  }
+
+  /// Update last position (lesson and exercise)
+  UserModel updateLastPosition(int lessonIndex, int exerciseIndex) {
+    return copyWith(
+      lastLessonIndex: lessonIndex,
+      lastExerciseIndex: exerciseIndex,
+    );
   }
 
   /// Calculate how much of the course has been completed in percentage.

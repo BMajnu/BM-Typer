@@ -13,7 +13,14 @@ class ThemeSettingsScreen extends ConsumerStatefulWidget {
 }
 
 class _ThemeSettingsScreenState extends ConsumerState<ThemeSettingsScreen> {
-  String _selectedStyleType = 'Elevated';
+  
+  final List<String> _availableFonts = [
+    'Hind Siliguri',
+    'Noto Sans Bengali',
+    'Galada',
+    'Tiro Bangla',
+    'Mina',
+  ];
 
   @override
   Widget build(BuildContext context) {
@@ -37,14 +44,21 @@ class _ThemeSettingsScreenState extends ConsumerState<ThemeSettingsScreen> {
                       _buildSectionTitle('থিম মোড', isDark),
                       const SizedBox(height: 12),
                       _buildThemeModeCard(themeState, colorScheme, isDark),
+                      
                       const SizedBox(height: 24),
                       _buildSectionTitle('থিম রঙ', isDark),
                       const SizedBox(height: 12),
                       _buildColorGrid(themeState, colorScheme, isDark),
+                      
+                      const SizedBox(height: 24),
+                      _buildSectionTitle('শিরোনাম স্টাইল (ফন্ট)', isDark),
+                      const SizedBox(height: 12),
+                      _buildFontSelector(themeState, colorScheme, isDark),
+
                       const SizedBox(height: 24),
                       _buildSectionTitle('প্রিভিউ', isDark),
                       const SizedBox(height: 12),
-                      _buildPreviewSection(colorScheme, isDark),
+                      _buildPreviewSection(colorScheme, isDark, themeState.fontName),
                     ],
                   ),
                 ),
@@ -89,7 +103,8 @@ class _ThemeSettingsScreenState extends ConsumerState<ThemeSettingsScreen> {
           const SizedBox(width: 12),
           Text(
             'থিম সেটিংস',
-            style: GoogleFonts.hindSiliguri(
+            style: GoogleFonts.getFont(
+              ref.watch(themeProvider).fontName,
               fontSize: 22,
               fontWeight: FontWeight.bold,
               color: isDark ? Colors.white : Colors.black87,
@@ -105,7 +120,8 @@ class _ThemeSettingsScreenState extends ConsumerState<ThemeSettingsScreen> {
       padding: const EdgeInsets.symmetric(horizontal: 4),
       child: Text(
         title,
-        style: GoogleFonts.hindSiliguri(
+        style: GoogleFonts.getFont(
+          ref.watch(themeProvider).fontName,
           fontSize: 18,
           fontWeight: FontWeight.bold,
           color: isDark ? Colors.white : Colors.black87,
@@ -174,7 +190,8 @@ class _ThemeSettingsScreenState extends ConsumerState<ThemeSettingsScreen> {
             Expanded(
               child: Text(
                 title,
-                style: GoogleFonts.hindSiliguri(
+                style: GoogleFonts.getFont(
+                  ref.watch(themeProvider).fontName,
                   fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
                   color: isSelected ? colorScheme.primary : (isDark ? Colors.white : Colors.black87),
                 ),
@@ -227,7 +244,8 @@ class _ThemeSettingsScreenState extends ConsumerState<ThemeSettingsScreen> {
                   const SizedBox(height: 8),
                   Text(
                     colorName,
-                    style: GoogleFonts.hindSiliguri(
+                    style: GoogleFonts.getFont(
+                      themeState.fontName,
                       fontSize: 11,
                       color: isSelected ? color : (isDark ? Colors.white70 : Colors.black54),
                       fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
@@ -243,15 +261,55 @@ class _ThemeSettingsScreenState extends ConsumerState<ThemeSettingsScreen> {
     );
   }
 
-  Widget _buildPreviewSection(ColorScheme colorScheme, bool isDark) {
+  Widget _buildFontSelector(ThemeState themeState, ColorScheme colorScheme, bool isDark) {
+     return _buildGlassCard(
+      isDark: isDark,
+      child: Wrap(
+        spacing: 8,
+        runSpacing: 8,
+        children: _availableFonts.map((font) {
+          final isSelected = themeState.fontName == font;
+          return GestureDetector(
+            onTap: () => ref.read(themeProvider.notifier).setFontName(font),
+            child: AnimatedContainer(
+               duration: const Duration(milliseconds: 200),
+               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+               decoration: BoxDecoration(
+                 color: isSelected ? colorScheme.primary : (isDark ? Colors.white10 : Colors.black.withOpacity(0.05)),
+                 borderRadius: BorderRadius.circular(20),
+                 border: Border.all(
+                   color: isSelected ? colorScheme.primary : (isDark ? Colors.white24 : Colors.black12),
+                 ),
+               ),
+               child: Text(
+                 font,
+                 style: GoogleFonts.getFont(
+                   font,
+                   color: isSelected ? Colors.white : (isDark ? Colors.white70 : Colors.black87),
+                   fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                 ),
+               ),
+            ),
+          );
+        }).toList(),
+      ),
+    );
+  }
+
+  Widget _buildPreviewSection(ColorScheme colorScheme, bool isDark, String fontName) {
+    // Explicitly use Theme.of(context).textTheme to ensure it picks up the global theme changes
+    // But since we are inside the widget that might not have rebuilt with the new theme yet if 
+    // MaterialApp hasn't rebuilt (though Riverpod should trigger it), we explicitly use fontName here for immediate feedback.
+    
     return _buildGlassCard(
       isDark: isDark,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            'শিরোনাম',
-            style: GoogleFonts.hindSiliguri(
+            'শিরোনাম উদাহরণ',
+            style: GoogleFonts.getFont(
+              fontName,
               fontSize: 24,
               fontWeight: FontWeight.bold,
               color: isDark ? Colors.white : Colors.black87,
@@ -259,61 +317,41 @@ class _ThemeSettingsScreenState extends ConsumerState<ThemeSettingsScreen> {
           ),
           const SizedBox(height: 8),
           Text(
-            'আপনার নির্বাচিত থিমের প্রিভিউ দেখুন।',
-            style: GoogleFonts.hindSiliguri(
-              color: (isDark ? Colors.white : Colors.black).withOpacity(0.6),
-            ),
-          ),
-          const SizedBox(height: 16),
-          SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            child: Row(
-              children: [
-                _buildStyleButton('Elevated', _selectedStyleType == 'Elevated', () => setState(() => _selectedStyleType = 'Elevated'), colorScheme, isDark),
-                const SizedBox(width: 8),
-                _buildStyleButton('Filled', _selectedStyleType == 'Filled', () => setState(() => _selectedStyleType = 'Filled'), colorScheme, isDark),
-                const SizedBox(width: 8),
-                _buildStyleButton('Outlined', _selectedStyleType == 'Outlined', () => setState(() => _selectedStyleType = 'Outlined'), colorScheme, isDark),
-                const SizedBox(width: 8),
-                _buildStyleButton('Text', _selectedStyleType == 'Text', () => setState(() => _selectedStyleType = 'Text'), colorScheme, isDark),
-              ],
+            'এটি আপনার নির্বাচিত ফন্ট এবং কালার থিমের একটি উদাহরণ।',
+            style: GoogleFonts.getFont(
+              fontName,
+              fontSize: 16,
+              color: (isDark ? Colors.white : Colors.black).withOpacity(0.7),
             ),
           ),
           const SizedBox(height: 20),
-          _buildColorPreviewBox('প্রাইমারি', colorScheme.primary, colorScheme.onPrimary),
+          _buildColorPreviewBox('প্রাইমারি কালার', colorScheme.primary, colorScheme.onPrimary, fontName),
           const SizedBox(height: 8),
-          _buildColorPreviewBox('সেকেন্ডারি', colorScheme.secondary, colorScheme.onSecondary),
-          const SizedBox(height: 8),
-          _buildColorPreviewBox('টার্শিয়ারি', colorScheme.tertiary, colorScheme.onTertiary),
+          _buildColorPreviewBox('সেকেন্ডারি কালার', colorScheme.secondary, colorScheme.onSecondary, fontName),
           const SizedBox(height: 20),
-          Center(child: _getPreviewButton(colorScheme, _selectedStyleType)),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+            children: [
+               ElevatedButton(
+                 onPressed: () {}, 
+                 child: Text('Elevated', style: GoogleFonts.getFont(fontName))
+               ),
+               FilledButton(
+                 onPressed: () {}, 
+                 child: Text('Filled', style: GoogleFonts.getFont(fontName))
+               ),
+               OutlinedButton(
+                 onPressed: () {}, 
+                 child: Text('Outlined', style: GoogleFonts.getFont(fontName))
+               ),
+            ],
+          )
         ],
       ),
     );
   }
 
-  Widget _buildStyleButton(String label, bool isSelected, VoidCallback onTap, ColorScheme colorScheme, bool isDark) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-        decoration: BoxDecoration(
-          color: isSelected ? colorScheme.primary : Colors.transparent,
-          borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: isSelected ? colorScheme.primary : (isDark ? Colors.white : Colors.black).withOpacity(0.2)),
-        ),
-        child: Text(
-          label,
-          style: TextStyle(
-            color: isSelected ? Colors.white : (isDark ? Colors.white70 : Colors.black54),
-            fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildColorPreviewBox(String label, Color color, Color textColor) {
+  Widget _buildColorPreviewBox(String label, Color color, Color textColor, String fontName) {
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
@@ -321,51 +359,14 @@ class _ThemeSettingsScreenState extends ConsumerState<ThemeSettingsScreen> {
         color: color,
         borderRadius: BorderRadius.circular(12),
       ),
-      child: Text(label, style: GoogleFonts.hindSiliguri(color: textColor, fontWeight: FontWeight.bold)),
+      child: Text(
+        label, 
+        style: GoogleFonts.getFont(
+          fontName,
+          color: textColor, 
+          fontWeight: FontWeight.bold
+        )
+      ),
     );
-  }
-
-  Widget _getPreviewButton(ColorScheme colorScheme, String type) {
-    switch (type) {
-      case 'Elevated':
-        return ElevatedButton(
-          style: ElevatedButton.styleFrom(
-            foregroundColor: colorScheme.onPrimary,
-            backgroundColor: colorScheme.primary,
-            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-          ),
-          onPressed: () {},
-          child: Text('Elevated Button', style: GoogleFonts.poppins(fontWeight: FontWeight.w600)),
-        );
-      case 'Filled':
-        return FilledButton(
-          style: FilledButton.styleFrom(
-            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-          ),
-          onPressed: () {},
-          child: Text('Filled Button', style: GoogleFonts.poppins(fontWeight: FontWeight.w600)),
-        );
-      case 'Outlined':
-        return OutlinedButton(
-          style: OutlinedButton.styleFrom(
-            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-          ),
-          onPressed: () {},
-          child: Text('Outlined Button', style: GoogleFonts.poppins(fontWeight: FontWeight.w600)),
-        );
-      case 'Text':
-        return TextButton(
-          style: TextButton.styleFrom(
-            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-          ),
-          onPressed: () {},
-          child: Text('Text Button', style: GoogleFonts.poppins(fontWeight: FontWeight.w600)),
-        );
-      default:
-        return ElevatedButton(onPressed: () {}, child: const Text('Button'));
-    }
   }
 }

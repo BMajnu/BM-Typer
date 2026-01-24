@@ -783,10 +783,79 @@ final List<Lesson> realBanglaLessons = [
   ),
 
   // ==================================================================================
-  // লেসন ২৩: সংখ্যা সারি
+  // লেসন ২৩: বিশেষ চিহ্ন (৳ ঁ ৎ ঃ)
+  // Bijoy: Shift+4=৳, Shift+6=ঁ, \=ৎ, Shift+\=ঃ
   // ==================================================================================
   Lesson(
-    title: "লেসন ২৩: বাংলা সংখ্যা (১ ২ ৩ ৪ ৫ ৬ ৭ ৮ ৯ ০)",
+    title: "লেসন ২৩: বিশেষ চিহ্ন (৳ ঁ ৎ ঃ)",
+    description: "বাংলা বিশেষ চিহ্ন - টাকা, চন্দ্রবিন্দু, খণ্ড-ত, বিসর্গ",
+    category: "Bangla",
+    language: "bn",
+    difficultyLevel: 2,
+    exercises: [
+      Exercise(
+        text: "৳ ৳ ৳ ৳ ৳",  // Shift+4 (Taka sign)
+        repetitions: 8,
+        type: ExerciseType.drill,
+        difficultyLevel: 2,
+      ),
+      Exercise(
+        text: "ঁ ঁ ঁ ঁ ঁ",  // Shift+6 (Chandrabindu)
+        repetitions: 8,
+        type: ExerciseType.drill,
+        difficultyLevel: 2,
+      ),
+      Exercise(
+        text: "ৎ ৎ ৎ ৎ ৎ",  // Backslash key (Khondo-to)
+        repetitions: 8,
+        type: ExerciseType.drill,
+        difficultyLevel: 2,
+      ),
+      Exercise(
+        text: "ঃ ঃ ঃ ঃ ঃ",  // Shift+Backslash (Bisarga)
+        repetitions: 8,
+        type: ExerciseType.drill,
+        difficultyLevel: 2,
+      ),
+      Exercise(
+        text: "৳ ঁ ৎ ঃ",  // Combined practice
+        repetitions: 10,
+        type: ExerciseType.drill,
+        difficultyLevel: 2,
+      ),
+      // Word examples
+      Exercise(
+        text: "৳১০০ ৳৫০০ ৳১০০০",  // Taka amounts
+        repetitions: 5,
+        type: ExerciseType.standard,
+        difficultyLevel: 2,
+      ),
+      Exercise(
+        text: "চাঁদ বাঁশ",  // Words with Chandrabindu
+        repetitions: 5,
+        type: ExerciseType.standard,
+        difficultyLevel: 2,
+      ),
+      Exercise(
+        text: "দুঃখ নিঃশ্বাস",  // Words with Bisarga
+        repetitions: 5,
+        type: ExerciseType.standard,
+        difficultyLevel: 2,
+      ),
+      Exercise(
+        text: "উৎস বৃহৎ",  // Words with Khondo-to
+        repetitions: 5,
+        type: ExerciseType.standard,
+        difficultyLevel: 2,
+      ),
+    ],
+  ),
+
+  // ==================================================================================
+  // লেসন ২৪: সংখ্যা সারি
+  // ==================================================================================
+  Lesson(
+    title: "লেসন ২৪: বাংলা সংখ্যা (১ ২ ৩ ৪ ৫ ৬ ৭ ৮ ৯ ০)",
     description: "বাংলা সংখ্যা টাইপ করুন (1-0 keys)",
     category: "Bangla",
     language: "bn",
@@ -820,10 +889,10 @@ final List<Lesson> realBanglaLessons = [
   ),
 
   // ==================================================================================
-  // লেসন ২৪: স্বরবর্ণ কম্পোজিশন (G + vowel key)
+  // লেসন ২৫: স্বরবর্ণ কম্পোজিশন (G + vowel key)
   // ==================================================================================
   Lesson(
-    title: "লেসন ২৪: পূর্ণ স্বরবর্ণ (G + কার = স্বর)",
+    title: "লেসন ২৫: পূর্ণ স্বরবর্ণ (G + কার = স্বর)",
     description: "G + কার কী = পূর্ণ স্বরবর্ণ শিখুন",
     category: "Bangla",
     language: "bn",
@@ -875,41 +944,90 @@ final List<Lesson> realBanglaLessons = [
   ),
 
   // ==================================================================================
-  // লেসন ২৫: যুক্তাক্ষর - প্রাথমিক
+  // লেসন ২৬: যুক্তবর্ণ পরিচিতি - ১ (ক থেকে জ)
   // ==================================================================================
   Lesson(
-    title: "লেসন ২৫: যুক্তাক্ষর - প্রাথমিক (ক্ত ন্ত স্ত)",
-    description: "সাধারণ যুক্তাক্ষর অনুশীলন",
+    title: "লেসন ২৬: যুক্তবর্ণ পরিচিতি - ১ (ক থেকে জ)",
+    description: "ক, গ, চ, জ দিয়ে গঠিত যুক্তাক্ষর শিখুন (G কী ব্যবহার করে যুক্ত করুন)",
     category: "Bangla",
     language: "bn",
     difficultyLevel: 3,
     exercises: [
+      // 1. ক-দিয়ে যুক্তাক্ষর
       Exercise(
-        text: "ক্ত ক্ত ক্ত ক্ত",
+        text: "ক্ক ক্ত ক্ষ ক্ল",  // ক্ক = ক+্+ক, ক্ত = ক+্+ত, ক্ষ = ক+্+ষ, ক্ল = ক+্+ল
         repetitions: 8,
         type: ExerciseType.drill,
         difficultyLevel: 3,
       ),
       Exercise(
-        text: "ন্ত ন্ত ন্ত ন্ত",
+        text: "ছক্কা মক্কা রক্ত শক্ত",
+        repetitions: 5,
+        type: ExerciseType.standard,
+        difficultyLevel: 3,
+      ),
+      Exercise(
+        text: "শিক্ষা পক্ষ ক্লান্তি ক্লাস",
+        repetitions: 5,
+        type: ExerciseType.standard,
+        difficultyLevel: 3,
+      ),
+
+      // 2. গ-দিয়ে যুক্তাক্ষর
+      Exercise(
+        text: "গ্ধ গ্ন গ্ল",  // গ্ধ = গ+্+ধ, গ্ন = গ+্+ন, গ্ল = গ+্+ল
         repetitions: 8,
         type: ExerciseType.drill,
         difficultyLevel: 3,
       ),
       Exercise(
-        text: "স্ত স্ত স্ত স্ত",
+        text: "মুগ্ধ দুগ্ধ মগ্ন ভগ্ন",
+        repetitions: 5,
+        type: ExerciseType.standard,
+        difficultyLevel: 3,
+      ),
+      Exercise(
+        text: "গ্লাস গ্লানি",
+        repetitions: 5,
+        type: ExerciseType.standard,
+        difficultyLevel: 3,
+      ),
+
+      // 3. চ-দিয়ে যুক্তাক্ষর
+      Exercise(
+        text: "চ্চ চ্ছ চ্ঞ",  // চ্চ = চ+্+চ, চ্ছ = চ+্+ছ, চ্ঞ = চ+্+ঞ
         repetitions: 8,
         type: ExerciseType.drill,
         difficultyLevel: 3,
       ),
       Exercise(
-        text: "ক্ত ন্ত স্ত ত্ত",
-        repetitions: 10,
+        text: "উচ্চ বাচ্চা ইচ্ছা গুচ্ছ",
+        repetitions: 5,
+        type: ExerciseType.standard,
+        difficultyLevel: 3,
+      ),
+      Exercise(
+        text: "যাচ্ঞা",
+        repetitions: 5,
+        type: ExerciseType.standard,
+        difficultyLevel: 3,
+      ),
+
+      // 4. জ-দিয়ে যুক্তাক্ষর
+      Exercise(
+        text: "জ্জ জ্ঞ জ্ব",  // জ্জ = জ+্+জ, জ্ঞ = জ+্+ঞ, জ্ব = জ+্+ব
+        repetitions: 8,
         type: ExerciseType.drill,
         difficultyLevel: 3,
       ),
       Exercise(
-        text: "শক্তি অন্ত মাস্তান",
+        text: "লজ্জা সজ্জা জ্ঞান বিজ্ঞান",
+        repetitions: 5,
+        type: ExerciseType.standard,
+        difficultyLevel: 3,
+      ),
+      Exercise(
+        text: "জ্বালা উজ্জ্বল",
         repetitions: 5,
         type: ExerciseType.standard,
         difficultyLevel: 3,
@@ -918,10 +1036,154 @@ final List<Lesson> realBanglaLessons = [
   ),
 
   // ==================================================================================
-  // লেসন ২৬: বাংলা বাক্য অনুশীলন
+  // লেসন ২৭: যুক্তবর্ণ পরিচিতি - ২ (ট থেকে দ)
   // ==================================================================================
   Lesson(
-    title: "লেসন ২৬: বাংলা বাক্য অনুশীলন",
+    title: "লেসন ২৭: যুক্তবর্ণ পরিচিতি - ২ (ট থেকে দ)",
+    description: "ট, ড, ত, দ দিয়ে গঠিত যুক্তাক্ষর শিখুন",
+    category: "Bangla",
+    language: "bn",
+    difficultyLevel: 3,
+    exercises: [
+      // 5. ট ও ড-দিয়ে যুক্তাক্ষর
+      Exercise(
+        text: "ট্ট ড্ড",  // ট্ট = ট+্+ট, ড্ড = ড+্+ড
+        repetitions: 8,
+        type: ExerciseType.drill,
+        difficultyLevel: 3,
+      ),
+      Exercise(
+        text: "অট্টালিকা চট্টগ্রাম আড্ডা উড্ডয়ন",
+        repetitions: 5,
+        type: ExerciseType.standard,
+        difficultyLevel: 3,
+      ),
+
+      // 6. ত-দিয়ে যুক্তাক্ষর
+      Exercise(
+        text: "ত্ত ত্থ ত্র",  // ত্ত = ত+্+ত, ত্থ = ত+্+থ, ত্র = ত+্+র
+        repetitions: 8,
+        type: ExerciseType.drill,
+        difficultyLevel: 3,
+      ),
+      Exercise(
+        text: "উত্তর পিত্ত অশ্বত্থ উত্থান",
+        repetitions: 5,
+        type: ExerciseType.standard,
+        difficultyLevel: 3,
+      ),
+      Exercise(
+        text: "ছাত্র পাত্র মিত্র",
+        repetitions: 5,
+        type: ExerciseType.standard,
+        difficultyLevel: 3,
+      ),
+
+      // 7. দ ও ধ-দিয়ে যুক্তাক্ষর
+      Exercise(
+        text: "দ্দ দ্ধ দ্ব",  // দ্দ = দ+্+দ, দ্ধ = দ+্+ধ, দ্ব = দ+্+ব
+        repetitions: 8,
+        type: ExerciseType.drill,
+        difficultyLevel: 3,
+      ),
+      Exercise(
+        text: "রোদ্দুর চদ্দ বদ্ধ যুদ্ধ",
+        repetitions: 5,
+        type: ExerciseType.standard,
+        difficultyLevel: 3,
+      ),
+      Exercise(
+        text: "দ্বীপে বিদ্বান",
+        repetitions: 5,
+        type: ExerciseType.standard,
+        difficultyLevel: 3,
+      ),
+    ],
+  ),
+
+  // ==================================================================================
+  // লেসন ২৮: যুক্তবর্ণ পরিচিতি - ৩ (ন থেকে হ)
+  // ==================================================================================
+  Lesson(
+    title: "লেসন ২৮: যুক্তবর্ণ পরিচিতি - ৩ (ন থেকে হ)",
+    description: "ন, ম, শ, স, হ দিয়ে গঠিত যুক্তাক্ষর শিখুন",
+    category: "Bangla",
+    language: "bn",
+    difficultyLevel: 3,
+    exercises: [
+      // 8. ন ও ম-দিয়ে যুক্তাক্ষর
+      Exercise(
+        text: "ন্ত ন্দ ম্প ম্ব",  // ন্ত, ন্দ, ম্প, ম্ব
+        repetitions: 8,
+        type: ExerciseType.drill,
+        difficultyLevel: 3,
+      ),
+      Exercise(
+        text: "অন্ত শান্ত আনন্দ মন্দ",
+        repetitions: 5,
+        type: ExerciseType.standard,
+        difficultyLevel: 3,
+      ),
+      Exercise(
+        text: "কম্পন লম্পট কম্বল লম্বা",
+        repetitions: 5,
+        type: ExerciseType.standard,
+        difficultyLevel: 3,
+      ),
+
+      // 9. শ, ষ ও স-দিয়ে যুক্তাক্ষর
+      Exercise(
+        text: "শ্চ ষ্ট ষ্ঠ স্থ স্ত",  // শ্চ, ষ্ট, ষ্ঠ, স্থ, স্ত
+        repetitions: 8,
+        type: ExerciseType.drill,
+        difficultyLevel: 3,
+      ),
+      Exercise(
+        text: "নিশ্চয় পুনশ্চ কষ্ট মিষ্টি",
+        repetitions: 5,
+        type: ExerciseType.standard,
+        difficultyLevel: 3,
+      ),
+      Exercise(
+        text: "শ্রেষ্ঠ কাষ্ঠ স্থান সুস্থ",
+        repetitions: 5,
+        type: ExerciseType.standard,
+        difficultyLevel: 3,
+      ),
+      Exercise(
+        text: "ব্যস্ত রাস্তা সস্তা",
+        repetitions: 5,
+        type: ExerciseType.standard,
+        difficultyLevel: 3,
+      ),
+
+      // 10. হ-দিয়ে যুক্তাক্ষর
+      Exercise(
+        text: "হ্ণ হ্ন হ্ম হৃ",  // হ্ণ, হ্ন, হ্ম, হৃ
+        repetitions: 8,
+        type: ExerciseType.drill,
+        difficultyLevel: 3,
+      ),
+      Exercise(
+        text: "অপরাহ্ণ চিহ্ন মধ্যাহ্ন",
+        repetitions: 5,
+        type: ExerciseType.standard,
+        difficultyLevel: 3,
+      ),
+      Exercise(
+        text: "ব্রহ্ম ব্রাহ্মণ হৃদয়",
+        repetitions: 5,
+        type: ExerciseType.standard,
+        difficultyLevel: 3,
+      ),
+    ],
+  ),
+
+  // ==================================================================================
+  // লেসন ২৯: বাংলা বাক্য অনুশীলন
+  // ==================================================================================
+  Lesson(
+    title: "লেসন ২৯: বাংলা বাক্য অনুশীলন",
     description: "সম্পূর্ণ বাংলা বাক্য টাইপ করুন",
     category: "Bangla",
     language: "bn",
@@ -955,17 +1217,17 @@ final List<Lesson> realBanglaLessons = [
   ),
 
   // ==================================================================================
-  // লেসন ২৭: বাংলা অনুচ্ছেদ অনুশীলন
+  // লেসন ৩০: বাংলা অনুচ্ছেদ
   // ==================================================================================
   Lesson(
-    title: "লেসন ২৭: বাংলা অনুচ্ছেদ অনুশীলন",
-    description: "দীর্ঘ বাংলা অনুচ্ছেদ টাইপ করে দক্ষতা বাড়ান",
+    title: "লেসন ৩০: বাংলা অনুচ্ছেদ",
+    description: "ছোট অনুচ্ছেদ টাইপ করুন",
     category: "Bangla",
     language: "bn",
     difficultyLevel: 3,
     exercises: [
       Exercise(
-        text: "বাংলাদেশ দক্ষিণ এশিয়ার একটি স্বাধীন সার্বভৌম রাষ্ট্র। ১৯৭১ সালে মুক্তিযুদ্ধের মাধ্যমে বাংলাদেশ স্বাধীন হয়।",
+        text: "আমাদের দেশের নাম বাংলাদেশ। এ দেশ ১৯৭১ সালে স্বাধীন হয়। ঢাকা বাংলাদেশের রাজধানী।",
         repetitions: 3,
         type: ExerciseType.paragraph,
         difficultyLevel: 3,
@@ -992,10 +1254,10 @@ final List<Lesson> realBanglaLessons = [
   ),
 
   // ==================================================================================
-  // লেসন ২৮: বাংলা প্রবন্ধ ও সাহিত্য
+  // লেসন ৩১: বাংলা প্রবন্ধ ও সাহিত্য
   // ==================================================================================
   Lesson(
-    title: "লেসন ২৮: বাংলা প্রবন্ধ ও সাহিত্য",
+    title: "লেসন ৩১: বাংলা প্রবন্ধ ও সাহিত্য",
     description: "বাংলা সাহিত্যের উদ্ধৃতি ও প্রবন্ধ টাইপ করুন",
     category: "Bangla",
     language: "bn",
@@ -1031,10 +1293,10 @@ final List<Lesson> realBanglaLessons = [
   ),
 
   // ==================================================================================
-  // লেসন ২৯: ব্যবসায়িক চিঠি ও দরখাস্ত
+  // লেসন ৩২: ব্যবসায়িক চিঠি ও দরখাস্ত
   // ==================================================================================
   Lesson(
-    title: "লেসন ২৯: ব্যবসায়িক চিঠি ও দরখাস্ত",
+    title: "লেসন ৩২: ব্যবসায়িক চিঠি ও দরখাস্ত",
     description: "অফিসিয়াল চিঠি ও দরখাস্ত লেখার অনুশীলন",
     category: "Bangla",
     language: "bn",
@@ -1074,10 +1336,10 @@ final List<Lesson> realBanglaLessons = [
   ),
 
   // ==================================================================================
-  // লেসন ৩০: পেশাদার বাংলা টাইপিং
+  // লেসন ৩৩: পেশাদার বাংলা টাইপিং
   // ==================================================================================
   Lesson(
-    title: "লেসন ৩০: পেশাদার বাংলা টাইপিং",
+    title: "লেসন ৩৩: পেশাদার বাংলা টাইপিং",
     description: "পেশাদার মানের দ্রুত ও নির্ভুল বাংলা টাইপিং অনুশীলন",
     category: "Bangla",
     language: "bn",
@@ -1111,10 +1373,10 @@ final List<Lesson> realBanglaLessons = [
   ),
 
   // ==================================================================================
-  // লেসন ৩১: টেক জোন আইটি - পেশাদার অনুচ্ছেদ অনুশীলন
+  // লেসন ৩৪: টেক জোন আইটি - পেশাদার অনুচ্ছেদ অনুশীলন
   // ==================================================================================
   Lesson(
-    title: "লেসন ৩১: টেক জোন আইটি - পেশাদার অনুচ্ছেদ",
+    title: "লেসন ৩৪: টেক জোন আইটি - পেশাদার অনুচ্ছেদ",
     description: "টেক জোন আইটি সম্পর্কে বিস্তারিত অনুচ্ছেদ টাইপ করুন",
     category: "Bangla",
     language: "bn",

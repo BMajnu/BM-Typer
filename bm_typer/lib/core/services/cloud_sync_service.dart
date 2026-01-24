@@ -59,16 +59,18 @@ class CloudSyncService {
 
     try {
       final docRef = _firestore.collection('users').doc(currentUserId);
+
+      final profileData = <String, dynamic>{
+        'name': user.name,
+        'email': user.email,
+        'customUserId': user.customUserId,
+        'photoUrl': user.photoUrl,
+        'phoneNumber': user.phoneNumber,
+        'lastLoginDate': user.lastLoginDate?.toIso8601String(),
+      };
       
       await docRef.set({
-        'profile': {
-          'name': user.name,
-          'email': user.email,
-          'customUserId': user.customUserId,
-          'photoUrl': user.photoUrl,
-          'phoneNumber': user.phoneNumber,
-          'lastLoginDate': user.lastLoginDate?.toIso8601String(),
-        },
+        'profile': profileData,
         'stats': {
           'highestWpm': user.highestWpm,
           'avgAccuracy': user.averageAccuracy,
@@ -80,6 +82,11 @@ class CloudSyncService {
         'progress': {
           'completedLessons': user.completedLessons,
           'unlockedAchievements': user.unlockedAchievements,
+          'completedExercises': user.completedExercises.map((key, value) => MapEntry(key, value.toList())),
+          'skippedExercises': user.skippedExercises.map((key, value) => MapEntry(key, value.toList())),
+          'exerciseRepProgress': user.exerciseRepProgress, // Rep progress per exercise
+          'lastLessonIndex': user.lastLessonIndex, // Last position
+          'lastExerciseIndex': user.lastExerciseIndex,
         },
         'goals': {
           'wpmGoal': user.goalWpm,
@@ -97,14 +104,50 @@ class CloudSyncService {
 
   /// Fetch user data from Firestore
   Future<Map<String, dynamic>?> fetchUser() async {
-    if (!isAuthenticated) return null;
+    if (!isAuthenticated) {
+      debugPrint('❌ fetchUser: Not authenticated');
+      return null;
+    }
 
     try {
+      debugPrint('📥 fetchUser: Fetching user doc for: $currentUserId');
       final doc = await _firestore.collection('users').doc(currentUserId).get();
-      return doc.data();
+      final data = doc.data();
+      
+      if (data != null) {
+        // Log key fields for debugging
+        final rootOrgId = data['organizationId'];
+        final profileOrgId = data['profile']?['organizationId'];
+        final role = data['profile']?['role'] ?? data['role'];
+        debugPrint('✅ fetchUser: rootOrgId=$rootOrgId, profileOrgId=$profileOrgId, role=$role');
+      } else {
+        debugPrint('⚠️ fetchUser: No data found for user');
+      }
+      
+      return data;
     } catch (e) {
       debugPrint('❌ Error fetching user: $e');
       return null;
+    }
+  }
+
+  /// Fetch typing sessions from sub-collection
+  Future<List<Map<String, dynamic>>> fetchUserSessions() async {
+    if (!isAuthenticated) return [];
+
+    try {
+      final snapshot = await _firestore
+          .collection('users')
+          .doc(currentUserId)
+          .collection('sessions')
+          .orderBy('timestamp', descending: true)
+          .limit(50) // Limit to last 50 sessions to save bandwidth
+          .get();
+      
+      return snapshot.docs.map((doc) => doc.data()).toList();
+    } catch (e) {
+      debugPrint('❌ Error fetching sessions: $e');
+      return [];
     }
   }
 
@@ -283,6 +326,7 @@ class CloudSyncService {
     required double wpm,
     required double accuracy,
     String? lessonId,
+    String? typedText,
   }) async {
     if (!_connectivity.isOnline || !isAuthenticated) return;
 
@@ -295,6 +339,7 @@ class CloudSyncService {
         'wpm': wpm,
         'accuracy': accuracy,
         'lessonId': lessonId,
+        'typedText': typedText,
         'timestamp': FieldValue.serverTimestamp(),
       });
 
@@ -303,6 +348,7 @@ class CloudSyncService {
       debugPrint('❌ Error syncing session: $e');
     }
   }
+
 
   // ============================================================
   // LEADERBOARD SYNC

@@ -71,6 +71,7 @@ class _TutorScreenState extends ConsumerState<TutorScreen> {
     // Record that the user has practiced today
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _recordPracticeSession();
+      _restoreKeyboardLayoutForCurrentLesson(); // Restore keyboard layout based on saved lesson
       _checkForPendingAchievements();
       _initLeaderboard();
       _initSubscription();
@@ -97,6 +98,24 @@ class _TutorScreenState extends ConsumerState<TutorScreen> {
       if (updatedUser != user) {
         await ref.read(currentUserProvider.notifier).updateUser(updatedUser);
       }
+    }
+  }
+
+  /// Restore keyboard layout based on the current (restored) lesson
+  void _restoreKeyboardLayoutForCurrentLesson() {
+    final tutorState = ref.read(tutorProvider);
+    final lesson = tutorState.currentLesson;
+    
+    // Set keyboard layout based on lesson language/category
+    if (lesson.language == 'en') {
+      ref.read(keyboardLayoutProvider.notifier).setLayout(KeyboardLayout.qwerty);
+      debugPrint('⌨️ Restored keyboard layout: English (QWERTY) for lesson "${lesson.title}"');
+    } else if (lesson.category == 'Phonetic') {
+      ref.read(keyboardLayoutProvider.notifier).setLayout(KeyboardLayout.phonetic);
+      debugPrint('⌨️ Restored keyboard layout: Phonetic for lesson "${lesson.title}"');
+    } else {
+      ref.read(keyboardLayoutProvider.notifier).setLayout(KeyboardLayout.bijoy);
+      debugPrint('⌨️ Restored keyboard layout: Bijoy for lesson "${lesson.title}"');
     }
   }
 
@@ -254,20 +273,17 @@ class _TutorScreenState extends ConsumerState<TutorScreen> {
   /// Check if current user is admin
   bool _isAdminUser() {
     final user = ref.read(currentUserProvider);
-    const adminEmails = [
-      'badiuzzamanmajnu786@gmail.com',
-    ];
-    return adminEmails.contains(user?.email?.toLowerCase()) ||
-           user?.email?.contains('admin') == true ||
-           user?.customUserId?.toLowerCase() == 'admin';
+    if (user == null) return false;
+    final adminAuthService = ref.read(adminAuthServiceProvider);
+    return adminAuthService.isAdminEmail(user.email);
   }
   
   /// Check if user is super admin (legacy email or role)
   bool _isSuperAdmin() {
     final user = ref.read(currentUserProvider);
-    const adminEmails = ['badiuzzamanmajnu786@gmail.com'];
-    return adminEmails.contains(user?.email?.toLowerCase()) || 
-           user?.role == UserRole.superAdmin;
+    if (user == null) return false;
+    final adminAuthService = ref.read(adminAuthServiceProvider);
+    return adminAuthService.isAdminEmail(user.email);
   }
   
   /// Check if user is org admin
@@ -573,11 +589,8 @@ class _TutorScreenState extends ConsumerState<TutorScreen> {
                    _buildProgressMessage(colorScheme),
                    
                    Divider(height: 1),
-                   // History moved here (bottom of sidebar)
-                   SizedBox(
-                     height: 120,
-                     child: _buildHistoryWidget(),
-                   ),
+                   // History moved here (bottom of sidebar) - Dynamic height
+                   _buildHistoryWidget(),
                 ],
               ),
             ),
@@ -1435,6 +1448,8 @@ class _TutorScreenState extends ConsumerState<TutorScreen> {
                 currentCharacter: currentChar,
                 isVisible: true,
                 isMobile: isCompact,
+                isNumpad: state.currentLesson.isNumpad,
+                exerciseType: layoutState.currentLayout.name, // Uses keyboard layout: bijoy, phonetic, or qwerty
               ),
             ),
           
@@ -1488,7 +1503,11 @@ class _TutorScreenState extends ConsumerState<TutorScreen> {
     final currentExerciseIndex = state.currentExerciseIndex;
     
     // Strict Progression Logic for Exercises
-    if (user != null && index > currentExerciseIndex) {
+    final isCurrentCompleted = user != null && 
+        user.isExerciseCompleted(state.currentLesson.title, currentExerciseIndex);
+
+    // Only treat as skip if moving forward AND current is NOT completed
+    if (user != null && index > currentExerciseIndex && !isCurrentCompleted) {
        // Check if previous exercise is completed (conceptually)
        // Actually 'currentExerciseIndex' points to the first INCOMPLETE exercise usually (due to auto-resume).
        // If user clicks index > current, they are skipping 'current'.
@@ -1539,6 +1558,17 @@ class _TutorScreenState extends ConsumerState<TutorScreen> {
         );
 
         if (confirmSkip != true) return;
+
+        // Mark all exercises between currentExerciseIndex and target as SKIPPED
+        final lessonTitle = state.currentLesson.title;
+        final skippedIndices = <int>[];
+        for (int i = currentExerciseIndex; i < index; i++) {
+          skippedIndices.add(i);
+        }
+        if (skippedIndices.isNotEmpty) {
+          await ref.read(currentUserProvider.notifier).markExercisesSkipped(lessonTitle, skippedIndices);
+          debugPrint('📌 Marked exercises $skippedIndices as SKIPPED in $lessonTitle');
+        }
 
         // Send Alert Notification
         try {
@@ -1596,7 +1626,12 @@ class _TutorScreenState extends ConsumerState<TutorScreen> {
             itemBuilder: (context, index) {
               final exercise = exercises[index];
               final isSelected = index == currentExerciseIndex;
-              final isCompleted = index < currentExerciseIndex;
+              final user = ref.watch(currentUserProvider);
+              final lessonTitle = currentLesson.title;
+              
+              // Check ACTUAL completion/skipped status from user model
+              final isCompleted = user?.isExerciseCompleted(lessonTitle, index) ?? false;
+              final isSkipped = user?.isExerciseSkipped(lessonTitle, index) ?? false;
 
               return Padding(
                 padding: EdgeInsets.only(bottom: 6),
@@ -1611,12 +1646,16 @@ class _TutorScreenState extends ConsumerState<TutorScreen> {
                           ? colorScheme.primaryContainer.withOpacity(0.4)
                           : isCompleted
                               ? colorScheme.tertiary.withOpacity(0.1)
-                              : colorScheme.surfaceContainerHighest.withOpacity(0.3),
+                              : isSkipped
+                                  ? Colors.red.withOpacity(0.1)
+                                  : colorScheme.surfaceContainerHighest.withOpacity(0.3),
                       borderRadius: BorderRadius.circular(12),
                       border: Border.all(
                         color: isSelected 
                             ? colorScheme.primary
-                            : Colors.transparent,
+                            : isSkipped
+                                ? Colors.red.withOpacity(0.3)
+                                : Colors.transparent,
                         width: isSelected ? 2 : 1,
                       ),
                     ),
@@ -1630,20 +1669,24 @@ class _TutorScreenState extends ConsumerState<TutorScreen> {
                                 ? colorScheme.primary
                                 : isCompleted 
                                     ? colorScheme.tertiary
-                                    : colorScheme.primary.withOpacity(0.15),
+                                    : isSkipped
+                                        ? Colors.red
+                                        : colorScheme.primary.withOpacity(0.15),
                             borderRadius: BorderRadius.circular(8),
                           ),
                           alignment: Alignment.center,
                           child: isCompleted 
                               ? Icon(Icons.check, size: 16, color: Colors.white)
-                              : Text(
-                                  "${index + 1}",
-                                  style: TextStyle(
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.bold,
-                                    color: isSelected ? Colors.white : colorScheme.primary,
-                                  ),
-                                ),
+                              : isSkipped
+                                  ? Icon(Icons.skip_next_rounded, size: 16, color: Colors.white)
+                                  : Text(
+                                      "${index + 1}",
+                                      style: TextStyle(
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.bold,
+                                        color: isSelected ? Colors.white : colorScheme.primary,
+                                      ),
+                                    ),
                         ),
                         SizedBox(width: 10),
                         // Text
@@ -1658,14 +1701,30 @@ class _TutorScreenState extends ConsumerState<TutorScreen> {
                                 style: GoogleFonts.hindSiliguri(
                                   fontSize: 13,
                                   fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-                                  color: isSelected ? colorScheme.primary : null,
+                                  color: isSelected 
+                                      ? colorScheme.primary 
+                                      : isSkipped 
+                                          ? Colors.red.shade700 
+                                          : null,
                                 ),
                               ),
-                              if (exercise.repetitions > 0)
-                                Text(
-                                  "${exercise.repetitions}x পুনরাবৃত্তি",
-                                  style: TextStyle(fontSize: 10, color: Colors.grey[600]),
-                                ),
+                              Row(
+                                children: [
+                                  if (exercise.repetitions > 0)
+                                    Text(
+                                      "${exercise.repetitions}x পুনরাবৃত্তি",
+                                      style: TextStyle(fontSize: 10, color: Colors.grey[600]),
+                                    ),
+                                  // Only show Skipped label if NOT completed
+                                  if (isSkipped && !isCompleted) ...[
+                                    SizedBox(width: 8),
+                                    Text(
+                                      "স্কিপ করা হয়েছে",
+                                      style: TextStyle(fontSize: 9, color: Colors.red, fontWeight: FontWeight.bold),
+                                    ),
+                                  ],
+                                ],
+                              ),
                             ],
                           ),
                         ),

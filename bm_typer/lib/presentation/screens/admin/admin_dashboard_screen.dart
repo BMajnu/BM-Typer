@@ -4,6 +4,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:bm_typer/core/providers/user_provider.dart';
 import 'package:bm_typer/core/services/admin_auth_service.dart';
 import 'package:bm_typer/core/models/admin_user_model.dart';
+import 'package:bm_typer/core/enums/user_role.dart';
 import 'package:bm_typer/presentation/screens/admin/admin_user_management_screen.dart';
 import 'package:bm_typer/presentation/screens/admin/admin_analytics_screen.dart';
 import 'package:bm_typer/presentation/screens/admin/admin_content_screen.dart';
@@ -51,18 +52,44 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
     final adminSession = ref.watch(adminSessionProvider);
     final colorScheme = Theme.of(context).colorScheme;
     final isWide = MediaQuery.of(context).size.width > 800;
-    
-    // Check if user is admin
-    // Add admin emails here
-    const adminEmails = [
-      'badiuzzamanmajnu786@gmail.com',
-      // Add more admin emails as needed
-    ];
-    
-    // Strict admin check
-    final isAdmin = adminEmails.contains(user?.email?.toLowerCase());
 
-    if (!isAdmin) {
+    // Gate access by legacy admin emails, superAdmin role, or admin_users entry.
+    if (user == null) {
+      return Scaffold(
+        body: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(Icons.lock_rounded, size: 64, color: Colors.red.shade400),
+              const SizedBox(height: 16),
+              Text(
+                'অ্যাক্সেস অননুমোদিত',
+                style: GoogleFonts.hindSiliguri(
+                  fontSize: 24,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'এই পেজ শুধুমাত্র অ্যাডমিনদের জন্য',
+                style: GoogleFonts.hindSiliguri(color: Colors.grey),
+              ),
+              const SizedBox(height: 24),
+              ElevatedButton.icon(
+                onPressed: () => Navigator.pop(context),
+                icon: const Icon(Icons.arrow_back),
+                label: const Text('ফিরে যান'),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    final adminAuthService = ref.watch(adminAuthServiceProvider);
+    final canOpenAdmin = adminAuthService.isAdminEmail(user.email);
+
+    if (!canOpenAdmin) {
       return Scaffold(
         body: Center(
           child: Column(

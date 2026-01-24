@@ -21,13 +21,14 @@ class TypingSessionAdapter extends TypeAdapter<TypingSession> {
       accuracy: fields[1] as double,
       timestamp: fields[2] as DateTime,
       lessonId: fields[3] as String?,
+      typedText: fields[4] as String?,
     );
   }
 
   @override
   void write(BinaryWriter writer, TypingSession obj) {
     writer
-      ..writeByte(4)
+      ..writeByte(5)
       ..writeByte(0)
       ..write(obj.wpm)
       ..writeByte(1)
@@ -35,7 +36,9 @@ class TypingSessionAdapter extends TypeAdapter<TypingSession> {
       ..writeByte(2)
       ..write(obj.timestamp)
       ..writeByte(3)
-      ..write(obj.lessonId);
+      ..write(obj.lessonId)
+      ..writeByte(4)
+      ..write(obj.typedText);
   }
 
   @override

@@ -7,6 +7,7 @@ import 'package:bm_typer/presentation/screens/tutor_screen.dart';
 import 'package:bm_typer/presentation/screens/admin/admin_dashboard_screen.dart';
 import 'package:bm_typer/presentation/screens/team_lead/team_lead_dashboard_screen.dart';
 import 'package:bm_typer/presentation/screens/org_admin/org_admin_dashboard_screen.dart';
+import 'package:bm_typer/core/services/admin_auth_service.dart';
 
 /// A wrapper widget that routes the user to the appropriate screen based on their role.
 class RoleBasedHomeWrapper extends ConsumerWidget {
@@ -21,6 +22,12 @@ class RoleBasedHomeWrapper extends ConsumerWidget {
       return const AuthScreen();
     }
 
+    final adminAuthService = ref.watch(adminAuthServiceProvider);
+    final isLegacyAdmin = adminAuthService.isAdminEmail(user.email);
+    if (isLegacyAdmin) {
+      return const AdminDashboardScreen();
+    }
+
     // 2. Authenticated -> Route based on Role
     switch (user.role) {
       case UserRole.student:
@@ -33,7 +40,7 @@ class RoleBasedHomeWrapper extends ConsumerWidget {
         return const OrgAdminDashboardScreen();
         
       case UserRole.superAdmin:
-        return const AdminDashboardScreen();
+        return const TutorScreen();
     }
   }
 }

@@ -32,14 +32,12 @@ class RouteGuard extends ConsumerWidget {
     if (adminAuthService.isAdminEmail(user.email)) {
       return child;
     }
-    
-    // Super Admin role can access everything
-    if (user.role == UserRole.superAdmin) {
-      return child;
-    }
-    
+
     // Check if user's role is in allowed roles
     if (allowedRoles.contains(user.role)) {
+      if (user.role == UserRole.superAdmin) {
+        return accessDeniedWidget ?? const _AccessDeniedScreen();
+      }
       return child;
     }
 

@@ -4,6 +4,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:bm_typer/core/theme/theme.dart';
 import 'package:bm_typer/core/constants/app_colors.dart' as legacy_colors;
 import 'package:bm_typer/core/models/lesson_model.dart';
+import 'package:bm_typer/core/utils/bengali_normalizer.dart';
 
 /// আধুনিক টাইপিং এরিয়া উইজেট
 /// 
@@ -37,8 +38,11 @@ class TypingArea extends StatefulWidget {
 class _TypingAreaState extends State<TypingArea> with SingleTickerProviderStateMixin {
   late AnimationController _cursorController;
   
+  // Normalize text to ensure য়, ড়, ঢ় are single characters
+  String get normalizedText => BengaliNormalizer.normalize(widget.text);
+  
   bool get isParagraph => widget.exerciseType == ExerciseType.paragraph;
-  bool get isMultiLine => widget.text.contains('\n');
+  bool get isMultiLine => normalizedText.contains('\n');
 
   @override
   void initState() {
@@ -119,7 +123,7 @@ class _TypingAreaState extends State<TypingArea> with SingleTickerProviderStateM
               child: Stack(
                 children: [
                   // Progress indicator at top
-                  if (widget.isFocused && widget.text.isNotEmpty)
+                  if (widget.isFocused && normalizedText.isNotEmpty)
                     Positioned(
                       top: 0,
                       left: 0,
@@ -161,7 +165,7 @@ class _TypingAreaState extends State<TypingArea> with SingleTickerProviderStateM
   }
 
   Widget _buildProgressBar(ColorScheme colorScheme) {
-    final progress = widget.text.isEmpty ? 0.0 : widget.currentIndex / widget.text.length;
+    final progress = normalizedText.isEmpty ? 0.0 : widget.currentIndex / normalizedText.length;
     
     return Container(
       height: 4,
@@ -245,7 +249,7 @@ class _TypingAreaState extends State<TypingArea> with SingleTickerProviderStateM
       );
     }
 
-    final lines = widget.text.split('\n');
+    final lines = normalizedText.split('\n');
     int charOffset = 0;
 
     return Column(
@@ -278,7 +282,7 @@ class _TypingAreaState extends State<TypingArea> with SingleTickerProviderStateM
   }
 
   List<TextSpan> _buildTextSpans(BuildContext context) {
-    return _buildTextSpansForRange(context, 0, widget.text.length);
+    return _buildTextSpansForRange(context, 0, normalizedText.length);
   }
 
   List<TextSpan> _buildTextSpansForRange(BuildContext context, int start, int end) {
@@ -287,21 +291,43 @@ class _TypingAreaState extends State<TypingArea> with SingleTickerProviderStateM
     final isDark = colorScheme.brightness == Brightness.dark;
 
     const preBaseVowels = ['ি', 'ে', 'ৈ'];
-    const postBaseVowels = ['া', 'ী', 'ু', 'ূ', 'ৃ', 'ৄ', 'ো', 'ৌ', '্'];
+    const postBaseVowels = ['া', 'ী', 'ু', 'ূ', 'ৃ', 'ৄ', 'ো', 'ৌ'];
+    const hasanta = '্';
 
-    bool isPreBasePair(int idx) {
-      return idx < end - 1 && preBaseVowels.contains(widget.text[idx + 1]);
+    // Check if character is a consonant (not vowel, hasanta, or sign)
+    bool isConsonant(String ch) {
+      return !preBaseVowels.contains(ch) && 
+             !postBaseVowels.contains(ch) && 
+             ch != hasanta &&
+             ch != ' ' &&
+             ch != '।' &&
+             ch != ',' &&
+             ch.codeUnitAt(0) >= 0x0995 && ch.codeUnitAt(0) <= 0x09B9; // Bengali consonant range
     }
 
-    bool isCurrentToType(int idx) {
-      if (widget.currentIndex < end - 1 && preBaseVowels.contains(widget.text[widget.currentIndex + 1])) {
-        if (widget.pendingPreBaseVowel != null) {
-          return idx == widget.currentIndex;
+    // Find the end index of a conjunct cluster starting at idx
+    // A conjunct is: consonant + (hasanta + consonant)*
+    // Returns the index AFTER the last character of the conjunct
+    int findConjunctEndIndex(int idx) {
+      int pos = idx;
+      // First character should be a consonant
+      if (pos >= end || !isConsonant(normalizedText[pos])) return pos;
+      pos++;
+      
+      // Look for (hasanta + consonant) pairs
+      while (pos < end - 1 && normalizedText[pos] == hasanta) {
+        if (pos + 1 < end && isConsonant(normalizedText[pos + 1])) {
+          pos += 2; // Skip hasanta and consonant
         } else {
-          return idx == widget.currentIndex + 1;
+          break;
         }
       }
-      return idx == widget.currentIndex;
+      return pos;
+    }
+
+    // Check if there's a pre-base vowel after the conjunct ending at conjEndIdx
+    bool hasPreBaseVowelAt(int conjEndIdx) {
+      return conjEndIdx < end && preBaseVowels.contains(normalizedText[conjEndIdx]);
     }
 
     TextStyle getStyleForIndex(int idx, bool forceHighlight) {
@@ -321,8 +347,7 @@ class _TypingAreaState extends State<TypingArea> with SingleTickerProviderStateM
             fontWeight: FontWeight.normal,
           );
         }
-      } else if (forceHighlight || isCurrentToType(idx)) {
-        // Current character - animated highlight
+      } else if (forceHighlight || idx == widget.currentIndex) {
         return TextStyle(
           color: colorScheme.primary,
           fontWeight: FontWeight.bold,
@@ -344,25 +369,94 @@ class _TypingAreaState extends State<TypingArea> with SingleTickerProviderStateM
 
     int i = start;
     while (i < end) {
-      final char = widget.text[i];
+      final char = normalizedText[i];
 
-      if (i < end - 1 && preBaseVowels.contains(widget.text[i + 1])) {
+      // Check if this starts a conjunct (consonant followed by hasanta)
+      if (isConsonant(char) && i + 1 < end && normalizedText[i + 1] == hasanta) {
+        // Find where the conjunct ends
+        int conjEndIdx = findConjunctEndIndex(i);
+        
+        // Check if there's a pre-base vowel after the conjunct
+        if (hasPreBaseVowelAt(conjEndIdx)) {
+          // Get the pre-base vowel
+          final vowel = normalizedText[conjEndIdx];
+          final vowelIdx = conjEndIdx;
+          
+          // Bijoy order: vowel first, then the entire conjunct
+          // Check if current typing position is within this cluster
+          bool isClusterCurrent = (widget.currentIndex >= i && widget.currentIndex <= vowelIdx);
+          
+          if (isClusterCurrent) {
+            // Add spacing and highlight the current character
+            spans.add(const TextSpan(text: ' '));
+            
+            // Render vowel first (Bijoy order)
+            spans.add(TextSpan(
+              text: vowel, 
+              style: getStyleForIndex(vowelIdx, widget.currentIndex == vowelIdx || 
+                     (widget.pendingPreBaseVowel == null && widget.currentIndex == i))
+            ));
+            spans.add(const TextSpan(text: ' '));
+            
+            // Then render the conjunct
+            for (int j = i; j < conjEndIdx; j++) {
+              spans.add(TextSpan(
+                text: normalizedText[j], 
+                style: getStyleForIndex(j, widget.pendingPreBaseVowel != null && widget.currentIndex == j)
+              ));
+            }
+            spans.add(const TextSpan(text: ' '));
+          } else {
+            // Not current - render normally (vowel visually appears before due to Unicode rendering)
+            for (int j = i; j < conjEndIdx; j++) {
+              spans.add(TextSpan(text: normalizedText[j], style: getStyleForIndex(j, false)));
+            }
+            spans.add(TextSpan(text: vowel, style: getStyleForIndex(vowelIdx, false)));
+          }
+          
+          i = conjEndIdx + 1; // Move past conjunct and vowel
+        } else {
+          // Conjunct without pre-base vowel - render normally
+          for (int j = i; j < conjEndIdx; j++) {
+            final isThisCurrent = (j == widget.currentIndex);
+            if (isThisCurrent) {
+              spans.add(const TextSpan(text: ' '));
+              spans.add(TextSpan(text: normalizedText[j], style: getStyleForIndex(j, true)));
+              spans.add(const TextSpan(text: ' '));
+            } else {
+              spans.add(TextSpan(text: normalizedText[j], style: getStyleForIndex(j, false)));
+            }
+          }
+          i = conjEndIdx;
+        }
+      }
+      // Simple consonant + pre-base vowel (no conjunct)
+      else if (isConsonant(char) && i + 1 < end && preBaseVowels.contains(normalizedText[i + 1])) {
         final consonant = char;
-        final vowel = widget.text[i + 1];
-        final isThisPairCurrent = (i == widget.currentIndex);
+        final vowel = normalizedText[i + 1];
+        final isThisPairCurrent = (widget.currentIndex == i || widget.currentIndex == i + 1);
 
         if (isThisPairCurrent) {
           spans.add(const TextSpan(text: ' '));
-          spans.add(TextSpan(text: vowel, style: getStyleForIndex(i + 1, true)));
+          // Vowel first in Bijoy order
+          spans.add(TextSpan(
+            text: vowel, 
+            style: getStyleForIndex(i + 1, widget.pendingPreBaseVowel == null)
+          ));
           spans.add(const TextSpan(text: ' '));
-          spans.add(TextSpan(text: consonant, style: getStyleForIndex(i, false)));
+          spans.add(TextSpan(
+            text: consonant, 
+            style: getStyleForIndex(i, widget.pendingPreBaseVowel != null)
+          ));
           spans.add(const TextSpan(text: ' '));
         } else {
           spans.add(TextSpan(text: consonant, style: getStyleForIndex(i, false)));
           spans.add(TextSpan(text: vowel, style: getStyleForIndex(i + 1, false)));
         }
         i += 2;
-      } else if (postBaseVowels.contains(char)) {
+      }
+      // Post-base vowels
+      else if (postBaseVowels.contains(char)) {
         final isThisCurrent = (i == widget.currentIndex);
         if (isThisCurrent) {
           spans.add(const TextSpan(text: ' '));
@@ -372,8 +466,17 @@ class _TypingAreaState extends State<TypingArea> with SingleTickerProviderStateM
           spans.add(TextSpan(text: char, style: getStyleForIndex(i, false)));
         }
         i++;
-      } else {
-        spans.add(TextSpan(text: char, style: getStyleForIndex(i, false)));
+      }
+      // Regular characters (spaces, punctuation, etc.)
+      else {
+        final isThisCurrent = (i == widget.currentIndex);
+        if (isThisCurrent && char != ' ') {
+          spans.add(const TextSpan(text: ' '));
+          spans.add(TextSpan(text: char, style: getStyleForIndex(i, true)));
+          spans.add(const TextSpan(text: ' '));
+        } else {
+          spans.add(TextSpan(text: char, style: getStyleForIndex(i, false)));
+        }
         i++;
       }
     }

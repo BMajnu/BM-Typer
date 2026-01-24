@@ -132,37 +132,37 @@ class AdminOrganizationService {
 
       final now = DateTime.now();
 
-      // Add member
-      await _firestore
+      final memberRef = _firestore
           .collection('organizations')
           .doc(orgId)
           .collection('members')
-          .add({
+          .doc(userId);
+
+      final existingMember = await memberRef.get();
+
+      await memberRef.set({
         'userId': userId,
         'email': email,
         'name': name,
         'role': role,
-        'joinedAt': now.toIso8601String(),
+        'joinedAt': existingMember.data()?['joinedAt'] ?? now.toIso8601String(),
         'isActive': true,
-      });
+      }, SetOptions(merge: true));
 
-      // Update member count
-      await _firestore.collection('organizations').doc(orgId).update({
-        'memberCount': FieldValue.increment(1),
-      });
-
-      // Update user's organizationId
-      final userQuery = await _firestore
-          .collection('users')
-          .where('email', isEqualTo: email)
-          .limit(1)
-          .get();
-
-      if (userQuery.docs.isNotEmpty) {
-        await userQuery.docs.first.reference.update({
-          'organizationId': orgId,
+      if (!existingMember.exists) {
+        await _firestore.collection('organizations').doc(orgId).update({
+          'memberCount': FieldValue.increment(1),
         });
       }
+
+      await _firestore.collection('users').doc(userId).set({
+        'profile': {
+          'organizationId': orgId,
+        },
+        'organizationId': orgId,
+        'isPremium': true,
+        'subscriptionType': 'organization',
+      }, SetOptions(merge: true));
 
       debugPrint('✅ Member added to organization');
       return true;
@@ -396,7 +396,8 @@ class AdminOrganizationService {
           .collection('organizations')
           .doc(orgId)
           .collection('members')
-          .add({
+          .doc(firebaseUser.uid)
+          .set({
         'userId': firebaseUser.uid,
         'email': email,
         'name': name,
@@ -454,30 +455,39 @@ class AdminOrganizationService {
       final now = DateTime.now();
 
       // Add to organization members
-      await _firestore
+      final memberRef = _firestore
           .collection('organizations')
           .doc(orgId)
           .collection('members')
-          .add({
+          .doc(firestoreUserId);
+
+      final existingMember = await memberRef.get();
+
+      await memberRef.set({
         'userId': firestoreUserId,
         'email': email,
         'name': name,
         'role': 'member',
         'joinedAt': now.toIso8601String(),
         'isActive': true,
-      });
+      }, SetOptions(merge: true));
 
       // Update member count
-      await _firestore.collection('organizations').doc(orgId).update({
-        'memberCount': FieldValue.increment(1),
-      });
+      if (!existingMember.exists) {
+        await _firestore.collection('organizations').doc(orgId).update({
+          'memberCount': FieldValue.increment(1),
+        });
+      }
 
       // Update user's organizationId
-      await _firestore.collection('users').doc(firestoreUserId).update({
+      await _firestore.collection('users').doc(firestoreUserId).set({
+        'profile': {
+          'organizationId': orgId,
+        },
         'organizationId': orgId,
         'isPremium': true,
         'subscriptionType': 'organization',
-      });
+      }, SetOptions(merge: true));
 
       debugPrint('✅ Existing user added to organization');
       return true;

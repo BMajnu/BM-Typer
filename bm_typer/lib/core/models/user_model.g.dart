@@ -42,13 +42,16 @@ class UserModelAdapter extends TypeAdapter<UserModel> {
           MapEntry(k as String, (v as List).cast<int>())),
       skippedExercises: (fields[22] as Map?)?.map((dynamic k, dynamic v) =>
           MapEntry(k as String, (v as List).cast<int>())),
+      exerciseRepProgress: (fields[23] as Map?)?.cast<String, int>(),
+      lastLessonIndex: fields[24] as int?,
+      lastExerciseIndex: fields[25] as int?,
     );
   }
 
   @override
   void write(BinaryWriter writer, UserModel obj) {
     writer
-      ..writeByte(23)
+      ..writeByte(26)
       ..writeByte(0)
       ..write(obj.id)
       ..writeByte(1)
@@ -94,7 +97,13 @@ class UserModelAdapter extends TypeAdapter<UserModel> {
       ..writeByte(21)
       ..write(obj.completedExercises)
       ..writeByte(22)
-      ..write(obj.skippedExercises);
+      ..write(obj.skippedExercises)
+      ..writeByte(23)
+      ..write(obj.exerciseRepProgress)
+      ..writeByte(24)
+      ..write(obj.lastLessonIndex)
+      ..writeByte(25)
+      ..write(obj.lastExerciseIndex);
   }
 
   @override

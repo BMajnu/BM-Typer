@@ -4,6 +4,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:bm_typer/core/services/csv_export_service.dart';
+import 'package:bm_typer/core/services/admin_organization_service.dart';
+import 'package:bm_typer/core/services/admin_auth_service.dart';
+import 'package:bm_typer/core/models/admin_user_model.dart';
 
 /// Admin User Management Screen - Professional Master-Detail Layout
 class AdminUserManagementScreen extends ConsumerStatefulWidget {
@@ -19,6 +22,93 @@ class _AdminUserManagementScreenState extends ConsumerState<AdminUserManagementS
   String? _selectedUserId;
   Map<String, dynamic>? _selectedUserData;
   bool _isLoadingDetails = false;
+  bool _isRepairingMembership = false;
+
+  static const String _techZoneOrgId = 'xFcwEjJnFN445RZ43fZO';
+
+  Future<void> _revokeGlobalAdmin(String firestoreUserId) async {
+    try {
+      await FirebaseFirestore.instance.collection('admin_users').doc(firestoreUserId).delete();
+      await FirebaseFirestore.instance.collection('users').doc(firestoreUserId).set({
+        'profile': {
+          'role': 'student',
+        },
+        'role': 'student',
+      }, SetOptions(merge: true));
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('✅ অ্যাডমিন এক্সেস সরানো হয়েছে', style: GoogleFonts.hindSiliguri()),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
+
+      if (_selectedUserId != null) {
+        _selectUser(_selectedUserId!);
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('❌ ত্রুটি: $e', style: GoogleFonts.hindSiliguri()),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
+  Future<void> _forceJoinTechZone({
+    required String firestoreUserId,
+    required String email,
+    required String name,
+    required String userId,
+  }) async {
+    if (_isRepairingMembership) return;
+
+    setState(() => _isRepairingMembership = true);
+    try {
+      final service = ref.read(adminOrganizationServiceProvider);
+      final ok = await service.addExistingUserToOrg(
+        orgId: _techZoneOrgId,
+        firestoreUserId: firestoreUserId,
+        userId: userId,
+        email: email,
+        name: name,
+      );
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              ok ? '✅ TechZone অর্গে যুক্ত করা হয়েছে' : '❌ TechZone অর্গে যুক্ত করা যায়নি',
+              style: GoogleFonts.hindSiliguri(),
+            ),
+            backgroundColor: ok ? Colors.green : Colors.red,
+          ),
+        );
+      }
+
+      if (ok && _selectedUserId != null) {
+        _selectUser(_selectedUserId!);
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('❌ ত্রুটি: $e', style: GoogleFonts.hindSiliguri()),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isRepairingMembership = false);
+      }
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -453,6 +543,7 @@ class _AdminUserManagementScreenState extends ConsumerState<AdminUserManagementS
     final isPremium = data['isPremium'] ?? false;
     final isBanned = data['isBanned'] ?? false;
     final subscriptionType = data['subscriptionType'] ?? 'free';
+    final organizationId = profile?['organizationId'] ?? data['organizationId'];
     final createdAt = data['createdAt'];
     
     // Stats
@@ -668,6 +759,38 @@ class _AdminUserManagementScreenState extends ConsumerState<AdminUserManagementS
             spacing: 12,
             runSpacing: 12,
             children: [
+              if (ref.watch(adminSessionProvider).role == AdminRole.developer)
+                ElevatedButton.icon(
+                  onPressed: () => _revokeGlobalAdmin(_selectedUserId!),
+                  icon: const Icon(Icons.remove_moderator_rounded, size: 18),
+                  label: Text('Remove Admin', style: GoogleFonts.hindSiliguri()),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.red.shade700,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                  ),
+                ),
+              OutlinedButton.icon(
+                onPressed: (_isRepairingMembership || (organizationId != null && organizationId.toString().isNotEmpty))
+                    ? null
+                    : () => _forceJoinTechZone(
+                          firestoreUserId: _selectedUserId!,
+                          email: email.toString(),
+                          name: name.toString(),
+                          userId: userId.toString(),
+                        ),
+                icon: _isRepairingMembership
+                    ? const SizedBox(
+                        width: 16,
+                        height: 16,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : const Icon(Icons.business_center_rounded, size: 18),
+                label: Text('TechZone Join (Repair)', style: GoogleFonts.hindSiliguri()),
+                style: OutlinedButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                ),
+              ),
               if (isBanned)
                 ElevatedButton.icon(
                   onPressed: () => _toggleBan(_selectedUserId!, false),

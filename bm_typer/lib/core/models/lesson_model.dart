@@ -1,3 +1,5 @@
+import 'package:bm_typer/core/utils/bengali_normalizer.dart';
+
 class Exercise {
   final String text;
   final int repetitions;
@@ -17,6 +19,18 @@ class Exercise {
 
   bool get isParagraph =>
       type == ExerciseType.paragraph || text.split(' ').length > 15;
+  
+  /// Get normalized text (য়, ড়, ঢ় as composed characters)
+  String get normalizedText => BengaliNormalizer.normalize(text);
+  
+  /// Create a copy with normalized text
+  Exercise normalize() => Exercise(
+    text: BengaliNormalizer.normalize(text),
+    repetitions: repetitions,
+    type: type,
+    difficultyLevel: difficultyLevel,
+    source: source,
+  );
 }
 
 /// Types of typing exercises
@@ -44,6 +58,7 @@ class Lesson {
   final String? category;
   final int difficultyLevel;
   final String language;
+  final bool isNumpad; // true for numpad-only lessons
 
   const Lesson({
     required this.title,
@@ -52,6 +67,7 @@ class Lesson {
     this.category,
     this.difficultyLevel = 1,
     this.language = 'bn', // Default to Bangla
+    this.isNumpad = false,
   });
 
   /// Check if this lesson contains paragraph exercises
@@ -64,4 +80,20 @@ class Lesson {
         0, (sum, exercise) => sum + exercise.difficultyLevel);
     return (sum / exercises.length).round();
   }
+  
+  /// Create a copy with normalized exercises
+  Lesson normalize() => Lesson(
+    title: title,
+    description: description,
+    exercises: exercises.map((e) => e.normalize()).toList(),
+    category: category,
+    difficultyLevel: difficultyLevel,
+    language: language,
+    isNumpad: isNumpad,
+  );
+}
+
+/// Normalize all lessons in a list (handles য়, ড়, ঢ় Unicode forms)
+List<Lesson> normalizeLessons(List<Lesson> lessons) {
+  return lessons.map((lesson) => lesson.normalize()).toList();
 }

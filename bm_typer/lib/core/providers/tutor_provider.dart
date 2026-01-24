@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:bm_typer/core/models/lesson_model.dart';
@@ -109,38 +110,125 @@ class TutorState {
   bool get isExerciseFullyCompleted =>
       currentExercise.repetitions <= repsCompleted;
 
-  // Get the character that the user is EXPECTED to type right now.
-  // This handles Bijoy Pre-base vowel reordering (where visual order != Unicode order).
+  // Get the character (or conjunct) that the user is EXPECTED to type right now.
+  // This handles:
+  // 1. Bijoy Pre-base vowel reordering (where visual order != Unicode order)
+  // 2. Conjuncts (ফলা) like ্র, ্য, র্ that are typed with single keys
+  // 3. Pre-base vowels after conjuncts (e.g., ন্তি = ি → ন → ্ → ত)
   String getExpectedCharacter(bool isBijoy) {
     if (charIndex >= exerciseLength) return '';
 
-    // Default: The character at the current index
-    String expected = exerciseText[charIndex];
+    const preBaseVowels = ['ি', 'ে', 'ৈ'];
+    const hasanta = '্';
 
+    // Helper: Check if character is a Bengali consonant
+    bool isConsonant(String ch) {
+      final code = ch.codeUnitAt(0);
+      return code >= 0x0995 && code <= 0x09B9;
+    }
+
+    // Helper: Find the end of a conjunct starting at idx
+    // Returns the index AFTER the last character of the conjunct
+    int findConjunctEnd(int idx) {
+      int pos = idx;
+      if (pos >= exerciseLength || !isConsonant(exerciseText[pos])) return pos;
+      pos++;
+      
+      while (pos < exerciseLength - 1 && exerciseText[pos] == hasanta) {
+        if (pos + 1 < exerciseLength && isConsonant(exerciseText[pos + 1])) {
+          pos += 2;
+        } else {
+          break;
+        }
+      }
+      return pos;
+    }
+
+    // For Bijoy keyboard layout
     if (isBijoy && charIndex < exerciseLength - 1) {
-       final nextChar = exerciseText[charIndex + 1];
-       // Check for Pre-base vowels: ি (09BF), ে (09C7), ৈ (09C8)
-       if (['ি', 'ে', 'ৈ'].contains(nextChar)) {
-          // If we haven't typed the vowel yet (it's not pending),
-          // then in Bijoy we MUST type the Vowel Sign FIRST.
-          if (pendingPreBaseVowel == null) {
-              return nextChar;
-          }
-       }
+      final currentChar = exerciseText[charIndex];
+      
+      // IMPORTANT: If we already have a pending pre-base vowel,
+      // the user should type the current character (consonant/hasanta), NOT the vowel again!
+      if (pendingPreBaseVowel != null) {
+        return currentChar; // Return consonant or hasanta directly
+      }
+      
+      // Check for র-ফলা (্র), য-ফলা (্য), or রেফ (র্)
+      // These are typed with single keys: Z, Shift+Z, Shift+A respectively
+      final twoChars = exerciseText.substring(charIndex, charIndex + 2);
+      if (twoChars == '্র' || twoChars == '্য' || twoChars == 'র্') {
+        return twoChars;  // Return the full 2-char conjunct
+      }
+      
+      // Check if current position starts a conjunct (consonant + hasanta)
+      if (isConsonant(currentChar) && exerciseText[charIndex + 1] == hasanta) {
+        // Find where the conjunct ends
+        int conjEnd = findConjunctEnd(charIndex);
+        
+        // Check if there's a pre-base vowel after the conjunct
+        if (conjEnd < exerciseLength && preBaseVowels.contains(exerciseText[conjEnd])) {
+          // In Bijoy, we type the pre-base vowel FIRST before the conjunct
+          return exerciseText[conjEnd]; // Return the pre-base vowel
+        }
+      }
+      
+      // Check for simple Pre-base vowels: ি (09BF), ে (09C7), ৈ (09C8)
+      final nextChar = exerciseText[charIndex + 1];
+      if (preBaseVowels.contains(nextChar)) {
+        // In Bijoy we MUST type the Vowel Sign FIRST.
+        return nextChar;
+      }
     }
     
-    return expected;
+    // Default: The character at the current index
+    return exerciseText[charIndex];
   }
 }
 
 class TutorNotifier extends StateNotifier<TutorState> {
   final Ref _ref;
 
-  TutorNotifier(this._ref) : super(TutorState());
+  TutorNotifier(this._ref) : super(TutorState()) {
+    // Initialize with saved position on startup
+    _loadSavedPosition();
+  }
+  
+  /// Load saved lesson/exercise position and rep progress on startup
+  void _loadSavedPosition() {
+    final user = _ref.read(currentUserProvider);
+    if (user != null) {
+      final savedLessonIndex = user.lastLessonIndex;
+      final savedExerciseIndex = user.lastExerciseIndex;
+      
+      // Validate saved indices
+      if (savedLessonIndex >= 0 && savedLessonIndex < lessons.length) {
+        final lesson = lessons[savedLessonIndex];
+        final exerciseIndex = savedExerciseIndex >= 0 && savedExerciseIndex < lesson.exercises.length
+            ? savedExerciseIndex : 0;
+        
+        // Load saved rep progress
+        final savedReps = user.getExerciseRepProgress(savedLessonIndex, exerciseIndex);
+        
+        debugPrint('📍 Restoring position: Lesson $savedLessonIndex, Exercise $exerciseIndex, Reps: $savedReps');
+        
+        state = state.copyWith(
+          currentLessonIndex: savedLessonIndex,
+          currentExerciseIndex: exerciseIndex,
+          repsCompleted: savedReps,
+        );
+      }
+    }
+  }
 
   void selectExercise(int index) {
     if (index >= 0 &&
         index < lessons[state.currentLessonIndex].exercises.length) {
+      
+      // Load saved rep progress for this exercise
+      final user = _ref.read(currentUserProvider);
+      final savedReps = user?.getExerciseRepProgress(state.currentLessonIndex, index) ?? 0;
+      
       state = state.copyWith(
         currentExerciseIndex: index,
         charIndex: 0,
@@ -150,9 +238,13 @@ class TutorNotifier extends StateNotifier<TutorState> {
         wpm: 0,
         accuracy: 100,
         isTyping: false,
-        repsCompleted: 0,
+        repsCompleted: savedReps, // Restore saved reps!
         sessionTypedCharacters: [], // Reset session history for new exercise
       );
+      
+      // Save current position
+      _ref.read(currentUserProvider.notifier).updateLastPosition(state.currentLessonIndex, index);
+      
       // Skip leading spaces for drill exercises
       _skipSpaces();
     }
@@ -190,23 +282,10 @@ class TutorNotifier extends StateNotifier<TutorState> {
   /// Select a specific lesson by index
   void selectLesson(int index) {
     if (index >= 0 && index < lessons.length) {
-      state = state.copyWith(
-        currentLessonIndex: index,
-        currentExerciseIndex: 0,
-        charIndex: 0,
-        mistakes: 0,
-        incorrectIndices: [],
-        clearStartTime: true,
-        wpm: 0,
-        accuracy: 100,
-        repsCompleted: 0,
-        isTyping: false,
-        lastKeyPress: null,
-        pendingPreBaseVowel: null,
-      );
-      
-      // Auto-resume: Check user progress for this lesson
+      // Find first uncompleted exercise
+      int targetExercise = 0;
       final user = _ref.read(currentUserProvider);
+      
       if (user != null) {
          final lessonTitle = lessons[index].title;
          final completed = user.completedExercises[lessonTitle] ?? [];
@@ -214,12 +293,32 @@ class TutorNotifier extends StateNotifier<TutorState> {
          // Find first uncompleted exercise
          for (int i = 0; i < lessons[index].exercises.length; i++) {
              if (!completed.contains(i)) {
-                 // Found first incomplete - jump to it
-                 state = state.copyWith(currentExerciseIndex: i);
+                 targetExercise = i;
                  break;
              }
          }
       }
+      
+      // Load saved rep progress for target exercise
+      final savedReps = user?.getExerciseRepProgress(index, targetExercise) ?? 0;
+      
+      state = state.copyWith(
+        currentLessonIndex: index,
+        currentExerciseIndex: targetExercise,
+        charIndex: 0,
+        mistakes: 0,
+        incorrectIndices: [],
+        clearStartTime: true,
+        wpm: 0,
+        accuracy: 100,
+        repsCompleted: savedReps, // Restore saved reps!
+        isTyping: false,
+        lastKeyPress: null,
+        pendingPreBaseVowel: null,
+      );
+      
+      // Save current position
+      _ref.read(currentUserProvider.notifier).updateLastPosition(index, targetExercise);
     }
   }
 
@@ -482,53 +581,132 @@ class TutorNotifier extends StateNotifier<TutorState> {
 
     if (typedChar == null) return;
 
-    // Bijoy Pre-base Vowel Logic (Vowel Sign before Consonant)
-    // For 'ি' (i), 'ে' (e), 'ৈ' (oi), users type the vowel sign BEFORE the consonant in Bijoy.
-    // But Unicode stores Consonant + Vowel Sign.
-    // Example: 'দি' = 'দ' + 'ি'. User types: 'ি' -> 'দ'.
+    // Bijoy Pre-base Vowel Logic (Vowel Sign before Consonant or Conjunct)
+    // For 'ি' (i), 'ে' (e), 'ৈ' (oi), users type the vowel sign BEFORE the consonant/conjunct in Bijoy.
+    // But Unicode stores Consonant + (Hasanta + Consonant)* + Vowel Sign.
+    // Example 1: 'দি' = 'দ' + 'ি'. User types: 'ি' -> 'দ'.
+    // Example 2: 'ন্তি' = 'ন' + '্' + 'ত' + 'ি'. User types: 'ি' -> 'ন' -> '্' -> 'ত'.
     
     final layoutState = _ref.read(keyboardLayoutProvider);
     if (layoutState.isBengali &&
         layoutState.currentLayout == KeyboardLayout.bijoy &&
-        state.charIndex < state.exerciseText.length - 1) { // Need at least 2 chars remaining
+        state.charIndex < state.exerciseText.length) {
+      
+      const preBaseVowels = ['ি', 'ে', 'ৈ'];
+      const hasanta = '্';
+      
+      // Helper: Check if character is a Bengali consonant
+      bool isConsonant(String ch) {
+        final code = ch.codeUnitAt(0);
+        return code >= 0x0995 && code <= 0x09B9;
+      }
+      
+      // Helper: Find the end of a conjunct starting at idx
+      // Returns the index AFTER the last character of the conjunct
+      int findConjunctEnd(int idx) {
+        int pos = idx;
+        if (pos >= state.exerciseText.length || !isConsonant(state.exerciseText[pos])) return pos;
+        pos++;
+        
+        while (pos < state.exerciseText.length - 1 && state.exerciseText[pos] == hasanta) {
+          if (pos + 1 < state.exerciseText.length && isConsonant(state.exerciseText[pos + 1])) {
+            pos += 2;
+          } else {
+            break;
+          }
+        }
+        return pos;
+      }
       
       final currentChar = state.exerciseText[state.charIndex];
-      final nextChar = state.exerciseText[state.charIndex + 1];
-
-      // Check if next char is a pre-base vowel sign
-      // ি (09BF), ে (09C7), ৈ (09C8)
-      if (['ি', 'ে', 'ৈ'].contains(nextChar)) {
+      
+      // CRITICAL: If we already have a pending pre-base vowel,
+      // user is typing characters of the conjunct. Just match current char directly!
+      if (state.pendingPreBaseVowel != null) {
+        if (typedChar == currentChar) {
+          // Correct! Match the current character (consonant or hasanta)
+          _ref.read(soundServiceProvider).playSound(SoundType.keyPress);
+          
+          final newCharIndex = state.charIndex + 1;
+          final updatedSession = List<String>.from(state.sessionTypedCharacters)..add(currentChar);
+          
+          // Check if next char is the pending pre-base vowel
+          if (newCharIndex < state.exerciseText.length && 
+              state.exerciseText[newCharIndex] == state.pendingPreBaseVowel) {
+            // We've reached the vowel position! Skip it and clear pending.
+            final finalCharIndex = newCharIndex + 1;
+            updatedSession.add(state.pendingPreBaseVowel!);
+            
+            final isCompleted = finalCharIndex >= state.exerciseText.length;
+            
+            state = state.copyWith(
+              charIndex: finalCharIndex,
+              sessionTypedCharacters: updatedSession,
+              lastKeyPress: event.character,
+              clearPendingPreBaseVowel: true,
+            );
+            
+            if (isCompleted) {
+              _handleExerciseCompletion();
+            } else {
+              _updateStats();
+            }
+            return;
+          } else {
+            // More characters to type before vowel
+            state = state.copyWith(
+              charIndex: newCharIndex,
+              sessionTypedCharacters: updatedSession,
+              lastKeyPress: event.character,
+            );
+            _updateStats();
+            return;
+          }
+        } else {
+          // Wrong key
+          _ref.read(soundServiceProvider).playSound(SoundType.keyError);
+          
+          final newMistakes = state.mistakes + 1;
+          final newIncorrectIndices = List<int>.from(state.incorrectIndices)
+            ..add(state.charIndex);
+          
+          state = state.copyWith(
+            mistakes: newMistakes,
+            incorrectIndices: newIncorrectIndices,
+          );
+          _updateStats();
+          return;
+        }
+      }
+      
+      // Check if this starts a conjunct (consonant + hasanta)
+      if (isConsonant(currentChar) && 
+          state.charIndex + 1 < state.exerciseText.length && 
+          state.exerciseText[state.charIndex + 1] == hasanta) {
         
-        // Scenario 1: User types the Pre-base Vowel FIRST (Correct Bijoy Order)
-        if (state.pendingPreBaseVowel == null) {
-          if (typedChar == nextChar) {
-             // Correct! User typed the vowel sign first.
-             // Play generic key press sound
-             _ref.read(soundServiceProvider).playSound(SoundType.keyPress);
-
-             // We don't advance the cursor yet. We wait for the consonant.
-             // But we mark that the vowel is "pending" (buffered).
-             state = state.copyWith(
-               pendingPreBaseVowel: nextChar,
-               mistakes: state.mistakes, // No mistake
-             );
-             return; // Stop processing, wait for next key (consonant)
-          } else if (typedChar == currentChar) {
-             // User typed Consonant first (Unicode order, but wrong for Bijoy typing flow)
-             // We can mark this as a mistake or leniently accept it.
-             // Strict Bijoy typing requires Vowel Sign first.
-             // Let's treat it as a mistake to enforce correct typing habit.
-             // ... fall through to normal check which will likely fail or pass depending on logic below?
-             // Actually, normal check expects `currentChar`. But `typedChar == currentChar`.
-             // So normal check would PASS it. 
-             // We must intercept and FAIL it if we want to enforce Order.
-             // "না! আগে কার চিহ্ন দিতে হবে!"
-             
-             // Play error sound
-             _ref.read(soundServiceProvider).playSound(SoundType.keyError);
-             
-             // Update logic to count mistake but NOT advance
-             // ... fall through normal mistake logic? No, return here.
+        // Find where the conjunct ends
+        int conjEnd = findConjunctEnd(state.charIndex);
+        
+        // Check if there's a pre-base vowel after the conjunct
+        if (conjEnd < state.exerciseText.length && preBaseVowels.contains(state.exerciseText[conjEnd])) {
+          final preBaseVowel = state.exerciseText[conjEnd];
+          
+          // Scenario 1: User types the Pre-base Vowel FIRST (Correct Bijoy Order)
+          if (state.pendingPreBaseVowel == null) {
+            if (typedChar == preBaseVowel) {
+              // Correct! User typed the vowel sign first.
+              _ref.read(soundServiceProvider).playSound(SoundType.keyPress);
+              
+              // Store the vowel and the conjunct end position
+              state = state.copyWith(
+                pendingPreBaseVowel: preBaseVowel,
+                mistakes: state.mistakes,
+              );
+              return; // Wait for conjunct characters
+            } else if (typedChar == currentChar) {
+              // User typed Consonant first (wrong for Bijoy)
+              _ref.read(soundServiceProvider).playSound(SoundType.keyError);
+              
               final newMistakes = state.mistakes + 1;
               final newIncorrectIndices = List<int>.from(state.incorrectIndices)
                 ..add(state.charIndex);
@@ -538,33 +716,117 @@ class TutorNotifier extends StateNotifier<TutorState> {
               );
               _updateStats();
               return;
-          } else {
-             // Wrong key entirely
-             // Let normal logic handle it
+            }
+            // Wrong key entirely - let normal logic handle it
+          }
+          // Scenario 2: User already typed the Vowel, now typing the Conjunct
+          else {
+            // We expect the user to type the conjunct characters in order
+            if (typedChar == currentChar) {
+              // Correct! Advance to next character in conjunct
+              _ref.read(soundServiceProvider).playSound(SoundType.keyPress);
+              
+              final newCharIndex = state.charIndex + 1;
+              final updatedSessionHistory = List<String>.from(state.sessionTypedCharacters)..add(currentChar);
+              
+              // Check if we've completed the entire conjunct + vowel
+              if (newCharIndex >= conjEnd) {
+                // We've typed all conjunct characters, now add the vowel and skip past it
+                final finalCharIndex = conjEnd + 1; // Past the vowel
+                updatedSessionHistory.add(state.pendingPreBaseVowel!);
+                
+                final isCompleted = finalCharIndex >= state.exerciseText.length;
+                
+                state = state.copyWith(
+                  charIndex: finalCharIndex,
+                  sessionTypedCharacters: updatedSessionHistory,
+                  lastKeyPress: event.character,
+                  clearPendingPreBaseVowel: true,
+                );
+                
+                if (isCompleted) {
+                  _handleExerciseCompletion();
+                } else {
+                  _updateStats();
+                }
+                return;
+              } else {
+                // More conjunct characters to type
+                state = state.copyWith(
+                  charIndex: newCharIndex,
+                  sessionTypedCharacters: updatedSessionHistory,
+                  lastKeyPress: event.character,
+                );
+                _updateStats();
+                return;
+              }
+            } else {
+              // Wrong key
+              _ref.read(soundServiceProvider).playSound(SoundType.keyError);
+              
+              final newMistakes = state.mistakes + 1;
+              final newIncorrectIndices = List<int>.from(state.incorrectIndices)
+                ..add(state.charIndex);
+              
+              state = state.copyWith(
+                mistakes: newMistakes,
+                incorrectIndices: newIncorrectIndices,
+              );
+              _updateStats();
+              return;
+            }
+          }
+        }
+      }
+      
+      // Simple consonant + pre-base vowel (no conjunct)
+      final nextChar = state.exerciseText[state.charIndex + 1];
+      if (preBaseVowels.contains(nextChar)) {
+        
+        // Scenario 1: User types the Pre-base Vowel FIRST (Correct Bijoy Order)
+        if (state.pendingPreBaseVowel == null) {
+          if (typedChar == nextChar) {
+             // Correct! User typed the vowel sign first.
+             _ref.read(soundServiceProvider).playSound(SoundType.keyPress);
+
+             state = state.copyWith(
+               pendingPreBaseVowel: nextChar,
+               mistakes: state.mistakes,
+             );
+             return; // Wait for consonant
+          } else if (typedChar == currentChar) {
+             // User typed Consonant first (wrong for Bijoy)
+             _ref.read(soundServiceProvider).playSound(SoundType.keyError);
+             
+              final newMistakes = state.mistakes + 1;
+              final newIncorrectIndices = List<int>.from(state.incorrectIndices)
+                ..add(state.charIndex);
+              state = state.copyWith(
+                mistakes: newMistakes,
+                incorrectIndices: newIncorrectIndices,
+              );
+              _updateStats();
+              return;
           }
         } 
         // Scenario 2: User already typed the Vowel, now typing the Consonant
         else {
-           // We are expecting 'currentChar' (the Consonant)
            if (typedChar == currentChar) {
-              // Match! User typed Vowel (buffered) + Consonant (now).
-              // We should commit BOTH. 'Consonant' + 'Vowel' into output history.
-              
-              // Play key press sound
+              // Match! Commit both characters
               _ref.read(soundServiceProvider).playSound(SoundType.keyPress);
 
-              final newCharIndex = state.charIndex + 2; // Advance 2 steps
+              final newCharIndex = state.charIndex + 2;
               final isCompleted = newCharIndex >= state.exerciseText.length;
               
               final updatedSessionHistory = List<String>.from(state.sessionTypedCharacters)
-                 ..add(currentChar) // Add Consonant first (Unicode order)
-                 ..add(state.pendingPreBaseVowel!); // Add Vowel second
+                 ..add(currentChar)
+                 ..add(state.pendingPreBaseVowel!);
                  
                state = state.copyWith(
                   charIndex: newCharIndex,
                   sessionTypedCharacters: updatedSessionHistory,
                   lastKeyPress: event.character,
-                  clearPendingPreBaseVowel: true, // Clear buffer
+                  clearPendingPreBaseVowel: true,
                );
                
                if (isCompleted) {
@@ -572,30 +834,25 @@ class TutorNotifier extends StateNotifier<TutorState> {
                } else {
                  _updateStats();
                }
-               return; // Done
+               return;
            } else {
-              // User typed something else instead of expected Consonant
-              // Mistake.
-              // Should we clear the pending vowel? Usually no, give them chance to type consonant.
-              // Play error sound
+              // Wrong key
               _ref.read(soundServiceProvider).playSound(SoundType.keyError);
 
               final newMistakes = state.mistakes + 1;
               final newIncorrectIndices = List<int>.from(state.incorrectIndices)
-                 ..add(state.charIndex); // Mark the Consonant position as error
+                 ..add(state.charIndex);
               
               state = state.copyWith(
                 mistakes: newMistakes,
                 incorrectIndices: newIncorrectIndices,
-                // Keep pendingPreBaseVowel
               );
               _updateStats();
               return;
            }
         }
       } else {
-        // Next char is NOT a pre-base vowel?
-        // Ensure pendingPreBaseVowel is cleared if we moved away (safety)
+        // Next char is NOT a pre-base vowel
         if (state.pendingPreBaseVowel != null) {
            state = state.copyWith(clearPendingPreBaseVowel: true);
         }
@@ -751,6 +1008,45 @@ class TutorNotifier extends StateNotifier<TutorState> {
 
     // Check if the typed character matches the expected one
     if (state.charIndex < state.exerciseText.length) {
+      final layoutState = _ref.read(keyboardLayoutProvider);
+      
+      // ============================================================
+      // BIJOY CONJUNCT MATCHING (র-ফলা, য-ফলা, রেফ)
+      // These are 2-character sequences typed with single keys in Bijoy
+      // ============================================================
+      if (layoutState.currentLayout == KeyboardLayout.bijoy &&
+          state.charIndex < state.exerciseText.length - 1) {
+        final twoChars = state.exerciseText.substring(state.charIndex, state.charIndex + 2);
+        
+        // Check if we're expecting a conjunct (ফলা/রেফ)
+        if (twoChars == '্র' || twoChars == '্য' || twoChars == 'র্') {
+          // Check if typed character matches the conjunct
+          if (typedChar == twoChars) {
+            // Correct! User typed the conjunct with single key
+            _ref.read(soundServiceProvider).playSound(SoundType.keyPress);
+            
+            final newCharIndex = state.charIndex + 2;  // Skip both characters
+            final updatedSessionHistory =
+                List<String>.from(state.sessionTypedCharacters)..add(typedChar);
+            
+            state = state.copyWith(
+              charIndex: newCharIndex,
+              sessionTypedCharacters: updatedSessionHistory,
+              lastKeyPress: event.character,
+            );
+            
+            if (newCharIndex >= state.exerciseText.length) {
+              _handleExerciseCompletion();
+            } else {
+              _updateStats();
+              _skipSpaces();
+            }
+            return;  // Handled, exit
+          }
+        }
+      }
+      
+      // Normal single-character matching
       final expectedChar = state.exerciseText[state.charIndex];
       final isCorrect = typedChar == expectedChar;
 
@@ -828,23 +1124,104 @@ class TutorNotifier extends StateNotifier<TutorState> {
     final currentExercise =
         lessons[state.currentLessonIndex].exercises[state.currentExerciseIndex];
     final repsRequired = currentExercise.repetitions;
-    final newRepsCompleted = state.repsCompleted + 1;
+    final currentUser = _ref.read(currentUserProvider);
+    final accuracy = state.accuracy;
+    
+    // Minimum accuracy threshold for counting a rep as successful
+    const int minAccuracyThreshold = 85;
+    
+    // Check if this attempt qualifies as a successful rep
+    final isSuccessfulRep = accuracy >= minAccuracyThreshold;
+    
+    // Only increment rep count if accuracy is above threshold
+    final newRepsCompleted = isSuccessfulRep 
+        ? state.repsCompleted + 1 
+        : state.repsCompleted;
 
-    // Play completion sound
-    _ref.read(soundServiceProvider).playSound(SoundType.levelComplete);
+    // Play appropriate sound
+    if (isSuccessfulRep) {
+      _ref.read(soundServiceProvider).playSound(SoundType.levelComplete);
+    } else {
+      _ref.read(soundServiceProvider).playSound(SoundType.keyError);
+    }
+    
+    // ALWAYS save session history for EVERY repetition attempt (for tracking)
+    if (currentUser != null) {
+      final lessonTitle = state.currentLesson.title;
+      final exerciseNum = state.currentExerciseIndex + 1;
+      
+      // Build exercise name
+      String exerciseName;
+      if (currentExercise.isParagraph) {
+        exerciseName = 'অনুচ্ছেদ $exerciseNum';
+      } else {
+        final displayText = currentExercise.text.length > 20 
+            ? '${currentExercise.text.substring(0, 20)}...' 
+            : currentExercise.text;
+        exerciseName = displayText;
+      }
+      
+      // Build complete session name with rep info
+      String sessionName;
+      if (repsRequired > 1) {
+        if (isSuccessfulRep) {
+          sessionName = '$lessonTitle • $exerciseName ($newRepsCompleted/$repsRequired রেপ) ✓';
+        } else {
+          sessionName = '$lessonTitle • $exerciseName [${accuracy}% - ব্যর্থ, পুনরায় চেষ্টা করুন]';
+        }
+      } else {
+        sessionName = '$lessonTitle • $exerciseName';
+        if (!isSuccessfulRep) {
+          sessionName = '$sessionName [${accuracy}% - ব্যর্থ]';
+        }
+      }
+      
+      debugPrint('📝 Saving session: $sessionName, WPM: ${state.wpm}, Accuracy: ${accuracy}%, Success: $isSuccessfulRep');
+      
+      // Build actual typed text from session history (what user actually typed)
+      final actualTypedText = state.sessionTypedCharacters.isNotEmpty 
+          ? state.sessionTypedCharacters.join('') 
+          : currentExercise.text;
+      
+      debugPrint('📝 Actual typed text: $actualTypedText');
+      
+      // Save to history (XP only for successful attempts)
+      _ref.read(currentUserProvider.notifier).updateTypingStats(
+        wpm: state.wpm.toDouble(),
+        accuracy: accuracy.toDouble(),
+        completedLesson: sessionName,
+        earnedXp: isSuccessfulRep ? 5 : 0, // No XP for failed attempts
+        typedText: actualTypedText, // Save actual typed text, not exercise text
+      );
+    }
 
-    // Update state to show completion
+    // Update state - only increment rep if successful
     state = state.copyWith(
       repsCompleted: newRepsCompleted,
-      waitingForNextRep: true, // Set waiting flag to true
+      waitingForNextRep: true,
     );
+    
+    // PERSIST rep progress to user model (survives refresh!)
+    if (isSuccessfulRep && currentUser != null) {
+      _ref.read(currentUserProvider.notifier).updateExerciseRepProgress(
+        state.currentLessonIndex, 
+        state.currentExerciseIndex, 
+        newRepsCompleted
+      );
+    }
 
-    // Check if all repetitions are completed
+    // Check if all repetitions are successfully completed
     if (newRepsCompleted >= repsRequired) {
-      // Complete the exercise
+      // Complete the exercise (move to next or mark lesson complete)
+      debugPrint('✅ Exercise completed! All $repsRequired reps done.');
       _completeExercise();
     } else {
       // Schedule next repetition after delay
+      final message = isSuccessfulRep 
+          ? '⏳ Next rep in 2 seconds...' 
+          : '❌ Accuracy too low ($accuracy% < $minAccuracyThreshold%). Try again...';
+      debugPrint(message);
+      
       Future.delayed(const Duration(seconds: 2), () {
         // Only restart if still waiting (user hasn't pressed space)
         if (state.waitingForNextRep) {
@@ -865,90 +1242,33 @@ class TutorNotifier extends StateNotifier<TutorState> {
   }
 
   void _completeExercise() {
-    // Check accuracy threshold
-    final accuracy = state.accuracy;
+    // This is called when ALL reps are completed (from _handleExerciseCompletion)
+    // Session history is already saved in _handleExerciseCompletion for each rep
+    
     final exercise = state.currentExercise;
     final currentUser = _ref.read(currentUserProvider);
-
-    if (exercise.repetitions > 0) {
-      if (accuracy >= 95) {
-        // Successful completion
-        final newRepsCompleted = state.repsCompleted + 1;
-        state = state.copyWith(
-          repsCompleted: newRepsCompleted,
-          isTyping: false,
-        );
-
-        // Update user's typing stats
-        if (currentUser != null) {
-          _ref.read(currentUserProvider.notifier).updateTypingStats(
-                wpm: state.wpm.toDouble(),
-                accuracy: state.accuracy.toDouble(),
-                earnedXp: 5, // Award XP for each successful repetition
-              );
-              
-          // Persist Exercise Completion
-          final lessonTitle = state.currentLesson.title;
-          _ref.read(currentUserProvider.notifier).markExerciseCompleted(lessonTitle, state.currentExerciseIndex);
-        }
-
-        if (newRepsCompleted < exercise.repetitions) {
-          // Reset for next repetition
-          Future.delayed(const Duration(seconds: 1), () {
-            state = state.copyWith(
-              charIndex: 0,
-              mistakes: 0,
-              incorrectIndices: [],
-              clearStartTime: true,
-              wpm: 0,
-              accuracy: 100,
-              isTyping: false,
-            );
-          });
-        } else if (state.isLastExerciseInLesson) {
-          // If this is the last exercise and all repetitions completed, mark lesson as completed
-          _markLessonComplete();
-        } else {
-          // Move to next exercise automatically after a delay
-          Future.delayed(const Duration(seconds: 2), () {
-            selectExercise(state.currentExerciseIndex + 1);
-          });
-        }
-      } else {
-        // Failed accuracy check, reset for retry
-        Future.delayed(const Duration(seconds: 2), () {
-          state = state.copyWith(
-            charIndex: 0,
-            mistakes: 0,
-            incorrectIndices: [],
-            clearStartTime: true,
-            wpm: 0,
-            accuracy: 100,
-            isTyping: false,
-          );
-        });
-      }
+    
+    // Mark exercise as completed
+    if (currentUser != null) {
+      final lessonTitle = state.currentLesson.title;
+      _ref.read(currentUserProvider.notifier).markExerciseCompleted(lessonTitle, state.currentExerciseIndex);
+      
+      // DON'T reset rep progress to 0! Keep it at the completed count.
+      // This ensures the exercise shows as completed when revisited.
+    }
+    
+    // Stop typing mode
+    state = state.copyWith(isTyping: false);
+    
+    // Check if this is the last exercise
+    if (state.isLastExerciseInLesson) {
+      // Mark lesson as completed
+      _markLessonComplete();
     } else {
-      // No repetitions required
-      state = state.copyWith(isTyping: false);
-
-      // Update user's typing stats even for exercises without repetitions
-      if (currentUser != null && state.accuracy >= 90) {
-        _ref.read(currentUserProvider.notifier).updateTypingStats(
-              wpm: state.wpm.toDouble(),
-              accuracy: state.accuracy.toDouble(),
-              earnedXp: 3, // Award some XP for completing an exercise
-            );
-
-        // Persist Exercise Completion (No reps case)
-        final lessonTitle = state.currentLesson.title;
-        _ref.read(currentUserProvider.notifier).markExerciseCompleted(lessonTitle, state.currentExerciseIndex);
-
-        // If this is the last exercise, mark lesson as completed
-        if (state.isLastExerciseInLesson) {
-          _markLessonComplete();
-        }
-      }
+      // Move to next exercise after delay
+      Future.delayed(const Duration(seconds: 2), () {
+        selectExercise(state.currentExerciseIndex + 1);
+      });
     }
   }
 
@@ -957,10 +1277,12 @@ class TutorNotifier extends StateNotifier<TutorState> {
     final currentUser = _ref.read(currentUserProvider);
     if (currentUser != null) {
       final lessonTitle = state.currentLesson.title;
+      final sessionName = '$lessonTitle • লেসন সম্পন্ন ✓';
+      
       _ref.read(currentUserProvider.notifier).updateTypingStats(
             wpm: state.wpm.toDouble(),
             accuracy: state.accuracy.toDouble(),
-            completedLesson: lessonTitle,
+            completedLesson: sessionName,
             earnedXp: 20, // Bonus XP for completing a lesson
           );
     }

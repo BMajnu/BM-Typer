@@ -242,8 +242,8 @@ class OrgMemberModel {
   factory OrgMemberModel.fromFirestore(DocumentSnapshot doc) {
     final data = doc.data() as Map<String, dynamic>;
     return OrgMemberModel.fromJson({
-      'id': doc.id,
       ...data,
+      'id': doc.id,
     });
   }
 }

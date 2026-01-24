@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'app_colors.dart';
 import 'app_spacing.dart';
 
@@ -12,7 +13,7 @@ class AppTheme {
   // LIGHT THEME
   // ============================================
   
-  static ThemeData lightTheme({Color? seedColor}) {
+  static ThemeData lightTheme({Color? seedColor, String fontName = 'Hind Siliguri'}) {
     final colorScheme = ColorScheme.fromSeed(
       seedColor: seedColor ?? AppColors.primary,
       brightness: Brightness.light,
@@ -38,6 +39,7 @@ class AppTheme {
       colorScheme: colorScheme,
       brightness: Brightness.light,
       scaffoldBackgroundColor: AppColors.backgroundLight,
+      fontFamily: GoogleFonts.getFont(fontName).fontFamily,
       
       // AppBar Theme
       appBarTheme: AppBarTheme(
@@ -274,7 +276,7 @@ class AppTheme {
   // DARK THEME
   // ============================================
   
-  static ThemeData darkTheme({Color? seedColor}) {
+  static ThemeData darkTheme({Color? seedColor, String fontName = 'Hind Siliguri'}) {
     final colorScheme = ColorScheme.fromSeed(
       seedColor: seedColor ?? AppColors.primary,
       brightness: Brightness.dark,
@@ -299,6 +301,7 @@ class AppTheme {
       colorScheme: colorScheme,
       brightness: Brightness.dark,
       scaffoldBackgroundColor: AppColors.backgroundDark,
+      fontFamily: GoogleFonts.getFont(fontName).fontFamily,
       
       // AppBar Theme
       appBarTheme: AppBarTheme(

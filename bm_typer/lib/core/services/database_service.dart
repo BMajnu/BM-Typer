@@ -27,9 +27,37 @@ class DatabaseService {
       Hive.registerAdapter(UserRoleAdapter());
     }
 
-    // Open boxes
-    await Hive.openBox<UserModel>(_userBoxName);
-    await Hive.openBox<String>('settings');
+    // Open boxes with error recovery for corrupted data
+    try {
+      await Hive.openBox<UserModel>(_userBoxName);
+      await Hive.openBox<String>('settings');
+    } catch (e) {
+      debugPrint('⚠️ Hive initialization error (corrupted data): $e');
+      debugPrint('🔄 Attempting to recover by clearing corrupted boxes...');
+      
+      // Delete corrupted boxes and try again
+      try {
+        await Hive.deleteBoxFromDisk(_userBoxName);
+        await Hive.deleteBoxFromDisk('settings');
+        debugPrint('🗑️ Corrupted boxes deleted');
+        
+        // Re-open fresh boxes
+        await Hive.openBox<UserModel>(_userBoxName);
+        await Hive.openBox<String>('settings');
+        debugPrint('✅ Fresh boxes created successfully');
+      } catch (recoveryError) {
+        debugPrint('❌ Recovery failed: $recoveryError');
+        // As a last resort, try opening without type (will lose data but app will work)
+        try {
+          await Hive.openBox(_userBoxName);
+          await Hive.openBox('settings');
+          debugPrint('⚠️ Opened boxes without type - data may be lost');
+        } catch (finalError) {
+          debugPrint('❌ Final recovery attempt failed: $finalError');
+          rethrow;
+        }
+      }
+    }
   }
 
   /// Get the box containing users

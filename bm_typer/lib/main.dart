@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:firebase_core/firebase_core.dart';
@@ -46,7 +47,7 @@ void main() async {
 
   // Disable runtime font fetching - use only bundled fonts
   // This fixes the AssetManifest.json error on Windows desktop
-  GoogleFonts.config.allowRuntimeFetching = false;
+  GoogleFonts.config.allowRuntimeFetching = kIsWeb;
 
   // Set up a global error handler to catch Flutter errors that would crash the app
   FlutterError.onError = (FlutterErrorDetails details) {
@@ -69,16 +70,24 @@ void main() async {
     print('Firebase initialization failed: $e');
   }
 
+  bool databaseInitialized = false;
   try {
     print('Initializing Database (Hive)...');
-    // Initialize database
+    
+    // Register additional Hive adapters BEFORE opening boxes
+    // Note: UserModelAdapter and UserRoleAdapter are registered in DatabaseService.initialize()
+    if (!Hive.isAdapterRegistered(3)) {
+      Hive.registerAdapter(LeaderboardEntryAdapter());
+    }
+    if (!Hive.isAdapterRegistered(2)) {
+      Hive.registerAdapter(TypingSessionAdapter());
+    }
+    print('Hive adapters registered.');
+    
+    // Initialize database (this opens the boxes)
     await DatabaseService.initialize();
     print('DatabaseService initialized.');
-
-    // Register Hive adapters
-    Hive.registerAdapter(LeaderboardEntryAdapter());
-    Hive.registerAdapter(TypingSessionAdapter());
-    print('Hive adapters registered.');
+    databaseInitialized = true;
 
     // Check for and run migrations if needed
     print('Checking migrations...');
@@ -92,6 +101,7 @@ void main() async {
     print('LeaderboardService initialized.');
   } catch (e) {
     print('Database/Hive initialization failed: $e');
+    print('App will continue but some features may not work.');
   }
 
   try {
@@ -102,6 +112,14 @@ void main() async {
     print('Connectivity/CloudSync initialized.');
   } catch (e) {
     print('Connectivity services failed: $e');
+  }
+
+  try {
+    print('Initializing ReminderService...');
+    await ReminderService.initialize();
+    print('ReminderService initialized.');
+  } catch (e) {
+    print('ReminderService initialization failed: $e');
   }
 
   try {

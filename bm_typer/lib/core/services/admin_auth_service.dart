@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:crypto/crypto.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
 import 'package:bm_typer/core/models/admin_user_model.dart';
 
@@ -25,19 +26,34 @@ class AdminAuthService {
   /// Get admin user from Firestore by email
   Future<AdminUser?> getAdminUser(String email) async {
     try {
+      final normalizedEmail = email.toLowerCase();
+
+      // Prefer direct read by current UID (works with rules and avoids list/query permissions)
+      final authUser = FirebaseAuth.instance.currentUser;
+      if (authUser != null && (authUser.email ?? '').toLowerCase() == normalizedEmail) {
+        final doc = await _firestore.collection('admin_users').doc(authUser.uid).get();
+        if (doc.exists) {
+          final adminUser = AdminUser.fromFirestore(doc);
+          if (adminUser.isActive) {
+            return adminUser;
+          }
+          return null;
+        }
+      }
+
       final querySnapshot = await _firestore
           .collection('admin_users')
-          .where('email', isEqualTo: email.toLowerCase())
+          .where('email', isEqualTo: normalizedEmail)
           .where('isActive', isEqualTo: true)
           .limit(1)
           .get();
       
       if (querySnapshot.docs.isEmpty) {
         // Fallback: Check legacy admin emails and create temporary admin
-        if (legacyAdminEmails.contains(email.toLowerCase())) {
+        if (legacyAdminEmails.contains(normalizedEmail)) {
           return AdminUser(
             id: 'legacy_${email.hashCode}',
-            email: email.toLowerCase(),
+            email: normalizedEmail,
             role: AdminRole.developer, // Legacy admins get developer role
             createdAt: DateTime.now(),
             isActive: true,
@@ -47,6 +63,30 @@ class AdminAuthService {
       }
       
       return AdminUser.fromFirestore(querySnapshot.docs.first);
+    } on FirebaseException catch (e) {
+      if (e.code == 'permission-denied') {
+        if (legacyAdminEmails.contains(email.toLowerCase())) {
+          return AdminUser(
+            id: 'legacy_${email.hashCode}',
+            email: email.toLowerCase(),
+            role: AdminRole.developer,
+            createdAt: DateTime.now(),
+            isActive: true,
+          );
+        }
+        return null;
+      }
+      debugPrint('❌ Error fetching admin user: $e');
+      if (legacyAdminEmails.contains(email.toLowerCase())) {
+        return AdminUser(
+          id: 'legacy_${email.hashCode}',
+          email: email.toLowerCase(),
+          role: AdminRole.developer,
+          createdAt: DateTime.now(),
+          isActive: true,
+        );
+      }
+      return null;
     } catch (e) {
       debugPrint('❌ Error fetching admin user: $e');
       // Fallback for legacy admin
@@ -210,6 +250,11 @@ class AdminSessionState {
 /// Provider for AdminAuthService
 final adminAuthServiceProvider = Provider<AdminAuthService>((ref) {
   return AdminAuthService();
+});
+
+final adminUserByEmailProvider = FutureProvider.family<AdminUser?, String>((ref, email) async {
+  final service = ref.watch(adminAuthServiceProvider);
+  return service.getAdminUser(email);
 });
 
 /// State notifier for admin session

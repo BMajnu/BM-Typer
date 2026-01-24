@@ -6,6 +6,7 @@ import 'package:bm_typer/core/constants/app_colors.dart';
 class ThemeService {
   static const String _themePreferenceKey = 'theme_preference';
   static const String _themeColorPreferenceKey = 'theme_color_preference';
+  static const String _fontPreferenceKey = 'font_preference';
 
   /// Available theme modes
   static const List<ThemeMode> themeModes = [
@@ -50,6 +51,18 @@ class ThemeService {
     final prefs = await SharedPreferences.getInstance();
     final colorIndex = themeColors.indexOf(color);
     await prefs.setInt(_themeColorPreferenceKey, colorIndex);
+  }
+
+  /// Get the current font name from preferences
+  static Future<String> getFontName() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getString(_fontPreferenceKey) ?? 'Hind Siliguri';
+  }
+
+  /// Set the font name in preferences
+  static Future<void> setFontName(String fontName) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_fontPreferenceKey, fontName);
   }
 
   /// Get the display name for a theme mode

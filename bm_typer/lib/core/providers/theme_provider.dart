@@ -7,19 +7,23 @@ import 'package:bm_typer/core/theme/theme.dart';
 class ThemeState {
   final ThemeMode themeMode;
   final ThemeColor themeColor;
+  final String fontName;
 
   const ThemeState({
     this.themeMode = ThemeMode.system,
     this.themeColor = ThemeColor.purple,
+    this.fontName = 'Hind Siliguri',
   });
 
   ThemeState copyWith({
     ThemeMode? themeMode,
     ThemeColor? themeColor,
+    String? fontName,
   }) {
     return ThemeState(
       themeMode: themeMode ?? this.themeMode,
       themeColor: themeColor ?? this.themeColor,
+      fontName: fontName ?? this.fontName,
     );
   }
 
@@ -41,12 +45,12 @@ class ThemeState {
 
   /// Get light theme data - uses new AppTheme design system
   ThemeData getLightTheme() {
-    return AppTheme.lightTheme(seedColor: seedColor);
+    return AppTheme.lightTheme(seedColor: seedColor, fontName: fontName);
   }
 
   /// Get dark theme data - uses new AppTheme design system
   ThemeData getDarkTheme() {
-    return AppTheme.darkTheme(seedColor: seedColor);
+    return AppTheme.darkTheme(seedColor: seedColor, fontName: fontName);
   }
 }
 
@@ -60,10 +64,13 @@ class ThemeNotifier extends StateNotifier<ThemeState> {
   Future<void> _loadThemePreferences() async {
     final themeMode = await ThemeService.getThemeMode();
     final themeColor = await ThemeService.getThemeColor();
+    final fontName = await ThemeService.getFontName();
+ 
 
     state = state.copyWith(
       themeMode: themeMode,
       themeColor: themeColor,
+      fontName: fontName,
     );
   }
 
@@ -77,6 +84,12 @@ class ThemeNotifier extends StateNotifier<ThemeState> {
   Future<void> setThemeColor(ThemeColor color) async {
     await ThemeService.setThemeColor(color);
     state = state.copyWith(themeColor: color);
+  }
+
+  /// Set font name
+  Future<void> setFontName(String fontName) async {
+    await ThemeService.setFontName(fontName);
+    state = state.copyWith(fontName: fontName);
   }
 
   /// Toggle between light and dark mode

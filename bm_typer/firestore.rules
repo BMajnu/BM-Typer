@@ -50,6 +50,11 @@ service cloud.firestore {
       match /sessions/{sessionId} {
         allow read, write: if isOwner(userId) || isAdmin();
       }
+
+      // Per-user read status for notifications (cross-device sync)
+      match /read_notifications/{notifId} {
+        allow read, write: if isOwner(userId) || isAdmin();
+      }
     }
     
     // Allow admins to list/query all users (for search)

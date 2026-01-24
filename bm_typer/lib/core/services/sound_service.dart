@@ -3,11 +3,6 @@ import 'package:flutter/services.dart';
 import 'package:audioplayers/audioplayers.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-// Conditional import: use stub on non-web, dart:html on web
-import 'sound_service_stub.dart'
-    if (dart.library.html) 'sound_service_web.dart' as web_audio;
-
-
 enum SoundType {
   keyPress,
   keyError,
@@ -27,20 +22,24 @@ class SoundService {
   factory SoundService() => _instance;
   SoundService._internal();
 
-  AudioPlayer? _audioPlayer;
-  // For web platform
-  Map<String, web_audio.AudioElement> _webAudioElements = {};
+  // Pool of players for rapid typing (prevent cutting off sounds)
+  final List<AudioPlayer> _playerPool = [];
+  int _poolIndex = 0;
+  static const int _poolSize = 5; // Adjust based on needs
+
   bool _isSoundEnabled = true;
   double _volume = 0.5;
   KeyboardSoundTheme _currentTheme = KeyboardSoundTheme.soft;
 
-  // Cache for sound assets
+  // Cache for sound assets (Mobile/Desktop only)
   final Map<String, Uint8List> _soundCache = {};
 
   Future<void> initialize() async {
-    // Create a player for **all** platforms so that audio also works on the web.
-    if (_audioPlayer == null) {
-      _audioPlayer = AudioPlayer();
+    // Initialize player pool
+    for (int i = 0; i < _poolSize; i++) {
+        final player = AudioPlayer();
+        await player.setReleaseMode(ReleaseMode.stop); // Reset after playing
+        _playerPool.add(player);
     }
 
     // Load persisted settings first.
@@ -49,46 +48,9 @@ class SoundService {
     if (!kIsWeb) {
       // Only preload (and cache) the byte data on mobile / desktop.
       await _preloadSounds();
-    } else {
-      // On web we rely on playing straight from the asset bundle, no caching
-      debugPrint('Sound service: Web platform detected, using HTML Audio API.');
-      await _preloadWebSounds();
     }
-  }
-
-  Future<void> _preloadWebSounds() async {
-    if (!kIsWeb || !_isSoundEnabled || _currentTheme == KeyboardSoundTheme.none)
-      return;
-
-    try {
-      // Preload key press sounds based on theme
-      await _loadWebSound(_getSoundPath(SoundType.keyPress));
-
-      // Preload other sounds
-      await _loadWebSound(_getSoundPath(SoundType.keyError));
-      await _loadWebSound(_getSoundPath(SoundType.levelComplete));
-      await _loadWebSound(_getSoundPath(SoundType.achievement));
-    } catch (e) {
-      debugPrint('Error preloading web sounds: $e');
-    }
-  }
-
-  Future<void> _loadWebSound(String path) async {
-    if (path.isEmpty) return;
-
-    if (!_webAudioElements.containsKey(path)) {
-      final audio = web_audio.createAudioElement();
-      audio.src = path;
-      audio.preload = 'auto';
-      // Set volume
-      audio.volume = _volume;
-      // Add to document to allow preloading
-      web_audio.document.body?.append(audio);
-      // Hide the element
-      audio.style.display = 'none';
-      // Store for later use
-      _webAudioElements[path] = audio;
-    }
+    // On Web, AudioPlayers handles loading via AssetSource, but we can't easily "preload" bytes.
+    // However, playing it once with volume 0 might cache it in browser, but we'll skip that for now to avoid side effects.
   }
 
   Future<void> _loadSettings() async {
@@ -101,7 +63,6 @@ class SoundService {
               KeyboardSoundTheme.soft.index];
     } catch (e) {
       debugPrint('Error loading sound settings: $e');
-      // Use defaults if settings can't be loaded
       _isSoundEnabled = true;
       _volume = 0.5;
       _currentTheme = KeyboardSoundTheme.soft;
@@ -115,8 +76,6 @@ class SoundService {
     try {
       // Preload key press sounds based on theme
       await _loadSoundToCache(_getSoundPath(SoundType.keyPress));
-
-      // Preload other sounds
       await _loadSoundToCache(_getSoundPath(SoundType.keyError));
       await _loadSoundToCache(_getSoundPath(SoundType.levelComplete));
       await _loadSoundToCache(_getSoundPath(SoundType.achievement));
@@ -126,6 +85,7 @@ class SoundService {
   }
 
   Future<void> _loadSoundToCache(String path) async {
+    if (path.isEmpty) return;
     if (_soundCache.containsKey(path)) return;
 
     try {
@@ -158,6 +118,14 @@ class SoundService {
     }
   }
 
+  // Helper to get asset path without 'assets/' prefix for AudioPlayers AssetSource
+  String _getAssetSourcePath(String fullPath) {
+    if (fullPath.startsWith('assets/')) {
+      return fullPath.substring(7); // Remove 'assets/'
+    }
+    return fullPath;
+  }
+
   Future<void> playSound(SoundType type) async {
     if (!_isSoundEnabled || _currentTheme == KeyboardSoundTheme.none) return;
 
@@ -165,18 +133,29 @@ class SoundService {
       final path = _getSoundPath(type);
       if (path.isEmpty) return;
 
-      if (kIsWeb) {
-        // Web-specific audio playback
-        await _playWebSound(path);
-      } else {
-        if (!_soundCache.containsKey(path)) {
-          await _loadSoundToCache(path);
-        }
+      // Get next player from pool
+      final player = _playerPool[_poolIndex];
+      _poolIndex = (_poolIndex + 1) % _poolSize;
 
+      await player.setVolume(_volume);
+
+      if (kIsWeb) {
+        // Web: Use AssetSource
+        // path is like 'assets/sounds/key.mp3', AssetSource needs 'sounds/key.mp3'
+        final assetPath = _getAssetSourcePath(path);
+        await player.play(AssetSource(assetPath));
+      } else {
+        // Mobile/Desktop: Use Bytes if cached, else AssetSource
         if (_soundCache.containsKey(path)) {
-          await _audioPlayer!.setSourceBytes(_soundCache[path]!);
-          await _audioPlayer!.setVolume(_volume);
-          await _audioPlayer!.resume();
+           // We need to set source then play for bytes
+           await player.setSourceBytes(_soundCache[path]!);
+           await player.resume();
+        } else {
+           // Fallback if not cached
+           final assetPath = _getAssetSourcePath(path);
+           await player.play(AssetSource(assetPath));
+           // Also try to cache for next time
+           _loadSoundToCache(path); 
         }
       }
     } catch (e) {
@@ -184,38 +163,10 @@ class SoundService {
     }
   }
 
-  Future<void> _playWebSound(String path) async {
-    if (!_webAudioElements.containsKey(path)) {
-      await _loadWebSound(path);
-    }
-
-    if (_webAudioElements.containsKey(path)) {
-      try {
-        final audio = _webAudioElements[path]!;
-
-        // Reset the audio to the beginning if it's already playing
-        audio.currentTime = 0;
-        audio.volume = _volume;
-
-        // Play the sound
-        await audio.play();
-      } catch (e) {
-        debugPrint('Error playing web sound: $e');
-      }
-    }
-  }
-
   Future<void> setVolume(double volume) async {
     _volume = volume.clamp(0.0, 1.0);
     final prefs = await SharedPreferences.getInstance();
     await prefs.setDouble('sound_volume', _volume);
-
-    // Update volume for web audio elements
-    if (kIsWeb) {
-      for (var audio in _webAudioElements.values) {
-        audio.volume = _volume;
-      }
-    }
   }
 
   Future<void> setSoundEnabled(bool enabled) async {
@@ -228,10 +179,7 @@ class SoundService {
     _currentTheme = theme;
     final prefs = await SharedPreferences.getInstance();
     await prefs.setInt('keyboard_sound_theme', _currentTheme.index);
-    await _preloadSounds();
-    if (kIsWeb) {
-      await _preloadWebSounds();
-    }
+    if (!kIsWeb) await _preloadSounds();
   }
 
   bool get isSoundEnabled => _isSoundEnabled;
@@ -239,16 +187,10 @@ class SoundService {
   KeyboardSoundTheme get currentTheme => _currentTheme;
 
   void dispose() {
-    if (!kIsWeb) {
-      _audioPlayer?.dispose();
-      _audioPlayer = null;
-    } else {
-      // Clean up web audio elements
-      for (var audio in _webAudioElements.values) {
-        audio.remove();
-      }
-      _webAudioElements.clear();
+    for (var player in _playerPool) {
+      player.dispose();
     }
+    _playerPool.clear();
     _soundCache.clear();
   }
 }

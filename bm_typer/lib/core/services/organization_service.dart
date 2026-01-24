@@ -200,24 +200,28 @@ class OrganizationService {
         return OrganizationModel.fromFirestore(ownerQuery.docs.first);
       }
 
-      // 2. Fallback: Query all organizations and check their members
-      // TODO: This is inefficient for large scale. Should use collection group query if possible 
-      // or denormalize member emails array in org doc.
-      final orgsSnapshot = await _firestore.collection('organizations').get();
-      
-      for (final orgDoc in orgsSnapshot.docs) {
-        final memberQuery = await _firestore
-            .collection('organizations')
-            .doc(orgDoc.id)
-            .collection('members')
-            .where('email', isEqualTo: email)
-            .limit(1)
-            .get();
-            
-        if (memberQuery.docs.isNotEmpty) {
-          return OrganizationModel.fromFirestore(orgDoc);
+      // 2. Collection Group Query (Efficient)
+      // Requires 'members' collection group index on 'email' field
+      final memberQuery = await _firestore
+          .collectionGroup('members')
+          .where('email', isEqualTo: email)
+          .limit(1)
+          .get();
+
+      if (memberQuery.docs.isNotEmpty) {
+        // The parent of the member doc is the 'members' collection
+        // The parent of 'members' collection is the Organization document
+        final memberDoc = memberQuery.docs.first;
+        final orgDocRef = memberDoc.reference.parent.parent;
+        
+        if (orgDocRef != null) {
+          final orgDoc = await orgDocRef.get();
+          if (orgDoc.exists) {
+            return OrganizationModel.fromFirestore(orgDoc);
+          }
         }
       }
+      
       return null;
     } catch (e) {
       debugPrint('❌ Error finding org by email: $e');

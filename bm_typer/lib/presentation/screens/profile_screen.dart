@@ -8,13 +8,14 @@ import 'package:bm_typer/core/providers/user_provider.dart';
 import 'package:bm_typer/core/enums/user_role.dart';
 import 'package:bm_typer/core/providers/subscription_provider.dart';
 import 'package:bm_typer/core/services/feature_limit_service.dart';
+import 'package:bm_typer/core/services/admin_auth_service.dart';
 import 'package:bm_typer/presentation/screens/reminder_settings_screen.dart';
 import 'package:bm_typer/presentation/screens/level_details_screen.dart';
 import 'package:bm_typer/presentation/screens/export_screen.dart';
 import 'package:bm_typer/presentation/widgets/streak_counter.dart';
 import 'package:bm_typer/presentation/widgets/xp_progress_bar.dart';
 import 'package:bm_typer/core/models/user_model.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
+
 
 class ProfileScreen extends ConsumerWidget {
   const ProfileScreen({super.key});
@@ -231,6 +232,36 @@ class ProfileScreen extends ConsumerWidget {
                 onPressed: () => Navigator.pop(context),
               ),
               actions: [
+                // Refresh/Sync Button
+                IconButton(
+                  icon: Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: Colors.black.withOpacity(0.2),
+                      shape: BoxShape.circle,
+                    ),
+                    child: Icon(Icons.sync_rounded, size: 20, color: Colors.white),
+                  ),
+                  onPressed: () async {
+                    // Force sync user data from cloud
+                    debugPrint('🔄 Manual sync triggered');
+                    final userNotifier = ref.read(currentUserProvider.notifier);
+                    await userNotifier.forceCloudSync();
+                    // Also invalidate org provider to refetch
+                    ref.invalidate(currentOrgProvider);
+                    if (context.mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text('সিঙ্ক সম্পন্ন!'),
+                          backgroundColor: Colors.green,
+                          duration: Duration(seconds: 1),
+                        ),
+                      );
+                    }
+                  },
+                  tooltip: 'ডেটা সিঙ্ক করুন',
+                ),
+                // Settings Button
                 IconButton(
                   icon: Container(
                     padding: const EdgeInsets.all(8),
@@ -1026,6 +1057,8 @@ class ProfileScreen extends ConsumerWidget {
     // NEW: Multi-Subscription Logic (Generic & Robust)
     // -------------------------------------------------------------------------
     final user = ref.watch(currentUserProvider);
+    final adminAuthService = ref.watch(adminAuthServiceProvider);
+    final isLegacyAdmin = user != null && adminAuthService.isAdminEmail(user.email);
     final List<_ActivePlan> activePlans = [];
 
     // 1. Organization Plan (Generic & Data-Driven)
@@ -1034,7 +1067,20 @@ class ProfileScreen extends ConsumerWidget {
       
       // Attempt to get real Organization details
       final orgAsync = ref.watch(currentOrgProvider);
-      final realOrg = orgAsync.value;
+      
+      // If still loading, show a loading indicator (will auto-update when ready)
+      if (orgAsync.isLoading) {
+        debugPrint('⏳ Organization data is loading for orgId: $orgId');
+      }
+      
+      final realOrg = orgAsync.valueOrNull;
+      
+      // If we have orgId but no realOrg and not loading, try to refresh
+      if (realOrg == null && !orgAsync.isLoading && !orgAsync.hasError) {
+        debugPrint('🔄 Org data null, invalidating provider to retry...');
+        // Schedule a refresh after build
+        Future.microtask(() => ref.invalidate(currentOrgProvider));
+      }
 
       // Default Display Values (Fallback from ID)
       // Convert "some_id" -> "Some Id", but keep raw hashes generic if they fail
@@ -1054,7 +1100,7 @@ class ProfileScreen extends ConsumerWidget {
         displayOrgName = realOrg.name; // Use the real name (e.g. "TechZone IT")
         
         // Generic: Check if user is an Admin of this organization
-        if (user.role == UserRole.orgAdmin || user.role == UserRole.superAdmin) {
+        if (user.role == UserRole.orgAdmin || isLegacyAdmin) {
             planType = 'Organization Admin';
             validityText = 'Management Access';
             isLifetime = true;
@@ -1364,31 +1410,14 @@ class ProfileScreen extends ConsumerWidget {
                 ),
               ],
             ),
-          ],
-        ),
-      );
-    }
-  }
 
-
-      return Container(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          children: [
-            InkWell(
-              onTap: () => _forceJoinTechZone(ref, context),
-              child: Container(
-                 width: double.infinity,
-                 padding: const EdgeInsets.all(12),
-                 color: Colors.purple,
-                 child: const Center(child: Text('FORCE JOIN TECHZONE (Click if Free Plan)', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold))),
-              ),
+              ],
             ),
-          ],
-        ),
+
       );
     }
   }
+
 
   Widget _buildInitialAvatar(String name, ColorScheme colorScheme, bool isCompact) {
     return Container(
@@ -1433,50 +1462,7 @@ class ProfileScreen extends ConsumerWidget {
 
 
 
-  // HARD REPAIR: TechZone
-  Future<void> _forceJoinTechZone(WidgetRef ref, BuildContext context) async {
-     final user = ref.read(currentUserProvider);
-     if (user == null) return;
-     
-     final orgId = 'xFcwEjJnFN445RZ43fZO'; // TechZone IT Org ID
-     final firestore = FirebaseFirestore.instance;
 
-     try {
-       // 1. Link User to Org
-       await firestore.collection('users').doc(user.id).update({
-         'organizationId': orgId,
-         'profile.organizationId': orgId, // Just in case
-       });
-
-       // 2. Add Member Doc
-       await firestore.collection('organizations').doc(orgId).collection('members').doc(user.id).set({
-         'uid': user.id,
-         'email': user.email,
-         'role': 'admin',
-         'joinedAt': FieldValue.serverTimestamp(),
-         'status': 'active',
-       }, SetOptions(merge: true));
-       
-       // 3. Ensure Global Admin (Best effort)
-       try {
-         await firestore.collection('admin_users').doc(user.id).set({
-          'email': user.email,
-          'role': 'admin',
-          'createdAt': FieldValue.serverTimestamp(),
-          'createdBy': 'Hard Repair',
-        }, SetOptions(merge: true));
-       } catch (e) {
-         debugPrint('⚠️ Admin promote failed (expected if rules locked): $e');
-       }
-       
-       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('✅ JOINED TECHZONE! Refreshing...')));
-       ref.refresh(currentUserProvider); // Refresh user to get new orgId
-       ref.refresh(currentOrgProvider);
-       
-     } catch (e) {
-       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('❌ Error: $e')));
-     }
-  }
 }
 
 class _ActivePlan {

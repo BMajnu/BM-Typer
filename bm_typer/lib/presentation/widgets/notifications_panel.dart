@@ -128,6 +128,12 @@ class NotificationsPanel extends ConsumerWidget {
                     Icon(Icons.error_outline, size: 48, color: Colors.red.shade300),
                     const SizedBox(height: 12),
                     Text('ত্রুটি হয়েছে', style: GoogleFonts.hindSiliguri(color: Colors.red)),
+                    const SizedBox(height: 8),
+                    Text(
+                      error.toString(),
+                      style: GoogleFonts.hindSiliguri(fontSize: 11, color: Colors.red.shade300),
+                      textAlign: TextAlign.center,
+                    ),
                   ],
                 ),
               ),

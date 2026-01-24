@@ -9,22 +9,49 @@ final organizationServiceProvider = Provider<OrganizationService>((ref) {
 });
 
 /// Provider for the current user's organization
-final currentOrgProvider = FutureProvider<OrganizationModel?>((ref) async {
+/// Uses autoDispose to prevent caching stale data across browser sessions
+final currentOrgProvider = FutureProvider.autoDispose<OrganizationModel?>((ref) async {
+  // Keep alive only after successful fetch
+  final link = ref.keepAlive();
+  
   final user = ref.watch(currentUserProvider);
-  if (user == null) return null;
+  if (user == null) {
+    debugPrint('🔍 currentOrgProvider: User is null, returning null');
+    link.close(); // Don't keep alive if no user
+    return null;
+  }
 
   final service = ref.watch(organizationServiceProvider);
   
+  debugPrint('🔍 currentOrgProvider: User email=${user.email}, orgId=${user.organizationId}, role=${user.role.name}');
+  
   // First try by organizationId
-  if (user.organizationId != null) {
-    return service.getOrganization(user.organizationId!);
+  if (user.organizationId != null && user.organizationId!.isNotEmpty) {
+    debugPrint('🔍 Fetching org by ID: ${user.organizationId}');
+    try {
+      final org = await service.getOrganization(user.organizationId!);
+      if (org != null) {
+        debugPrint('✅ Org found by ID: ${org.name}');
+        return org;
+      } else {
+        debugPrint('⚠️ Org not found by ID: ${user.organizationId}');
+      }
+    } catch (e) {
+      debugPrint('❌ Error fetching org by ID: $e');
+    }
   }
   
   // Fallback: Search by user email in members subcollection
-  debugPrint('🔍 Searching org for user: ${user.email}');
-  final org = await service.getOrgByUserEmail(user.email);
-  debugPrint('🔍 Search result: ${org?.name ?? "Not Found"}');
-  return org;
+  debugPrint('🔍 Searching org for user by email: ${user.email}');
+  try {
+    final org = await service.getOrgByUserEmail(user.email);
+    debugPrint('🔍 Search result: ${org?.name ?? "Not Found"}');
+    return org;
+  } catch (e) {
+    debugPrint('❌ Error searching org by email: $e');
+    link.close(); // Don't keep alive on error
+    return null;
+  }
 });
 
 /// Stream of members for the current org

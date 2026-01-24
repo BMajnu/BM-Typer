@@ -4,6 +4,7 @@ import 'package:bm_typer/core/models/subscription_model.dart';
 import 'package:bm_typer/core/services/subscription_service.dart';
 import 'package:bm_typer/core/providers/user_provider.dart';
 import 'package:bm_typer/core/enums/user_role.dart';
+import 'package:bm_typer/core/services/admin_auth_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 /// State class for subscription with usage tracking
@@ -187,8 +188,14 @@ final enhancedIsPremiumProvider = Provider<bool>((ref) {
   // 2. Check user role - admins always get premium access
   final user = ref.watch(currentUserProvider);
   if (user != null) {
+    final adminAuthService = ref.watch(adminAuthServiceProvider);
+    if (adminAuthService.isAdminEmail(user.email)) {
+      debugPrint('👑 Premium access via legacy admin email');
+      return true;
+    }
+
     final role = user.role;
-    if (role == UserRole.superAdmin || role == UserRole.orgAdmin || role == UserRole.teamLead) {
+    if (role == UserRole.orgAdmin || role == UserRole.teamLead) {
       debugPrint('👑 Premium access via role: ${role.name}');
       return true;
     }

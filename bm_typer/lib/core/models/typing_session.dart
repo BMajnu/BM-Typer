@@ -21,6 +21,9 @@ class TypingSession {
   @HiveField(3)
   final String? lessonId;
 
+  @HiveField(4)
+  final String? typedText;
+
   // Convenience alias for older code
   String? get completedLesson => lessonId;
 
@@ -29,6 +32,8 @@ class TypingSession {
     required this.accuracy,
     required this.timestamp,
     this.lessonId,
+    this.typedText,
   });
 }
+
 
