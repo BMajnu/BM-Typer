@@ -10,40 +10,55 @@ import 'package:bm_typer/presentation/screens/reminder_settings_screen.dart';
 import 'package:bm_typer/presentation/screens/leaderboard_screen.dart';
 import 'package:bm_typer/presentation/screens/profile_screen.dart';
 import 'package:bm_typer/presentation/screens/achievements_screen.dart';
-import 'package:bm_typer/presentation/screens/achievements_screen.dart';
 import 'package:bm_typer/presentation/screens/about_app_screen.dart';
+import 'package:bm_typer/presentation/screens/debug_screen.dart';
+import 'package:bm_typer/core/services/version_service.dart';
+import 'package:bm_typer/presentation/widgets/update_checker.dart';
 import 'package:share_plus/share_plus.dart';
 
+enum SettingsPanelPresentation {
+  sideSheet,
+  bottomSheet,
+}
+
 class SettingsPanel extends ConsumerWidget {
-  const SettingsPanel({super.key});
+  final SettingsPanelPresentation presentation;
+
+  const SettingsPanel({
+    super.key,
+    this.presentation = SettingsPanelPresentation.sideSheet,
+  });
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final colorScheme = Theme.of(context).colorScheme;
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final screenWidth = MediaQuery.of(context).size.width;
-    final panelWidth = screenWidth > 600 ? 380.0 : screenWidth * 0.85;
+    final isBottomSheet = presentation == SettingsPanelPresentation.bottomSheet;
+    final panelWidth = isBottomSheet
+        ? screenWidth
+        : (screenWidth > 600 ? 380.0 : screenWidth * 0.85);
+    final panelBorderRadius = isBottomSheet
+        ? const BorderRadius.vertical(top: Radius.circular(28))
+        : const BorderRadius.only(
+            topLeft: Radius.circular(24),
+            bottomLeft: Radius.circular(24),
+          );
 
     return ClipRRect(
-      borderRadius: const BorderRadius.only(
-        topLeft: Radius.circular(24),
-        bottomLeft: Radius.circular(24),
-      ),
+      borderRadius: panelBorderRadius,
       child: BackdropFilter(
         filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
         child: Container(
           width: panelWidth,
           decoration: BoxDecoration(
             color: isDark ? const Color(0xFF1a1a2e).withOpacity(0.95) : Colors.white.withOpacity(0.95),
-            borderRadius: const BorderRadius.only(
-              topLeft: Radius.circular(24),
-              bottomLeft: Radius.circular(24),
-            ),
+            borderRadius: panelBorderRadius,
             border: Border.all(color: (isDark ? Colors.white : Colors.black).withOpacity(0.1)),
           ),
           child: Column(
             children: [
-              _buildHeader(context, colorScheme, isDark),
+              _buildHeader(context, colorScheme, isDark, isBottomSheet),
               Expanded(
                 child: SingleChildScrollView(
                   padding: const EdgeInsets.all(16),
@@ -60,7 +75,7 @@ class SettingsPanel extends ConsumerWidget {
                       const SizedBox(height: 24),
                       _buildSectionTitle('অন্যান্য', isDark),
                       const SizedBox(height: 12),
-                      _buildOtherOptions(context, colorScheme, isDark),
+                      _buildOtherOptions(context, ref, colorScheme, isDark),
                     ],
                   ),
                 ),
@@ -72,7 +87,12 @@ class SettingsPanel extends ConsumerWidget {
     );
   }
 
-  Widget _buildHeader(BuildContext context, ColorScheme colorScheme, bool isDark) {
+  Widget _buildHeader(
+    BuildContext context,
+    ColorScheme colorScheme,
+    bool isDark,
+    bool isBottomSheet,
+  ) {
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
@@ -83,6 +103,16 @@ class SettingsPanel extends ConsumerWidget {
       ),
       child: Row(
         children: [
+          if (isBottomSheet)
+            Container(
+              width: 34,
+              height: 4,
+              margin: const EdgeInsets.only(right: 14),
+              decoration: BoxDecoration(
+                color: (isDark ? Colors.white : Colors.black).withOpacity(0.2),
+                borderRadius: BorderRadius.circular(999),
+              ),
+            ),
           Container(
             padding: const EdgeInsets.all(10),
             decoration: BoxDecoration(
@@ -288,9 +318,24 @@ class SettingsPanel extends ConsumerWidget {
     );
   }
 
-  Widget _buildOtherOptions(BuildContext context, ColorScheme colorScheme, bool isDark) {
+  Widget _buildOtherOptions(BuildContext context, WidgetRef ref, ColorScheme colorScheme, bool isDark) {
     return Column(
       children: [
+        _buildOtherItem(
+          context,
+          icon: Icons.system_update_rounded,
+          label: 'আপডেট চেক করুন',
+          onTap: () async {
+            final rootNavigator = Navigator.of(context, rootNavigator: true);
+            Navigator.pop(context);
+            final result = await ref.read(versionServiceProvider).checkForUpdate();
+            if (!rootNavigator.mounted) return;
+            await UpdateDialogHelper.showManualCheckResultDialog(rootNavigator.context, result);
+          },
+          colorScheme: colorScheme,
+          isDark: isDark,
+        ),
+        const SizedBox(height: 8),
         _buildOtherItem(
           context,
           icon: Icons.share_rounded,
@@ -299,7 +344,7 @@ class SettingsPanel extends ConsumerWidget {
             Navigator.pop(context);
             Share.share(
               'BM Typer - বাংলা টাইপিং শেখার সেরা অ্যাপ!\n\n'
-              '🇧🇩 বিজয় ও ফনেটিক উভয় পদ্ধতিতে টাইপিং শিখুন\n'
+              '🇧🇩 বিজয় ও অভ্র উভয় পদ্ধতিতে টাইপিং শিখুন\n'
               '⌨️ ইন্টারেক্টিভ লেসন ও অনুশীলন\n'
               '🏆 অ্যাচিভমেন্ট ও লিডারবোর্ড\n\n'
               'ডাউনলোড করুন: https://play.google.com/store/apps/details?id=com.techzoneit.bmtyper',
@@ -317,6 +362,18 @@ class SettingsPanel extends ConsumerWidget {
           onTap: () {
             Navigator.pop(context);
             Navigator.push(context, MaterialPageRoute(builder: (_) => const AboutAppScreen()));
+          },
+          colorScheme: colorScheme,
+          isDark: isDark,
+        ),
+        const SizedBox(height: 8),
+        _buildOtherItem(
+          context,
+          icon: Icons.bug_report_rounded,
+          label: 'ডিবাগ কনসোল',
+          onTap: () {
+            Navigator.pop(context);
+            Navigator.push(context, MaterialPageRoute(builder: (_) => const DebugScreen()));
           },
           colorScheme: colorScheme,
           isDark: isDark,
@@ -363,6 +420,34 @@ class SettingsPanel extends ConsumerWidget {
 
 // Helper function to show the settings panel
 void showSettingsPanel(BuildContext context) {
+  final isMobile = MediaQuery.of(context).size.width < 600;
+
+  if (isMobile) {
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) {
+        final maxHeight = MediaQuery.of(context).size.height * 0.88;
+        return SafeArea(
+          child: Align(
+            alignment: Alignment.bottomCenter,
+            child: SizedBox(
+              height: maxHeight,
+              child: const Material(
+                color: Colors.transparent,
+                child: SettingsPanel(
+                  presentation: SettingsPanelPresentation.bottomSheet,
+                ),
+              ),
+            ),
+          ),
+        );
+      },
+    );
+    return;
+  }
+
   showGeneralDialog(
     context: context,
     barrierDismissible: true,
@@ -374,7 +459,9 @@ void showSettingsPanel(BuildContext context) {
         alignment: Alignment.centerRight,
         child: Material(
           color: Colors.transparent,
-          child: const SettingsPanel(),
+          child: const SettingsPanel(
+            presentation: SettingsPanelPresentation.sideSheet,
+          ),
         ),
       );
     },

@@ -54,7 +54,7 @@ class DefaultFirebaseOptions {
 
   static const FirebaseOptions android = FirebaseOptions(
     apiKey: 'AIzaSyAdQTo2z4p19AEhHrq7RiVZ7RW_IFmT2nU',
-    appId: '1:121426968554:android:0b0d5850c9ede54e2e7c93',
+    appId: '1:121426968554:android:327d75df5e5fc89b2e7c93',
     messagingSenderId: '121426968554',
     projectId: 'bm-typer-app',
     storageBucket: 'bm-typer-app.firebasestorage.app',

@@ -790,7 +790,7 @@ class InputPopup:
         # Show custom themed info dialog instead of default messagebox
         info_text = (
             "Developer: Badiuzzaman Majnu\n"
-            "Professional Graphics Designer, Developer, Freelancer.\n\n"
+            "Designer, Developer, Freelancer.\n\n"
             "WhatsApp: +8801796072129\n"
             "Facebook: https://www.facebook.com/bmajnu786\n"
             "Email: badiuzzamanmajnu786@gmail.com"

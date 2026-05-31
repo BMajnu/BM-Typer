@@ -8,21 +8,22 @@
 
 int APIENTRY wWinMain(_In_ HINSTANCE instance, _In_opt_ HINSTANCE prev,
                       _In_ wchar_t *command_line, _In_ int show_command) {
-  // Attach to console when present (e.g., 'flutter run') or create a
-  // new console when running with a debugger. // DISABLED for release unless needed
-  // if (!::AttachConsole(ATTACH_PARENT_PROCESS) && ::IsDebuggerPresent()) {
-  //   CreateAndAttachConsole();
-  // }
-  
-  // FORCE LOGGING TO FILE
-  // This helps debug startup crashes on client machines
+  // In debug/profile, keep stdout/stderr connected so `flutter run` can
+  // receive the VM service handshake and app logs. In release, preserve the
+  // file-based logging that helps diagnose client startup issues.
+#ifdef NDEBUG
   FILE* file = nullptr;
   if (freopen_s(&file, "bm_typer_debug.log", "w", stdout) == 0) {
-      setvbuf(stdout, nullptr, _IONBF, 0); // No buffering
+    setvbuf(stdout, nullptr, _IONBF, 0);
   }
   if (freopen_s(&file, "bm_typer_error.log", "w", stderr) == 0) {
-      setvbuf(stderr, nullptr, _IONBF, 0); // No buffering
+    setvbuf(stderr, nullptr, _IONBF, 0);
   }
+#else
+  if (!::AttachConsole(ATTACH_PARENT_PROCESS) && ::IsDebuggerPresent()) {
+    CreateAndAttachConsole();
+  }
+#endif
   std::cout << "Starting BM Typer..." << std::endl;
 
   // Initialize COM, so that it is available for use in the library and/or
@@ -39,7 +40,7 @@ int APIENTRY wWinMain(_In_ HINSTANCE instance, _In_opt_ HINSTANCE prev,
   FlutterWindow window(project);
   Win32Window::Point origin(10, 10);
   Win32Window::Size size(1280, 720);
-  if (!window.Create(L"bm_typer", origin, size)) {
+  if (!window.Create(L"BM Typer", origin, size)) {
     return EXIT_FAILURE;
   }
   window.SetQuitOnClose(true);

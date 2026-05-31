@@ -1,42 +1,30 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/foundation.dart';
+import 'dart:ui';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:hive_flutter/hive_flutter.dart';
-import 'package:firebase_core/firebase_core.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:bm_typer/firebase_options.dart';
 import 'package:bm_typer/presentation/screens/tutor_screen.dart';
-import 'package:bm_typer/core/services/database_service.dart';
-import 'package:bm_typer/core/services/migration_service.dart';
-import 'package:bm_typer/core/services/reminder_service.dart';
-import 'package:bm_typer/core/services/leaderboard_service.dart';
-import 'package:bm_typer/core/services/connectivity_service.dart';
-import 'package:bm_typer/core/services/cloud_sync_service.dart';
-import 'package:bm_typer/core/models/leaderboard_entry_model.dart';
-import 'package:bm_typer/core/providers/user_provider.dart';
+import 'package:bm_typer/core/services/app_startup_service.dart';
 import 'package:bm_typer/core/providers/theme_provider.dart';
 import 'package:bm_typer/core/providers/language_provider.dart';
 import 'package:bm_typer/core/providers/keyboard_layout_provider.dart';
 import 'package:bm_typer/core/constants/keyboard_layouts.dart';
 import 'package:bm_typer/presentation/screens/auth_screen.dart';
-import 'package:bm_typer/core/models/user_model.dart';
-import 'package:bm_typer/core/models/typing_session.dart';
-import 'package:bm_typer/core/services/sound_service.dart';
-import 'package:bm_typer/core/services/tts_service.dart';
-import 'package:bm_typer/core/services/accessibility_service.dart';
 import 'package:bm_typer/presentation/screens/typing_speed_test_screen.dart';
 import 'package:bm_typer/presentation/screens/typing_test_results_screen.dart';
 import 'package:bm_typer/presentation/screens/profile_screen.dart';
 import 'package:bm_typer/presentation/screens/account_settings_screen.dart';
 import 'package:bm_typer/presentation/screens/leaderboard_screen.dart';
 import 'package:bm_typer/presentation/screens/subscription_screen.dart';
-import 'package:bm_typer/presentation/screens/subscription_screen.dart';
 import 'package:bm_typer/presentation/screens/admin/admin_dashboard_screen.dart';
 import 'package:bm_typer/presentation/screens/team_lead/team_lead_dashboard_screen.dart';
 import 'package:bm_typer/presentation/screens/org_admin/org_admin_dashboard_screen.dart';
 import 'package:bm_typer/presentation/wrappers/role_based_home_wrapper.dart';
+import 'package:bm_typer/presentation/widgets/update_checker.dart';
+import 'package:bm_typer/presentation/widgets/web_download_prompt.dart';
 import 'package:bm_typer/core/utils/route_guard.dart';
+import 'package:bm_typer/presentation/screens/debug_screen.dart';
 import 'package:bm_typer/core/enums/user_role.dart';
 
 import 'package:google_fonts/google_fonts.dart';
@@ -55,96 +43,66 @@ void main() async {
     print('Stack trace: ${details.stack}');
   };
 
-  print('--- APP STARTUP BEGIN ---');
-
-  try {
-    print('Initializing Firebase...');
-    // Initialize Firebase
-    await Firebase.initializeApp(
-      options: DefaultFirebaseOptions.currentPlatform,
+  ErrorWidget.builder = (FlutterErrorDetails details) {
+    return Material(
+      color: const Color(0xFF0F172A),
+      child: Center(
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: DecoratedBox(
+            decoration: BoxDecoration(
+              color: const Color(0xFF111827),
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(color: const Color(0xFFEF4444)),
+            ),
+            child: Padding(
+              padding: const EdgeInsets.all(20),
+              child: DefaultTextStyle(
+                style: const TextStyle(color: Colors.white),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(Icons.error_outline,
+                        color: Color(0xFFEF4444), size: 52),
+                    const SizedBox(height: 12),
+                    const Text(
+                      'BM Typer UI Error',
+                      textAlign: TextAlign.center,
+                      style:
+                          TextStyle(fontSize: 20, fontWeight: FontWeight.w700),
+                    ),
+                    const SizedBox(height: 10),
+                    Text(
+                      details.exceptionAsString(),
+                      textAlign: TextAlign.center,
+                      style: const TextStyle(
+                          fontSize: 14, color: Color(0xFFFCA5A5)),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
     );
-    print('Firebase initialized successfully');
-    
-    // Note: Do NOT clear Firestore persistence or disable it
-  } catch (e) {
-    print('Firebase initialization failed: $e');
-  }
+  };
 
-  bool databaseInitialized = false;
-  try {
-    print('Initializing Database (Hive)...');
-    
-    // Register additional Hive adapters BEFORE opening boxes
-    // Note: UserModelAdapter and UserRoleAdapter are registered in DatabaseService.initialize()
-    if (!Hive.isAdapterRegistered(3)) {
-      Hive.registerAdapter(LeaderboardEntryAdapter());
-    }
-    if (!Hive.isAdapterRegistered(2)) {
-      Hive.registerAdapter(TypingSessionAdapter());
-    }
-    print('Hive adapters registered.');
-    
-    // Initialize database (this opens the boxes)
-    await DatabaseService.initialize();
-    print('DatabaseService initialized.');
-    databaseInitialized = true;
+  PlatformDispatcher.instance.onError = (error, stack) {
+    print('UNCAUGHT PLATFORM ERROR: $error');
+    print('Platform stack trace: $stack');
+    return true;
+  };
 
-    // Check for and run migrations if needed
-    print('Checking migrations...');
-    await MigrationService.checkAndMigrateIfNeeded();
-    await MigrationService.migrateDatabaseFormats();
-    print('Migrations completed.');
+  await AppStartupService.initializeCritical();
 
-    // Initialize the leaderboard service
-    print('Initializing LeaderboardService...');
-    await LeaderboardService.initialize();
-    print('LeaderboardService initialized.');
-  } catch (e) {
-    print('Database/Hive initialization failed: $e');
-    print('App will continue but some features may not work.');
-  }
-
-  try {
-    print('Initializing Connectivity/CloudSync...');
-    // Initialize connectivity and cloud sync services
-    await ConnectivityService().initialize();
-    await CloudSyncService().initialize();
-    print('Connectivity/CloudSync initialized.');
-  } catch (e) {
-    print('Connectivity services failed: $e');
-  }
-
-  try {
-    print('Initializing ReminderService...');
-    await ReminderService.initialize();
-    print('ReminderService initialized.');
-  } catch (e) {
-    print('ReminderService initialization failed: $e');
-  }
-
-  try {
-    print('Initializing Audio/TTS/Accessibility...');
-    // Initialize services
-    final soundService = SoundService();
-    await soundService.initialize();
-
-    final ttsService = TtsService();
-    await ttsService.initialize();
-
-    final accessibilityService = AccessibilityService();
-    await accessibilityService.initialize();
-    print('Audio/TTS/Accessibility initialized.');
-  } catch (e) {
-    print('Audio/TTS services failed: $e');
-  }
-
-  print('Calling runApp()...');
   runApp(
     const ProviderScope(
       child: BMTyperApp(),
     ),
   );
-  print('runApp() called.');
+
+  unawaited(AppStartupService.initializeDeferred());
 }
 
 class BMTyperApp extends ConsumerWidget {
@@ -152,13 +110,8 @@ class BMTyperApp extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final currentUser = ref.watch(currentUserProvider);
     final themeState = ref.watch(themeProvider);
     final appLanguage = ref.watch(appLanguageProvider);
-
-    // Get platform brightness for system theme mode
-    final platformBrightness = MediaQuery.platformBrightnessOf(context);
-    final brightness = themeState.getBrightness(platformBrightness);
 
     // App title based on language
     final appTitle = appLanguage == AppLanguage.bengali
@@ -171,36 +124,57 @@ class BMTyperApp extends ConsumerWidget {
       theme: themeState.getLightTheme(),
       darkTheme: themeState.getDarkTheme(),
       themeMode: themeState.themeMode,
-      home: GlobalKeyboardShortcuts(
-        child: const RoleBasedHomeWrapper(),
+      builder: (context, child) {
+        return WebDownloadPrompt(
+          child: child ?? const SizedBox.shrink(),
+        );
+      },
+      home: UpdateChecker(
+        child: GlobalKeyboardShortcuts(
+          child: const RoleBasedHomeWrapper(),
+        ),
       ),
       routes: {
-        '/login': (context) => GlobalKeyboardShortcuts(child: const AuthScreen()),
-        '/profile': (context) => GlobalKeyboardShortcuts(child: const ProfileScreen()),
-        '/account_settings': (context) => GlobalKeyboardShortcuts(child: const AccountSettingsScreen()),
-        '/leaderboard': (context) => GlobalKeyboardShortcuts(child: const LeaderboardScreen()),
-        '/typing_test': (context) => GlobalKeyboardShortcuts(child: const TypingSpeedTestScreen()),
-        '/typing_test_results': (context) => GlobalKeyboardShortcuts(child: const TypingTestResultsScreen()),
-        '/subscription': (context) => GlobalKeyboardShortcuts(child: const SubscriptionScreen()),
+        '/login': (context) =>
+            GlobalKeyboardShortcuts(child: const AuthScreen()),
+        '/profile': (context) =>
+            GlobalKeyboardShortcuts(child: const ProfileScreen()),
+        '/account_settings': (context) =>
+            GlobalKeyboardShortcuts(child: const AccountSettingsScreen()),
+        '/leaderboard': (context) =>
+            GlobalKeyboardShortcuts(child: const LeaderboardScreen()),
+        '/typing_test': (context) =>
+            GlobalKeyboardShortcuts(child: const TypingSpeedTestScreen()),
+        '/typing_test_results': (context) =>
+            GlobalKeyboardShortcuts(child: const TypingTestResultsScreen()),
+        '/subscription': (context) =>
+            GlobalKeyboardShortcuts(child: const SubscriptionScreen()),
         '/admin': (context) => GlobalKeyboardShortcuts(
-          child: const RouteGuard(
-            allowedRoles: [UserRole.superAdmin],
-            child: AdminDashboardScreen(),
-          ),
-        ),
+              child: const RouteGuard(
+                allowedRoles: [UserRole.superAdmin],
+                child: AdminDashboardScreen(),
+              ),
+            ),
         '/team_lead': (context) => GlobalKeyboardShortcuts(
-          child: const RouteGuard(
-            allowedRoles: [UserRole.teamLead, UserRole.orgAdmin, UserRole.superAdmin],
-            child: TeamLeadDashboardScreen(),
-          ),
-        ),
+              child: const RouteGuard(
+                allowedRoles: [
+                  UserRole.teamLead,
+                  UserRole.orgAdmin,
+                  UserRole.superAdmin
+                ],
+                child: TeamLeadDashboardScreen(),
+              ),
+            ),
         '/org_admin': (context) => GlobalKeyboardShortcuts(
-          child: const RouteGuard(
-            allowedRoles: [UserRole.orgAdmin, UserRole.superAdmin],
-            child: OrgAdminDashboardScreen(),
-          ),
-        ),
-        '/practice': (context) => GlobalKeyboardShortcuts(child: const TutorScreen()),
+              child: const RouteGuard(
+                allowedRoles: [UserRole.orgAdmin, UserRole.superAdmin],
+                child: OrgAdminDashboardScreen(),
+              ),
+            ),
+        '/practice': (context) =>
+            GlobalKeyboardShortcuts(child: const TutorScreen()),
+        '/debug': (context) =>
+            GlobalKeyboardShortcuts(child: const DebugScreen()),
       },
     );
   }
@@ -216,10 +190,12 @@ class GlobalKeyboardShortcuts extends ConsumerStatefulWidget {
   const GlobalKeyboardShortcuts({super.key, required this.child});
 
   @override
-  ConsumerState<GlobalKeyboardShortcuts> createState() => _GlobalKeyboardShortcutsState();
+  ConsumerState<GlobalKeyboardShortcuts> createState() =>
+      _GlobalKeyboardShortcutsState();
 }
 
-class _GlobalKeyboardShortcutsState extends ConsumerState<GlobalKeyboardShortcuts> {
+class _GlobalKeyboardShortcutsState
+    extends ConsumerState<GlobalKeyboardShortcuts> {
   final FocusNode _focusNode = FocusNode();
   final Set<LogicalKeyboardKey> _pressedKeys = {};
   KeyboardLayout? _previousLayout;
@@ -233,17 +209,18 @@ class _GlobalKeyboardShortcutsState extends ConsumerState<GlobalKeyboardShortcut
   void _handleKeyEvent(KeyEvent event) {
     if (event is KeyDownEvent) {
       _pressedKeys.add(event.logicalKey);
-      
+
       // Check for keyboard shortcuts: Ctrl+Alt+V/A/E for layout switching
-      final isCtrlPressed = _pressedKeys.contains(LogicalKeyboardKey.controlLeft) ||
-                            _pressedKeys.contains(LogicalKeyboardKey.controlRight);
+      final isCtrlPressed =
+          _pressedKeys.contains(LogicalKeyboardKey.controlLeft) ||
+              _pressedKeys.contains(LogicalKeyboardKey.controlRight);
       final isAltPressed = _pressedKeys.contains(LogicalKeyboardKey.altLeft) ||
-                           _pressedKeys.contains(LogicalKeyboardKey.altRight);
-      
+          _pressedKeys.contains(LogicalKeyboardKey.altRight);
+
       if (isCtrlPressed && isAltPressed) {
         final currentLayout = ref.read(keyboardLayoutProvider).currentLayout;
         KeyboardLayout? targetLayout;
-        
+
         // Ctrl+Alt+V = Bijoy
         if (event.logicalKey == LogicalKeyboardKey.keyV) {
           targetLayout = KeyboardLayout.bijoy;
@@ -256,11 +233,13 @@ class _GlobalKeyboardShortcutsState extends ConsumerState<GlobalKeyboardShortcut
         else if (event.logicalKey == LogicalKeyboardKey.keyE) {
           targetLayout = KeyboardLayout.qwerty;
         }
-        
+
         if (targetLayout != null) {
           // If same layout is pressed again, revert to previous
           if (currentLayout == targetLayout && _previousLayout != null) {
-            ref.read(keyboardLayoutProvider.notifier).setLayout(_previousLayout!);
+            ref
+                .read(keyboardLayoutProvider.notifier)
+                .setLayout(_previousLayout!);
             _previousLayout = currentLayout;
           } else {
             // Save current as previous and switch to target
@@ -269,7 +248,6 @@ class _GlobalKeyboardShortcutsState extends ConsumerState<GlobalKeyboardShortcut
           }
         }
       }
-      
     } else if (event is KeyUpEvent) {
       _pressedKeys.remove(event.logicalKey);
     }

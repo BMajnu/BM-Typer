@@ -237,6 +237,13 @@ class _OrgDashboardState extends ConsumerState<_OrgDashboard> {
       ),
       child: Row(
         children: [
+          // Back button to return to typing dashboard
+          IconButton(
+            icon: const Icon(Icons.arrow_back_rounded),
+            tooltip: 'টাইপিং ড্যাশবোর্ডে ফিরুন',
+            onPressed: () => Navigator.pop(context),
+          ),
+          const SizedBox(width: 8),
           Text(
             _navItems[_selectedIndex].label,
             style: GoogleFonts.hindSiliguri(fontSize: 24, fontWeight: FontWeight.bold),

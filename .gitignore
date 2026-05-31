@@ -1,0 +1,40 @@
+# ===== BM-Typer root .gitignore =====
+
+# OS / editor
+.DS_Store
+Thumbs.db
+*.swp
+.idea/
+*.iml
+
+# Logs
+*.log
+bm_typer_debug.log
+bm_typer_error.log
+
+# Python
+__pycache__/
+*.pyc
+
+# Node / web tooling
+node_modules/
+.next/
+next-env.d.ts
+
+# ----- Regeneratable caches (must never be committed) -----
+.firebase_cpp_sdk_cache/
+.toolstate/
+
+# ----- Flutter / Dart build artifacts -----
+**/.dart_tool/
+**/build/
+**/.flutter-plugins
+**/.flutter-plugins-dependencies
+**/.pub-cache/
+**/.pub/
+
+# ----- Build outputs / release binaries -----
+bm_typer/installers/
+bm_typer/deliverables/
+bm_typer_run/installers/
+bm_typer_run/deliverables/

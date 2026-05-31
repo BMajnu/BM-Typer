@@ -1,0 +1,372 @@
+import 'dart:ui';
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:google_fonts/google_fonts.dart';
+import 'package:bm_typer/core/providers/theme_provider.dart';
+import 'package:bm_typer/core/services/theme_service.dart';
+
+class ThemeSettingsScreen extends ConsumerStatefulWidget {
+  const ThemeSettingsScreen({super.key});
+
+  @override
+  ConsumerState<ThemeSettingsScreen> createState() => _ThemeSettingsScreenState();
+}
+
+class _ThemeSettingsScreenState extends ConsumerState<ThemeSettingsScreen> {
+  
+  final List<String> _availableFonts = [
+    'Hind Siliguri',
+    'Noto Sans Bengali',
+    'Galada',
+    'Tiro Bangla',
+    'Mina',
+  ];
+
+  @override
+  Widget build(BuildContext context) {
+    final themeState = ref.watch(themeProvider);
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final colorScheme = Theme.of(context).colorScheme;
+
+    return Scaffold(
+      body: Container(
+        decoration: _buildGradientBackground(isDark, colorScheme),
+        child: SafeArea(
+          child: Column(
+            children: [
+              _buildAppBar(context, colorScheme, isDark),
+              Expanded(
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.all(16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      _buildSectionTitle('থিম মোড', isDark),
+                      const SizedBox(height: 12),
+                      _buildThemeModeCard(themeState, colorScheme, isDark),
+                      
+                      const SizedBox(height: 24),
+                      _buildSectionTitle('থিম রঙ', isDark),
+                      const SizedBox(height: 12),
+                      _buildColorGrid(themeState, colorScheme, isDark),
+                      
+                      const SizedBox(height: 24),
+                      _buildSectionTitle('শিরোনাম স্টাইল (ফন্ট)', isDark),
+                      const SizedBox(height: 12),
+                      _buildFontSelector(themeState, colorScheme, isDark),
+
+                      const SizedBox(height: 24),
+                      _buildSectionTitle('প্রিভিউ', isDark),
+                      const SizedBox(height: 12),
+                      _buildPreviewSection(colorScheme, isDark, themeState.fontName),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  BoxDecoration _buildGradientBackground(bool isDark, ColorScheme colorScheme) {
+    return BoxDecoration(
+      gradient: LinearGradient(
+        begin: Alignment.topCenter,
+        end: Alignment.bottomCenter,
+        colors: isDark
+            ? [const Color(0xFF1a1a2e), const Color(0xFF16213e), const Color(0xFF0f0f1a)]
+            : [colorScheme.primaryContainer.withOpacity(0.3), colorScheme.surface, colorScheme.surface],
+      ),
+    );
+  }
+
+  Widget _buildAppBar(BuildContext context, ColorScheme colorScheme, bool isDark) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      child: Row(
+        children: [
+          IconButton(
+            icon: Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: (isDark ? Colors.white : Colors.black).withOpacity(0.1),
+                shape: BoxShape.circle,
+              ),
+              child: Icon(Icons.arrow_back_ios_new_rounded, size: 18, color: isDark ? Colors.white : Colors.black87),
+            ),
+            onPressed: () => Navigator.pop(context),
+          ),
+          const SizedBox(width: 8),
+          Icon(Icons.palette_rounded, color: colorScheme.primary, size: 28),
+          const SizedBox(width: 12),
+          Text(
+            'থিম সেটিংস',
+            style: GoogleFonts.getFont(
+              ref.watch(themeProvider).fontName,
+              fontSize: 22,
+              fontWeight: FontWeight.bold,
+              color: isDark ? Colors.white : Colors.black87,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSectionTitle(String title, bool isDark) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 4),
+      child: Text(
+        title,
+        style: GoogleFonts.getFont(
+          ref.watch(themeProvider).fontName,
+          fontSize: 18,
+          fontWeight: FontWeight.bold,
+          color: isDark ? Colors.white : Colors.black87,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildGlassCard({required bool isDark, required Widget child}) {
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(20),
+      child: BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+        child: Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: (isDark ? Colors.white : Colors.black).withOpacity(isDark ? 0.1 : 0.05),
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(color: (isDark ? Colors.white : Colors.black).withOpacity(0.1)),
+          ),
+          child: child,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildThemeModeCard(ThemeState themeState, ColorScheme colorScheme, bool isDark) {
+    return _buildGlassCard(
+      isDark: isDark,
+      child: Column(
+        children: [
+          _buildThemeModeOption('সিস্টেম', Icons.brightness_auto_rounded, themeState.themeMode == ThemeMode.system, colorScheme, isDark, () {
+            ref.read(themeProvider.notifier).setThemeMode(ThemeMode.system);
+          }),
+          const SizedBox(height: 8),
+          _buildThemeModeOption('লাইট', Icons.light_mode_rounded, themeState.themeMode == ThemeMode.light, colorScheme, isDark, () {
+            ref.read(themeProvider.notifier).setThemeMode(ThemeMode.light);
+          }),
+          const SizedBox(height: 8),
+          _buildThemeModeOption('ডার্ক', Icons.dark_mode_rounded, themeState.themeMode == ThemeMode.dark, colorScheme, isDark, () {
+            ref.read(themeProvider.notifier).setThemeMode(ThemeMode.dark);
+          }),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildThemeModeOption(String title, IconData icon, bool isSelected, ColorScheme colorScheme, bool isDark, VoidCallback onTap) {
+    return GestureDetector(
+      onTap: onTap,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        decoration: BoxDecoration(
+          color: isSelected ? colorScheme.primary.withOpacity(0.15) : Colors.transparent,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(
+            color: isSelected ? colorScheme.primary : Colors.transparent,
+            width: 2,
+          ),
+        ),
+        child: Row(
+          children: [
+            Icon(icon, color: isSelected ? colorScheme.primary : (isDark ? Colors.white60 : Colors.black54)),
+            const SizedBox(width: 16),
+            Expanded(
+              child: Text(
+                title,
+                style: GoogleFonts.getFont(
+                  ref.watch(themeProvider).fontName,
+                  fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                  color: isSelected ? colorScheme.primary : (isDark ? Colors.white : Colors.black87),
+                ),
+              ),
+            ),
+            if (isSelected) Icon(Icons.check_circle_rounded, color: colorScheme.primary),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildColorGrid(ThemeState themeState, ColorScheme colorScheme, bool isDark) {
+    return _buildGlassCard(
+      isDark: isDark,
+      child: Wrap(
+        spacing: 12,
+        runSpacing: 12,
+        children: ThemeService.themeColors.map((themeColor) {
+          final isSelected = themeState.themeColor == themeColor;
+          final colorName = ThemeService.getThemeColorDisplayName(themeColor);
+          final color = ThemeService.getThemeColorSeed(themeColor);
+
+          return GestureDetector(
+            onTap: () => ref.read(themeProvider.notifier).setThemeColor(themeColor),
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 200),
+              width: 70,
+              padding: const EdgeInsets.symmetric(vertical: 12),
+              decoration: BoxDecoration(
+                color: isSelected ? color.withOpacity(0.2) : Colors.transparent,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(
+                  color: isSelected ? color : (isDark ? Colors.white : Colors.black).withOpacity(0.1),
+                  width: isSelected ? 2 : 1,
+                ),
+              ),
+              child: Column(
+                children: [
+                  Container(
+                    width: 36,
+                    height: 36,
+                    decoration: BoxDecoration(
+                      color: color,
+                      shape: BoxShape.circle,
+                      boxShadow: [BoxShadow(color: color.withOpacity(0.4), blurRadius: 6, offset: const Offset(0, 2))],
+                    ),
+                    child: isSelected ? const Icon(Icons.check, color: Colors.white, size: 18) : null,
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    colorName,
+                    style: GoogleFonts.getFont(
+                      themeState.fontName,
+                      fontSize: 11,
+                      color: isSelected ? color : (isDark ? Colors.white70 : Colors.black54),
+                      fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                ],
+              ),
+            ),
+          );
+        }).toList(),
+      ),
+    );
+  }
+
+  Widget _buildFontSelector(ThemeState themeState, ColorScheme colorScheme, bool isDark) {
+     return _buildGlassCard(
+      isDark: isDark,
+      child: Wrap(
+        spacing: 8,
+        runSpacing: 8,
+        children: _availableFonts.map((font) {
+          final isSelected = themeState.fontName == font;
+          return GestureDetector(
+            onTap: () => ref.read(themeProvider.notifier).setFontName(font),
+            child: AnimatedContainer(
+               duration: const Duration(milliseconds: 200),
+               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+               decoration: BoxDecoration(
+                 color: isSelected ? colorScheme.primary : (isDark ? Colors.white10 : Colors.black.withOpacity(0.05)),
+                 borderRadius: BorderRadius.circular(20),
+                 border: Border.all(
+                   color: isSelected ? colorScheme.primary : (isDark ? Colors.white24 : Colors.black12),
+                 ),
+               ),
+               child: Text(
+                 font,
+                 style: GoogleFonts.getFont(
+                   font,
+                   color: isSelected ? Colors.white : (isDark ? Colors.white70 : Colors.black87),
+                   fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                 ),
+               ),
+            ),
+          );
+        }).toList(),
+      ),
+    );
+  }
+
+  Widget _buildPreviewSection(ColorScheme colorScheme, bool isDark, String fontName) {
+    // Explicitly use Theme.of(context).textTheme to ensure it picks up the global theme changes
+    // But since we are inside the widget that might not have rebuilt with the new theme yet if 
+    // MaterialApp hasn't rebuilt (though Riverpod should trigger it), we explicitly use fontName here for immediate feedback.
+    
+    return _buildGlassCard(
+      isDark: isDark,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'শিরোনাম উদাহরণ',
+            style: GoogleFonts.getFont(
+              fontName,
+              fontSize: 24,
+              fontWeight: FontWeight.bold,
+              color: isDark ? Colors.white : Colors.black87,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'এটি আপনার নির্বাচিত ফন্ট এবং কালার থিমের একটি উদাহরণ।',
+            style: GoogleFonts.getFont(
+              fontName,
+              fontSize: 16,
+              color: (isDark ? Colors.white : Colors.black).withOpacity(0.7),
+            ),
+          ),
+          const SizedBox(height: 20),
+          _buildColorPreviewBox('প্রাইমারি কালার', colorScheme.primary, colorScheme.onPrimary, fontName),
+          const SizedBox(height: 8),
+          _buildColorPreviewBox('সেকেন্ডারি কালার', colorScheme.secondary, colorScheme.onSecondary, fontName),
+          const SizedBox(height: 20),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+            children: [
+               ElevatedButton(
+                 onPressed: () {}, 
+                 child: Text('Elevated', style: GoogleFonts.getFont(fontName))
+               ),
+               FilledButton(
+                 onPressed: () {}, 
+                 child: Text('Filled', style: GoogleFonts.getFont(fontName))
+               ),
+               OutlinedButton(
+                 onPressed: () {}, 
+                 child: Text('Outlined', style: GoogleFonts.getFont(fontName))
+               ),
+            ],
+          )
+        ],
+      ),
+    );
+  }
+
+  Widget _buildColorPreviewBox(String label, Color color, Color textColor, String fontName) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+      decoration: BoxDecoration(
+        color: color,
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Text(
+        label, 
+        style: GoogleFonts.getFont(
+          fontName,
+          color: textColor, 
+          fontWeight: FontWeight.bold
+        )
+      ),
+    );
+  }
+}

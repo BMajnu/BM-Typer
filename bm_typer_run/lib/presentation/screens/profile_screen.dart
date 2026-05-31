@@ -1,0 +1,1491 @@
+import 'package:flutter/material.dart';
+import 'dart:ui';
+import 'package:flutter/foundation.dart';
+import 'package:bm_typer/core/providers/organization_provider.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:google_fonts/google_fonts.dart';
+import 'package:bm_typer/core/providers/user_provider.dart';
+import 'package:bm_typer/core/enums/user_role.dart';
+import 'package:bm_typer/core/providers/subscription_provider.dart';
+import 'package:bm_typer/core/services/feature_limit_service.dart';
+import 'package:bm_typer/core/services/admin_auth_service.dart';
+import 'package:bm_typer/presentation/screens/reminder_settings_screen.dart';
+import 'package:bm_typer/presentation/screens/level_details_screen.dart';
+import 'package:bm_typer/presentation/screens/export_screen.dart';
+import 'package:bm_typer/presentation/widgets/streak_counter.dart';
+import 'package:bm_typer/presentation/widgets/xp_progress_bar.dart';
+import 'package:bm_typer/core/models/user_model.dart';
+
+
+class ProfileScreen extends ConsumerWidget {
+  const ProfileScreen({super.key});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final user = ref.watch(currentUserProvider);
+    final colorScheme = Theme.of(context).colorScheme;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final screenWidth = MediaQuery.of(context).size.width;
+    final isCompact = screenWidth < 600;
+
+    if (user == null) {
+      return Scaffold(
+        body: Container(
+          decoration: _buildGradientBackground(isDark, colorScheme),
+          child: SafeArea(
+            child: Column(
+              children: [
+                // Back button
+                Align(
+                  alignment: Alignment.topLeft,
+                  child: Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: IconButton(
+                      icon: Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: (isDark ? Colors.white : Colors.black).withOpacity(0.1),
+                          shape: BoxShape.circle,
+                        ),
+                        child: Icon(Icons.arrow_back_ios_new_rounded, size: 18, color: isDark ? Colors.white : Colors.black87),
+                      ),
+                      onPressed: () => Navigator.pop(context),
+                    ),
+                  ),
+                ),
+                
+                Expanded(
+                  child: Center(
+                    child: Padding(
+                      padding: EdgeInsets.all(isCompact ? 24 : 40),
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(24),
+                        child: BackdropFilter(
+                          filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+                          child: Container(
+                            padding: EdgeInsets.all(isCompact ? 24 : 32),
+                            constraints: const BoxConstraints(maxWidth: 400),
+                            decoration: BoxDecoration(
+                              color: (isDark ? Colors.white : Colors.black).withOpacity(isDark ? 0.1 : 0.05),
+                              borderRadius: BorderRadius.circular(24),
+                              border: Border.all(
+                                color: (isDark ? Colors.white : Colors.black).withOpacity(0.1),
+                              ),
+                            ),
+                            child: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                // Icon
+                                Container(
+                                  padding: const EdgeInsets.all(20),
+                                  decoration: BoxDecoration(
+                                    color: colorScheme.primary.withOpacity(0.1),
+                                    shape: BoxShape.circle,
+                                  ),
+                                  child: Icon(
+                                    Icons.person_add_rounded,
+                                    size: 48,
+                                    color: colorScheme.primary,
+                                  ),
+                                ),
+                                
+                                const SizedBox(height: 24),
+                                
+                                Text(
+                                  'প্রোফাইল তৈরি করুন',
+                                  style: GoogleFonts.hindSiliguri(
+                                    fontSize: isCompact ? 22 : 26,
+                                    fontWeight: FontWeight.bold,
+                                    color: isDark ? Colors.white : Colors.black87,
+                                  ),
+                                  textAlign: TextAlign.center,
+                                ),
+                                
+                                const SizedBox(height: 12),
+                                
+                                Text(
+                                  'আপনার অগ্রগতি ট্র্যাক করতে এবং লিডারবোর্ডে যোগ দিতে একটি প্রোফাইল তৈরি করুন।',
+                                  style: GoogleFonts.hindSiliguri(
+                                    fontSize: 14,
+                                    color: (isDark ? Colors.white : Colors.black).withOpacity(0.6),
+                                  ),
+                                  textAlign: TextAlign.center,
+                                ),
+                                
+                                const SizedBox(height: 32),
+                                
+                                // Register Button
+                                SizedBox(
+                                  width: double.infinity,
+                                  child: Container(
+                                    decoration: BoxDecoration(
+                                      borderRadius: BorderRadius.circular(16),
+                                      gradient: LinearGradient(
+                                        colors: [colorScheme.primary, colorScheme.secondary],
+                                      ),
+                                      boxShadow: [
+                                        BoxShadow(
+                                          color: colorScheme.primary.withOpacity(0.4),
+                                          blurRadius: 15,
+                                          offset: const Offset(0, 5),
+                                        ),
+                                      ],
+                                    ),
+                                    child: ElevatedButton.icon(
+                                      onPressed: () {
+                                        Navigator.pushNamed(context, '/register');
+                                      },
+                                      icon: const Icon(Icons.person_add_rounded),
+                                      label: Text(
+                                        'রেজিস্ট্রেশন করুন',
+                                        style: GoogleFonts.hindSiliguri(
+                                          fontSize: 16,
+                                          fontWeight: FontWeight.w600,
+                                        ),
+                                      ),
+                                      style: ElevatedButton.styleFrom(
+                                        backgroundColor: Colors.transparent,
+                                        shadowColor: Colors.transparent,
+                                        foregroundColor: Colors.white,
+                                        padding: const EdgeInsets.symmetric(vertical: 16),
+                                        shape: RoundedRectangleBorder(
+                                          borderRadius: BorderRadius.circular(16),
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                                
+                                const SizedBox(height: 16),
+                                
+                                // Continue as Guest
+                                TextButton(
+                                  onPressed: () {
+                                    Navigator.pop(context);
+                                  },
+                                  child: Text(
+                                    'অতিথি হিসেবে চালিয়ে যান',
+                                    style: GoogleFonts.hindSiliguri(
+                                      fontSize: 14,
+                                      color: colorScheme.primary,
+                                    ),
+                                  ),
+                                ),
+                                
+                                const SizedBox(height: 16),
+                                
+                                // Features list
+                                Container(
+                                  padding: const EdgeInsets.all(16),
+                                  decoration: BoxDecoration(
+                                    color: colorScheme.primary.withOpacity(0.05),
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                  child: Column(
+                                    children: [
+                                      _buildFeatureItem(Icons.trending_up_rounded, 'অগ্রগতি ট্র্যাক', colorScheme, isDark),
+                                      const SizedBox(height: 8),
+                                      _buildFeatureItem(Icons.leaderboard_rounded, 'লিডারবোর্ড', colorScheme, isDark),
+                                      const SizedBox(height: 8),
+                                      _buildFeatureItem(Icons.emoji_events_rounded, 'অ্যাচিভমেন্ট', colorScheme, isDark),
+                                    ],
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+    }
+
+    return Scaffold(
+      body: Container(
+        decoration: _buildGradientBackground(isDark, colorScheme),
+        child: CustomScrollView(
+          slivers: [
+            // Modern App Bar with Glassmorphism
+            SliverAppBar(
+              expandedHeight: isCompact ? 260 : 300,
+              floating: false,
+              pinned: true,
+              backgroundColor: Colors.transparent,
+              flexibleSpace: FlexibleSpaceBar(
+                background: _buildProfileHeader(context, user, colorScheme, isDark, isCompact),
+              ),
+              leading: IconButton(
+                icon: Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: Colors.black.withOpacity(0.2),
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(Icons.arrow_back_ios_new_rounded, size: 18, color: Colors.white),
+                ),
+                onPressed: () => Navigator.pop(context),
+              ),
+              actions: [
+                // Refresh/Sync Button
+                IconButton(
+                  icon: Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: Colors.black.withOpacity(0.2),
+                      shape: BoxShape.circle,
+                    ),
+                    child: Icon(Icons.sync_rounded, size: 20, color: Colors.white),
+                  ),
+                  onPressed: () async {
+                    // Force sync user data from cloud
+                    debugPrint('🔄 Manual sync triggered');
+                    final userNotifier = ref.read(currentUserProvider.notifier);
+                    await userNotifier.forceCloudSync();
+                    // Also invalidate org provider to refetch
+                    ref.invalidate(currentOrgProvider);
+                    if (context.mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text('সিঙ্ক সম্পন্ন!'),
+                          backgroundColor: Colors.green,
+                          duration: Duration(seconds: 1),
+                        ),
+                      );
+                    }
+                  },
+                  tooltip: 'ডেটা সিঙ্ক করুন',
+                ),
+                // Settings Button
+                IconButton(
+                  icon: Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: Colors.black.withOpacity(0.2),
+                      shape: BoxShape.circle,
+                    ),
+                    child: Icon(Icons.settings_rounded, size: 20, color: Colors.white),
+                  ),
+                  onPressed: () => Navigator.pushNamed(context, '/account_settings'),
+                ),
+                const SizedBox(width: 8),
+              ],
+            ),
+            
+            // Content
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: EdgeInsets.all(isCompact ? 16 : 24),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Quick Stats Row
+                    _buildQuickStats(context, user, colorScheme, isDark, isCompact),
+                    
+                    const SizedBox(height: 16),
+                    
+                    // Subscription Status Card
+                    _buildSubscriptionStatusCard(context, ref, colorScheme, isDark),
+                    
+                    const SizedBox(height: 24),
+                    
+                    // XP Progress Section
+                    _buildXPSection(context, user, colorScheme, isDark),
+                    
+                    const SizedBox(height: 24),
+                    
+                    // Daily Streak Section
+                    _buildStreakSection(context, user, colorScheme, isDark),
+                    
+                    const SizedBox(height: 24),
+                    
+                    // Typing Statistics
+                    _buildTypingStatsSection(context, user, colorScheme, isDark),
+                    
+                    const SizedBox(height: 24),
+                    
+                    // Recent Activity
+                    _buildRecentActivitySection(context, user, colorScheme, isDark),
+                    
+                    const SizedBox(height: 24),
+                    
+                    // Action Buttons Row
+                    _buildActionButtons(context, colorScheme, isDark),
+                    
+                    const SizedBox(height: 32),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  BoxDecoration _buildGradientBackground(bool isDark, ColorScheme colorScheme) {
+    return BoxDecoration(
+      gradient: LinearGradient(
+        begin: Alignment.topCenter,
+        end: Alignment.bottomCenter,
+        colors: isDark
+            ? [
+                const Color(0xFF1a1a2e),
+                const Color(0xFF16213e),
+                const Color(0xFF0f0f1a),
+              ]
+            : [
+                colorScheme.primaryContainer.withOpacity(0.3),
+                colorScheme.surface,
+                colorScheme.surface,
+              ],
+      ),
+    );
+  }
+
+  Widget _buildProfileHeader(BuildContext context, UserModel user, ColorScheme colorScheme, bool isDark, bool isCompact) {
+    return Container(
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            colorScheme.primary,
+            colorScheme.secondary,
+            colorScheme.tertiary ?? colorScheme.primary,
+          ],
+        ),
+      ),
+      child: SafeArea(
+        child: Padding(
+          padding: EdgeInsets.all(isCompact ? 16 : 24),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.end,
+            children: [
+              // Avatar with Level Ring + Premium Ring
+              Consumer(
+                builder: (context, ref, child) {
+                  final subscriptionState = ref.watch(subscriptionStateProvider);
+                  final isPremium = subscriptionState.isPremium;
+                  
+                  return SizedBox(
+                    width: isCompact ? 110 : 130,
+                    height: isCompact ? 110 : 130,
+                    child: Stack(
+                      alignment: Alignment.center,
+                      clipBehavior: Clip.none,
+                      children: [
+                        // Premium/Normal Ring
+                        Container(
+                          width: isCompact ? 100 : 120,
+                          height: isCompact ? 100 : 120,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            gradient: isPremium 
+                              ? LinearGradient(
+                                  colors: [
+                                    Colors.amber.shade300,
+                                    Colors.amber.shade600,
+                                    Colors.orange.shade500,
+                                    Colors.amber.shade400,
+                                  ],
+                                  begin: Alignment.topLeft,
+                                  end: Alignment.bottomRight,
+                                )
+                              : null,
+                            border: isPremium 
+                              ? null 
+                              : Border.all(color: Colors.white.withOpacity(0.3), width: 3),
+                            boxShadow: isPremium 
+                              ? [
+                                  BoxShadow(
+                                    color: Colors.amber.withOpacity(0.6),
+                                    blurRadius: 20,
+                                    spreadRadius: 3,
+                                  ),
+                                ] 
+                              : null,
+                          ),
+                        ),
+                        // Avatar
+                        Container(
+                          width: isCompact ? 80 : 100,
+                          height: isCompact ? 80 : 100,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            color: Colors.white,
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withOpacity(0.1),
+                                blurRadius: 10,
+                              ),
+                            ],
+                          ),
+                          child: ClipOval(
+                            child: user.photoUrl != null && user.photoUrl!.isNotEmpty
+                                ? Image.network(
+                                    user.photoUrl!,
+                                    fit: BoxFit.cover,
+                                    width: isCompact ? 80 : 100,
+                                    height: isCompact ? 80 : 100,
+                                    errorBuilder: (context, error, stackTrace) {
+                                      debugPrint('❌ Profile image error: $error');
+                                      return _buildInitialAvatar(user.name, colorScheme, isCompact);
+                                    },
+                                    loadingBuilder: (context, child, loadingProgress) {
+                                      if (loadingProgress == null) return child;
+                                      return Center(
+                                        child: CircularProgressIndicator(
+                                          strokeWidth: 2,
+                                          value: loadingProgress.expectedTotalBytes != null
+                                              ? loadingProgress.cumulativeBytesLoaded / loadingProgress.expectedTotalBytes!
+                                              : null,
+                                          color: colorScheme.primary,
+                                        ),
+                                      );
+                                    },
+                                  )
+                                : _buildInitialAvatar(user.name, colorScheme, isCompact),
+                          ),
+                        ),
+                        // Premium Badge (top-left)
+                        if (isPremium)
+                          Positioned(
+                            top: 0,
+                            left: 0,
+                            child: Container(
+                              padding: const EdgeInsets.all(5),
+                              decoration: BoxDecoration(
+                                color: Colors.amber,
+                                shape: BoxShape.circle,
+                                border: Border.all(color: Colors.white, width: 2),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: Colors.amber.withOpacity(0.5),
+                                    blurRadius: 8,
+                                  ),
+                                ],
+                              ),
+                              child: const Icon(Icons.workspace_premium_rounded, size: 14, color: Colors.white),
+                            ),
+                          ),
+                        // Level Badge (bottom-right)
+                        Positioned(
+                          bottom: 0,
+                          right: 0,
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                            decoration: BoxDecoration(
+                              color: Colors.amber,
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(color: Colors.white, width: 2),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.amber.withOpacity(0.4),
+                                  blurRadius: 8,
+                                ),
+                              ],
+                            ),
+                            child: Text(
+                              'Lv ${user.level}',
+                              style: GoogleFonts.poppins(
+                                fontSize: 11,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.black87,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  );
+                },
+              ),
+              
+              SizedBox(height: isCompact ? 12 : 16),
+              
+              // Name
+              Text(
+                user.name,
+                style: GoogleFonts.poppins(
+                  fontSize: isCompact ? 22 : 26,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.white,
+                ),
+              ),
+              
+              // Level Title
+              Text(
+                _getLevelTitle(user.level),
+                style: GoogleFonts.hindSiliguri(
+                  fontSize: isCompact ? 14 : 16,
+                  color: Colors.white.withOpacity(0.8),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildQuickStats(BuildContext context, UserModel user, ColorScheme colorScheme, bool isDark, bool isCompact) {
+    return Row(
+      children: [
+        Expanded(child: _buildStatPill('${user.xpPoints}', 'XP', Icons.star_rounded, Colors.amber, isDark)),
+        const SizedBox(width: 12),
+        Expanded(child: _buildStatPill('${user.streak}', 'Streak', Icons.local_fire_department_rounded, Colors.orange, isDark)),
+        const SizedBox(width: 12),
+        Expanded(child: _buildStatPill('${user.totalLessonsCompleted}', 'Lessons', Icons.menu_book_rounded, colorScheme.primary, isDark)),
+      ],
+    );
+  }
+
+  Widget _buildStatPill(String value, String label, IconData icon, Color color, bool isDark) {
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(16),
+      child: BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 5, sigmaY: 5),
+        child: Container(
+          padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 12),
+          decoration: BoxDecoration(
+            color: (isDark ? Colors.white : Colors.black).withOpacity(isDark ? 0.1 : 0.05),
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: color.withOpacity(0.3)),
+          ),
+          child: Column(
+            children: [
+              Icon(icon, color: color, size: 24),
+              const SizedBox(height: 8),
+              Text(
+                value,
+                style: GoogleFonts.poppins(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  color: isDark ? Colors.white : Colors.black87,
+                ),
+              ),
+              Text(
+                label,
+                style: GoogleFonts.hindSiliguri(
+                  fontSize: 12,
+                  color: (isDark ? Colors.white : Colors.black).withOpacity(0.6),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildXPSection(BuildContext context, UserModel user, ColorScheme colorScheme, bool isDark) {
+    return _buildGlassCard(
+      isDark: isDark,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                'Level ${user.level} • ${_getLevelTitle(user.level)}',
+                style: GoogleFonts.poppins(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
+                  color: isDark ? Colors.white : Colors.black87,
+                ),
+              ),
+              TextButton(
+                onPressed: () {
+                  Navigator.of(context).push(
+                    MaterialPageRoute(builder: (context) => const LevelDetailsScreen()),
+                  );
+                },
+                child: Text('বিস্তারিত', style: GoogleFonts.hindSiliguri()),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          const XPProgressBar(),
+          const SizedBox(height: 8),
+          Text(
+            '${user.xpPoints} XP • পরবর্তী লেভেলে ${user.xpToNextLevel} XP বাকি',
+            style: GoogleFonts.hindSiliguri(
+              fontSize: 13,
+              color: (isDark ? Colors.white : Colors.black).withOpacity(0.6),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildStreakSection(BuildContext context, UserModel user, ColorScheme colorScheme, bool isDark) {
+    return _buildGlassCard(
+      isDark: isDark,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Row(
+                children: [
+                  Icon(Icons.local_fire_department_rounded, color: Colors.orange, size: 24),
+                  const SizedBox(width: 8),
+                  Text(
+                    'ডেইলি স্ট্রিক',
+                    style: GoogleFonts.hindSiliguri(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                      color: isDark ? Colors.white : Colors.black87,
+                    ),
+                  ),
+                ],
+              ),
+              IconButton(
+                icon: Icon(Icons.notifications_outlined, color: colorScheme.primary),
+                onPressed: () {
+                  Navigator.of(context).push(
+                    MaterialPageRoute(builder: (context) => const ReminderSettingsScreen()),
+                  );
+                },
+                tooltip: 'রিমাইন্ডার সেটিংস',
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          StreakCounter(
+            streak: user.streak,
+            isActive: user.streakMaintained,
+          ),
+          const SizedBox(height: 12),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            decoration: BoxDecoration(
+              color: (user.streakMaintained ? Colors.green : Colors.orange).withOpacity(0.1),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Row(
+              children: [
+                Icon(
+                  user.streakMaintained ? Icons.check_circle_rounded : Icons.info_outline_rounded,
+                  color: user.streakMaintained ? Colors.green : Colors.orange,
+                  size: 18,
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    user.streakMaintained
+                        ? 'আপনি ${user.streak} দিন ধরে প্র্যাক্টিস করছেন!'
+                        : 'আজ প্র্যাক্টিস করুন এবং স্ট্রিক চালিয়ে যান!',
+                    style: GoogleFonts.hindSiliguri(
+                      fontSize: 13,
+                      color: user.streakMaintained ? Colors.green[700] : Colors.orange[700],
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildTypingStatsSection(BuildContext context, UserModel user, ColorScheme colorScheme, bool isDark) {
+    return _buildGlassCard(
+      isDark: isDark,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'টাইপিং পরিসংখ্যান',
+            style: GoogleFonts.hindSiliguri(
+              fontSize: 16,
+              fontWeight: FontWeight.w600,
+              color: isDark ? Colors.white : Colors.black87,
+            ),
+          ),
+          const SizedBox(height: 16),
+          Row(
+            children: [
+              Expanded(
+                child: _buildTypingStat(
+                  icon: Icons.speed_rounded,
+                  value: '${user.highestWpm.toStringAsFixed(0)}',
+                  label: 'সর্বোচ্চ WPM',
+                  color: Colors.green,
+                  isDark: isDark,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: _buildTypingStat(
+                  icon: Icons.av_timer_rounded,
+                  value: '${user.averageWpm.toStringAsFixed(0)}',
+                  label: 'গড় WPM',
+                  color: Colors.blue,
+                  isDark: isDark,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: _buildTypingStat(
+                  icon: Icons.check_circle_rounded,
+                  value: '${user.totalLessonsCompleted}',
+                  label: 'সম্পন্ন',
+                  color: colorScheme.primary,
+                  isDark: isDark,
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildTypingStat({
+    required IconData icon,
+    required String value,
+    required String label,
+    required Color color,
+    required bool isDark,
+  }) {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Column(
+        children: [
+          Icon(icon, color: color, size: 24),
+          const SizedBox(height: 8),
+          Text(
+            value,
+            style: GoogleFonts.poppins(
+              fontSize: 20,
+              fontWeight: FontWeight.bold,
+              color: isDark ? Colors.white : Colors.black87,
+            ),
+          ),
+          Text(
+            label,
+            style: GoogleFonts.hindSiliguri(
+              fontSize: 11,
+              color: (isDark ? Colors.white : Colors.black).withOpacity(0.6),
+            ),
+            textAlign: TextAlign.center,
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildRecentActivitySection(BuildContext context, UserModel user, ColorScheme colorScheme, bool isDark) {
+    final recentSessions = user.typingSessions.reversed.take(5).toList();
+
+    return _buildGlassCard(
+      isDark: isDark,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'সাম্প্রতিক কার্যকলাপ',
+            style: GoogleFonts.hindSiliguri(
+              fontSize: 16,
+              fontWeight: FontWeight.w600,
+              color: isDark ? Colors.white : Colors.black87,
+            ),
+          ),
+          const SizedBox(height: 16),
+          recentSessions.isEmpty
+              ? Container(
+                  padding: const EdgeInsets.all(24),
+                  child: Center(
+                    child: Column(
+                      children: [
+                        Icon(Icons.history_rounded, size: 40, color: colorScheme.primary.withOpacity(0.4)),
+                        const SizedBox(height: 12),
+                        Text(
+                          'এখনও কোনো কার্যকলাপ নেই\nকিছু লেসন সম্পূর্ণ করুন!',
+                          style: GoogleFonts.hindSiliguri(
+                            color: (isDark ? Colors.white : Colors.black).withOpacity(0.5),
+                          ),
+                          textAlign: TextAlign.center,
+                        ),
+                      ],
+                    ),
+                  ),
+                )
+              : ListView.separated(
+                  shrinkWrap: true,
+                  physics: const NeverScrollableScrollPhysics(),
+                  itemCount: recentSessions.length,
+                  separatorBuilder: (context, index) => Divider(
+                    color: (isDark ? Colors.white : Colors.black).withOpacity(0.1),
+                  ),
+                  itemBuilder: (context, index) {
+                    final session = recentSessions[index];
+                    return Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 8),
+                      child: Row(
+                        children: [
+                          Container(
+                            width: 40,
+                            height: 40,
+                            decoration: BoxDecoration(
+                              color: colorScheme.primary.withOpacity(0.1),
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                            child: Icon(Icons.keyboard_rounded, color: colorScheme.primary, size: 20),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  session.completedLesson ?? 'টাইপিং প্র্যাক্টিস',
+                                  style: GoogleFonts.hindSiliguri(
+                                    fontWeight: FontWeight.w600,
+                                    color: isDark ? Colors.white : Colors.black87,
+                                  ),
+                                ),
+                                Text(
+                                  _formatDate(session.timestamp),
+                                  style: GoogleFonts.hindSiliguri(
+                                    fontSize: 12,
+                                    color: (isDark ? Colors.white : Colors.black).withOpacity(0.5),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          Column(
+                            crossAxisAlignment: CrossAxisAlignment.end,
+                            children: [
+                              Text(
+                                '${session.wpm.toStringAsFixed(0)} WPM',
+                                style: GoogleFonts.poppins(
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.green,
+                                ),
+                              ),
+                              Text(
+                                '${session.accuracy.toStringAsFixed(0)}%',
+                                style: GoogleFonts.poppins(
+                                  fontSize: 12,
+                                  color: (isDark ? Colors.white : Colors.black).withOpacity(0.5),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    );
+                  },
+                ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildActionButtons(BuildContext context, ColorScheme colorScheme, bool isDark) {
+    return Row(
+      children: [
+        Expanded(
+          child: _buildActionButton(
+            context,
+            icon: Icons.speed_rounded,
+            label: 'স্পিড টেস্ট',
+            color: colorScheme.primary,
+            isDark: isDark,
+            onTap: () => Navigator.pushNamed(context, '/typing_test'),
+          ),
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: _buildActionButton(
+            context,
+            icon: Icons.ios_share_rounded,
+            label: 'এক্সপোর্ট',
+            color: colorScheme.secondary,
+            isDark: isDark,
+            onTap: () => Navigator.of(context).push(
+              MaterialPageRoute(builder: (context) => const ExportScreen()),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildActionButton(BuildContext context, {
+    required IconData icon,
+    required String label,
+    required Color color,
+    required bool isDark,
+    required VoidCallback onTap,
+  }) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(16),
+        child: Container(
+          padding: const EdgeInsets.symmetric(vertical: 16),
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              colors: [color, color.withOpacity(0.7)],
+            ),
+            borderRadius: BorderRadius.circular(16),
+            boxShadow: [
+              BoxShadow(
+                color: color.withOpacity(0.3),
+                blurRadius: 12,
+                offset: const Offset(0, 4),
+              ),
+            ],
+          ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(icon, color: Colors.white),
+              const SizedBox(width: 8),
+              Text(
+                label,
+                style: GoogleFonts.hindSiliguri(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                  color: Colors.white,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildGlassCard({required bool isDark, required Widget child}) {
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(20),
+      child: BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+        child: Container(
+          padding: const EdgeInsets.all(20),
+          decoration: BoxDecoration(
+            color: (isDark ? Colors.white : Colors.black).withOpacity(isDark ? 0.1 : 0.05),
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(
+              color: (isDark ? Colors.white : Colors.black).withOpacity(0.1),
+            ),
+          ),
+          child: child,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildFeatureItem(IconData icon, String text, ColorScheme colorScheme, bool isDark) {
+    return Row(
+      children: [
+        Icon(icon, size: 20, color: colorScheme.primary),
+        const SizedBox(width: 12),
+        Text(
+          text,
+          style: GoogleFonts.hindSiliguri(
+            fontSize: 13,
+            color: (isDark ? Colors.white : Colors.black).withOpacity(0.7),
+          ),
+        ),
+      ],
+    );
+  }
+
+  String _formatDate(DateTime date) {
+    final now = DateTime.now();
+    final difference = now.difference(date);
+
+    if (difference.inDays == 0) {
+      if (difference.inHours == 0) {
+        return '${difference.inMinutes} মিনিট আগে';
+      }
+      return '${difference.inHours} ঘন্টা আগে';
+    } else if (difference.inDays == 1) {
+      return 'গতকাল';
+    } else {
+      return '${date.day}/${date.month}/${date.year}';
+    }
+  }
+
+  String _getLevelTitle(int level) {
+    if (level < 3) {
+      return 'শিক্ষানবিশ';
+    } else if (level < 6) {
+      return 'প্রশিক্ষণার্থী';
+    } else if (level < 10) {
+      return 'দক্ষ টাইপিস্ট';
+    } else if (level < 15) {
+      return 'বিশেষজ্ঞ টাইপিস্ট';
+    } else if (level < 20) {
+      return 'মাস্টার টাইপিস্ট';
+    } else if (level < 30) {
+      return 'গ্র্যান্ডমাস্টার';
+    } else {
+      return 'কিংবদন্তি টাইপিস্ট';
+    }
+  }
+
+  Widget _buildSubscriptionStatusCard(BuildContext context, WidgetRef ref, ColorScheme colorScheme, bool isDark) {
+    final subscriptionState = ref.watch(subscriptionStateProvider);
+    // Use enhanced isPremiumProvider that also checks role and org membership
+    final isPremium = ref.watch(enhancedIsPremiumProvider);
+    
+
+    // -------------------------------------------------------------------------
+    // NEW: Multi-Subscription Logic (Generic & Robust)
+    // -------------------------------------------------------------------------
+    final user = ref.watch(currentUserProvider);
+    final adminAuthService = ref.watch(adminAuthServiceProvider);
+    final isLegacyAdmin = user != null && adminAuthService.isAdminEmail(user.email);
+    final List<_ActivePlan> activePlans = [];
+
+    // 1. Organization Plan (Generic & Data-Driven)
+    if (user?.organizationId != null && user!.organizationId!.isNotEmpty) {
+      final orgId = user.organizationId!;
+      
+      // Attempt to get real Organization details
+      final orgAsync = ref.watch(currentOrgProvider);
+      
+      // If still loading, show a loading indicator (will auto-update when ready)
+      if (orgAsync.isLoading) {
+        debugPrint('⏳ Organization data is loading for orgId: $orgId');
+      }
+      
+      final realOrg = orgAsync.valueOrNull;
+      
+      // If we have orgId but no realOrg and not loading, try to refresh
+      if (realOrg == null && !orgAsync.isLoading && !orgAsync.hasError) {
+        debugPrint('🔄 Org data null, invalidating provider to retry...');
+        // Schedule a refresh after build
+        Future.microtask(() => ref.invalidate(currentOrgProvider));
+      }
+
+      // Default Display Values (Fallback from ID)
+      // Convert "some_id" -> "Some Id", but keep raw hashes generic if they fail
+      String displayOrgName = orgId.split('_').map((word) => word.isNotEmpty ? word[0].toUpperCase() + word.substring(1) : '').join(' ');
+      
+      // Heuristic: If name is too long and looks like a hash (single word, mixed alphanum), make it generic
+      if (displayOrgName.length > 15 && !displayOrgName.contains(' ')) {
+        displayOrgName = 'Organization Membership';
+      }
+
+      String planType = 'Organization Member';
+      String validityText = 'Membership Active';
+      bool isLifetime = false;
+
+      // Override with Real Data if available
+      if (realOrg != null) {
+        displayOrgName = realOrg.name; // Use the real name (e.g. "TechZone IT")
+        
+        // Generic: Check if user is an Admin of this organization
+        if (user.role == UserRole.orgAdmin || isLegacyAdmin) {
+            planType = 'Organization Admin';
+            validityText = 'Management Access';
+            isLifetime = true;
+        } else if (user.role == UserRole.teamLead) {
+            planType = 'Team Leader';
+            validityText = 'Team Access';
+        } else {
+            // Standard Member
+            if (realOrg.subscriptionType == 'enterprise') {
+                planType = 'Enterprise Plan';
+            } else {
+                planType = '${realOrg.memberCount} Member Team'; 
+            }
+        }
+      } else {
+        // Special handling for known Legacy IDs (if fetching fails or is slow)
+        if (orgId == 'techzone_pro' || orgId == 'techzone_student' || orgId == 'techzone_agency') {
+          displayOrgName = 'TechZone IT';
+          planType = 'Organization Student';
+        } else if (orgId == 'techzone_admin') {
+          displayOrgName = 'TechZone IT';
+          planType = 'Organization Admin';
+          validityText = 'Lifetime Access';
+          isLifetime = true;
+        }
+      }
+
+      activePlans.add(_ActivePlan(
+        orgName: displayOrgName,
+        planName: planType,
+        validity: validityText, 
+        startDate: realOrg?.createdAt, // Use real creation date if available
+        expiryDate: realOrg?.expiryDate, // Use real expiry if available
+        colorStart: isLifetime ? Colors.blueGrey.shade800 : Colors.indigo.shade600,
+        colorEnd: isLifetime ? Colors.black : Colors.deepPurple.shade700,
+        icon: isLifetime ? Icons.admin_panel_settings_rounded : Icons.business_rounded,
+        isSpecial: isLifetime,
+      ));
+    }
+
+    // 2. Purchased Subscription
+    if (subscriptionState.isPremium && subscriptionState.subscription != null) {
+      final sub = subscriptionState.subscription!;
+      // Only add if it's NOT a free plan disguised as premium
+      if (sub.type != 'free') {
+        String validityStr = 'Active';
+        if (sub.endDate != null) {
+          final days = sub.remainingDays;
+          validityStr = '$days Days Left';
+        }
+        
+        activePlans.add(_ActivePlan(
+          orgName: 'Premium Member',
+          planName: '${sub.type.toUpperCase()} PLAN',
+          validity: validityStr,
+          startDate: sub.startDate,
+          expiryDate: sub.endDate,
+          colorStart: Colors.amber.shade600,
+          colorEnd: Colors.orange.shade600,
+          icon: Icons.workspace_premium_rounded,
+        ));
+      }
+    }
+
+    // 3. Fallback: Role-based Premium (e.g. manually assigned 'pro' role without Org ID)
+    if (activePlans.isEmpty && isPremium) {
+       activePlans.add(_ActivePlan(
+        orgName: 'Premium User',
+        planName: 'Pro Access',
+        validity: 'Lifetime / Manual', 
+        startDate: null,
+        expiryDate: null,
+        colorStart: Colors.amber.shade600,
+        colorEnd: Colors.orange.shade600,
+        icon: Icons.star_rounded,
+      ));
+    }
+
+    // RENDER logic
+    if (activePlans.isNotEmpty) {
+      return Column(
+        children: [
+          SizedBox(
+            height: 220, // Increased height to prevent overflow
+            child: PageView.builder(
+              itemCount: activePlans.length,
+              itemBuilder: (context, index) {
+                final plan = activePlans[index];
+                return Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 4), // Spacing between cards
+                  child: Container(
+                    padding: const EdgeInsets.all(20),
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        colors: [plan.colorStart, plan.colorEnd],
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                      ),
+                      borderRadius: BorderRadius.circular(20),
+                      boxShadow: [
+                        BoxShadow(
+                          color: plan.colorStart.withOpacity(0.4),
+                          blurRadius: 12,
+                          offset: const Offset(0, 6),
+                        ),
+                      ],
+                    ),
+                    child: Column(
+                      children: [
+                        Row(
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.all(12),
+                              decoration: BoxDecoration(
+                                color: Colors.white.withOpacity(0.15),
+                                shape: BoxShape.circle,
+                                border: Border.all(color: Colors.white.withOpacity(0.2)),
+                              ),
+                              child: Icon(plan.icon, color: Colors.white, size: 32),
+                            ),
+                            const SizedBox(width: 16),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    plan.orgName,
+                                    style: GoogleFonts.poppins(
+                                      fontSize: 18,
+                                      fontWeight: FontWeight.bold,
+                                      color: Colors.white,
+                                    ),
+                                  ),
+                                  Text(
+                                    'Subscription Active ✓',
+                                    style: GoogleFonts.hindSiliguri(
+                                      fontSize: 13,
+                                      color: Colors.white.withOpacity(0.8),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                              decoration: BoxDecoration(
+                                color: Colors.white.withOpacity(0.2),
+                                borderRadius: BorderRadius.circular(20),
+                                border: Border.all(color: Colors.white.withOpacity(0.5)),
+                              ),
+                              child: Text(
+                                'PRO',
+                                style: GoogleFonts.poppins(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.white,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 20),
+                        Container(
+                          padding: const EdgeInsets.all(16),
+                          decoration: BoxDecoration(
+                            color: Colors.black.withOpacity(0.2),
+                            borderRadius: BorderRadius.circular(16),
+                          ),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              _buildPlanInfoItem('Plan', plan.planName),
+                              if (plan.startDate != null)
+                                _buildPlanInfoItem('Started', '${plan.startDate!.day}/${plan.startDate!.month}/${plan.startDate!.year}'),
+                              if (plan.expiryDate != null)
+                                _buildPlanInfoItem('Expires', '${plan.expiryDate!.day}/${plan.expiryDate!.month}/${plan.expiryDate!.year}'),
+                              // Only show validity if we have room (max 4 items)
+                              if (plan.startDate == null || plan.expiryDate == null)
+                                _buildPlanInfoItem('Validity', plan.validity),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                );
+              },
+            ),
+          ),
+          // Dots indicator if > 1 plan
+          if (activePlans.length > 1)
+            Padding(
+              padding: const EdgeInsets.only(top: 12),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: List.generate(activePlans.length, (index) {
+                  return Container(
+                    margin: const EdgeInsets.symmetric(horizontal: 4),
+                    width: 8,
+                    height: 8,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: isDark ? Colors.white.withOpacity(0.2) : Colors.black.withOpacity(0.1),
+                    ),
+                  );
+                }),
+              ),
+            ),
+
+
+        ],
+      );
+    } else {
+      // Free user card with limits
+      final limitService = ref.watch(featureLimitServiceProvider);
+      final remainingPractice = limitService.getRemainingPracticeMinutes(false);
+      final remainingTests = limitService.getRemainingTests(false);
+      
+      return Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: isDark ? Colors.white.withOpacity(0.08) : Colors.grey.shade100,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(
+            color: Colors.deepPurple.withOpacity(0.3),
+          ),
+        ),
+        child: Column(
+          children: [
+            Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: Colors.deepPurple.withOpacity(0.1),
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(Icons.stars_rounded, color: Colors.deepPurple, size: 24),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'ফ্রি প্ল্যান',
+                        style: GoogleFonts.hindSiliguri(
+                          fontSize: 15,
+                          fontWeight: FontWeight.bold,
+                          color: isDark ? Colors.white : Colors.black87,
+                        ),
+                      ),
+                      Text(
+                        'আজকের অবশিষ্ট: $remainingPractice মিনিট • $remainingTests টেস্ট',
+                        style: GoogleFonts.hindSiliguri(
+                          fontSize: 11,
+                          color: remainingPractice <= 2 ? Colors.orange : (isDark ? Colors.white70 : Colors.grey.shade600),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                TextButton(
+                  onPressed: () => Navigator.pushNamed(context, '/subscription'),
+                  child: Text(
+                    'আপগ্রেড',
+                    style: GoogleFonts.hindSiliguri(
+                      fontSize: 13,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.deepPurple,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            
+            const SizedBox(height: 12),
+            
+            // Progress bar for practice time
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      'দৈনিক প্র্যাক্টিস',
+                      style: TextStyle(fontSize: 11, color: isDark ? Colors.white60 : Colors.grey.shade600),
+                    ),
+                    Text(
+                      '$remainingPractice/${FeatureLimits.maxDailyPracticeMinutes} মিনিট',
+                      style: TextStyle(fontSize: 11, color: isDark ? Colors.white60 : Colors.grey.shade600),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 4),
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(4),
+                  child: LinearProgressIndicator(
+                    value: (FeatureLimits.maxDailyPracticeMinutes - remainingPractice) / FeatureLimits.maxDailyPracticeMinutes,
+                    backgroundColor: Colors.grey.withOpacity(0.2),
+                    valueColor: AlwaysStoppedAnimation(
+                      remainingPractice <= 2 ? Colors.orange : Colors.deepPurple,
+                    ),
+                    minHeight: 6,
+                  ),
+                ),
+              ],
+            ),
+
+              ],
+            ),
+
+      );
+    }
+  }
+
+
+  Widget _buildInitialAvatar(String name, ColorScheme colorScheme, bool isCompact) {
+    return Container(
+      width: isCompact ? 80 : 100,
+      height: isCompact ? 80 : 100,
+      color: Colors.white,
+      child: Center(
+        child: Text(
+          name.isNotEmpty ? name[0].toUpperCase() : '?',
+          style: GoogleFonts.poppins(
+            fontSize: isCompact ? 36 : 44,
+            fontWeight: FontWeight.bold,
+            color: colorScheme.primary,
+          ),
+        ),
+      ),
+    );
+  }
+  Widget _buildPlanInfoItem(String label, String value) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.center,
+      children: [
+        Text(
+          value,
+          style: GoogleFonts.poppins(
+            fontSize: 14,
+            fontWeight: FontWeight.bold,
+            color: Colors.white,
+          ),
+        ),
+        const SizedBox(height: 4),
+        Text(
+          label,
+          style: GoogleFonts.hindSiliguri(
+            fontSize: 12,
+            color: Colors.white.withOpacity(0.7),
+          ),
+        ),
+      ],
+    );
+  }
+
+
+
+
+}
+
+class _ActivePlan {
+  final String orgName;
+  final String planName;
+  final String validity;
+  final DateTime? startDate;
+  final DateTime? expiryDate;
+  final Color colorStart;
+  final Color colorEnd;
+  final IconData icon;
+  final bool isSpecial;
+
+  _ActivePlan({
+    required this.orgName,
+    required this.planName,
+    required this.validity,
+    this.startDate,
+    required this.expiryDate,
+    required this.colorStart,
+    required this.colorEnd,
+    required this.icon,
+    this.isSpecial = false,
+  });
+}
+

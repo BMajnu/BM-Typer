@@ -13,7 +13,10 @@ class AppVersionConfig {
   final String? maintenanceMessage;
   final String? playStoreUrl;
   final String? appStoreUrl;
+  final String? androidApkUrl;
+  final String? windowsInstallerUrl;
   final String? webUpdateUrl;
+  final String? releaseNotes;
   
   const AppVersionConfig({
     required this.currentVersion,
@@ -24,7 +27,10 @@ class AppVersionConfig {
     this.maintenanceMessage,
     this.playStoreUrl,
     this.appStoreUrl,
+    this.androidApkUrl,
+    this.windowsInstallerUrl,
     this.webUpdateUrl,
+    this.releaseNotes,
   });
   
   factory AppVersionConfig.fromFirestore(DocumentSnapshot doc) {
@@ -38,7 +44,10 @@ class AppVersionConfig {
       maintenanceMessage: data['maintenanceMessage'],
       playStoreUrl: data['playStoreUrl'],
       appStoreUrl: data['appStoreUrl'],
+      androidApkUrl: data['androidApkUrl'],
+      windowsInstallerUrl: data['windowsInstallerUrl'],
       webUpdateUrl: data['webUpdateUrl'],
+      releaseNotes: data['releaseNotes'],
     );
   }
   
@@ -52,7 +61,10 @@ class AppVersionConfig {
       if (maintenanceMessage != null) 'maintenanceMessage': maintenanceMessage,
       if (playStoreUrl != null) 'playStoreUrl': playStoreUrl,
       if (appStoreUrl != null) 'appStoreUrl': appStoreUrl,
+      if (androidApkUrl != null) 'androidApkUrl': androidApkUrl,
+      if (windowsInstallerUrl != null) 'windowsInstallerUrl': windowsInstallerUrl,
       if (webUpdateUrl != null) 'webUpdateUrl': webUpdateUrl,
+      if (releaseNotes != null) 'releaseNotes': releaseNotes,
     };
   }
   
@@ -60,13 +72,17 @@ class AppVersionConfig {
     return const AppVersionConfig(
       currentVersion: '1.0.0',
       minimumVersion: '1.0.0',
+      playStoreUrl: 'https://play.google.com/store/apps/details?id=com.techzoneit.bm_typer',
+      androidApkUrl: 'https://www.techzoneit.top',
+      windowsInstallerUrl: 'https://www.techzoneit.top',
+      webUpdateUrl: 'https://www.techzoneit.top',
     );
   }
 }
 
 /// Service for checking app version and updates
 class VersionService {
-  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  FirebaseFirestore get _firestore => FirebaseFirestore.instance;
   
   /// Document reference for app config
   DocumentReference get _configRef => _firestore.collection('app_config').doc('version');
@@ -121,6 +137,7 @@ class VersionService {
         return UpdateCheckResult(
           status: UpdateStatus.maintenance,
           message: config.maintenanceMessage ?? 'অ্যাপটি মেইনটেন্যান্সে আছে। কিছুক্ষণ পরে আবার চেষ্টা করুন।',
+          actionLabel: 'ঠিক আছে',
         );
       }
       
@@ -128,14 +145,22 @@ class VersionService {
       final currentVersionNum = _parseVersion(appVersion);
       final latestVersionNum = _parseVersion(config.currentVersion);
       final minimumVersionNum = _parseVersion(config.minimumVersion);
+      final resolvedDownloadUrl = _getDownloadUrl(config);
+      final resolvedActionLabel = _getActionLabel(config);
+      final preferInAppUpdate =
+          _shouldPreferInAppUpdate(config, resolvedDownloadUrl);
       
       // Force update required
-      if (currentVersionNum < minimumVersionNum) {
+      if (currentVersionNum < minimumVersionNum ||
+          (config.forceUpdate && currentVersionNum < latestVersionNum)) {
         return UpdateCheckResult(
           status: UpdateStatus.forceUpdate,
           message: config.updateMessage ?? 'এই ভার্সন আর সাপোর্টেড নয়। অনুগ্রহ করে নতুন ভার্সন ইনস্টল করুন।',
           latestVersion: config.currentVersion,
-          downloadUrl: _getDownloadUrl(config),
+          downloadUrl: resolvedDownloadUrl,
+          actionLabel: resolvedActionLabel,
+          releaseNotes: config.releaseNotes,
+          preferInAppUpdate: preferInAppUpdate,
         );
       }
       
@@ -145,7 +170,10 @@ class VersionService {
           status: UpdateStatus.updateAvailable,
           message: config.updateMessage ?? 'নতুন ভার্সন ${config.currentVersion} উপলব্ধ!',
           latestVersion: config.currentVersion,
-          downloadUrl: _getDownloadUrl(config),
+          downloadUrl: resolvedDownloadUrl,
+          actionLabel: resolvedActionLabel,
+          releaseNotes: config.releaseNotes,
+          preferInAppUpdate: preferInAppUpdate,
         );
       }
       
@@ -153,12 +181,14 @@ class VersionService {
       return UpdateCheckResult(
         status: UpdateStatus.upToDate,
         message: 'আপনার অ্যাপ আপ টু ডেট!',
+        actionLabel: 'ঠিক আছে',
       );
     } catch (e) {
       debugPrint('❌ Error checking for update: $e');
       return UpdateCheckResult(
         status: UpdateStatus.error,
         message: 'আপডেট চেক করা যায়নি: $e',
+        actionLabel: 'বন্ধ করুন',
       );
     }
   }
@@ -190,10 +220,96 @@ class VersionService {
   /// Get download URL based on platform
   String? _getDownloadUrl(AppVersionConfig config) {
     if (kIsWeb) {
-      return config.webUpdateUrl;
+      return _firstNonEmpty([
+        config.webUpdateUrl,
+        config.windowsInstallerUrl,
+        config.androidApkUrl,
+      ]);
     }
-    // Add platform checks for mobile if needed
-    return config.playStoreUrl ?? config.webUpdateUrl;
+
+    switch (defaultTargetPlatform) {
+      case TargetPlatform.android:
+        return _firstNonEmpty([
+          _looksLikeApkUrl(config.androidApkUrl)
+              ? config.androidApkUrl
+              : null,
+          config.playStoreUrl,
+          config.webUpdateUrl,
+          config.windowsInstallerUrl,
+        ]);
+      case TargetPlatform.iOS:
+        return _firstNonEmpty([
+          config.appStoreUrl,
+          config.webUpdateUrl,
+        ]);
+      case TargetPlatform.windows:
+        return _firstNonEmpty([
+          config.windowsInstallerUrl,
+          config.webUpdateUrl,
+        ]);
+      default:
+        return _firstNonEmpty([
+          config.webUpdateUrl,
+          config.windowsInstallerUrl,
+          config.playStoreUrl,
+          config.androidApkUrl,
+        ]);
+    }
+  }
+
+  String _getActionLabel(AppVersionConfig config) {
+    if (kIsWeb) {
+      return 'আপডেট পেজ খুলুন';
+    }
+
+    switch (defaultTargetPlatform) {
+      case TargetPlatform.android:
+        if (_looksLikeApkUrl(config.androidApkUrl)) {
+          return 'ডাউনলোড ও ইনস্টল করুন';
+        }
+        if ((config.playStoreUrl ?? '').trim().isNotEmpty) {
+          return 'Play Store খুলুন';
+        }
+        return 'APK ডাউনলোড করুন';
+      case TargetPlatform.windows:
+        return 'Windows Setup ডাউনলোড করুন';
+      case TargetPlatform.iOS:
+        return 'App Store খুলুন';
+      default:
+        return 'আপডেট পেজ খুলুন';
+    }
+  }
+
+  String? _firstNonEmpty(List<String?> values) {
+    for (final value in values) {
+      if (value != null && value.trim().isNotEmpty) {
+        return value.trim();
+      }
+    }
+    return null;
+  }
+
+  bool _shouldPreferInAppUpdate(
+    AppVersionConfig config,
+    String? resolvedDownloadUrl,
+  ) {
+    return !kIsWeb &&
+        defaultTargetPlatform == TargetPlatform.android &&
+        _looksLikeApkUrl(config.androidApkUrl) &&
+        resolvedDownloadUrl == config.androidApkUrl?.trim();
+  }
+
+  bool _looksLikeApkUrl(String? value) {
+    if (value == null || value.trim().isEmpty) {
+      return false;
+    }
+
+    final uri = Uri.tryParse(value.trim());
+    if (uri == null) {
+      return false;
+    }
+
+    return uri.path.toLowerCase().endsWith('.apk');
   }
 }
 
@@ -212,12 +328,18 @@ class UpdateCheckResult {
   final String message;
   final String? latestVersion;
   final String? downloadUrl;
+  final String actionLabel;
+  final String? releaseNotes;
+  final bool preferInAppUpdate;
   
   const UpdateCheckResult({
     required this.status,
     required this.message,
     this.latestVersion,
     this.downloadUrl,
+    required this.actionLabel,
+    this.releaseNotes,
+    this.preferInAppUpdate = false,
   });
 }
 

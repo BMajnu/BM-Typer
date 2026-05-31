@@ -279,6 +279,13 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
       ),
       child: Row(
         children: [
+          // Back button to return to typing dashboard
+          IconButton(
+            icon: const Icon(Icons.arrow_back_rounded),
+            tooltip: 'টাইপিং ড্যাশবোর্ডে ফিরুন',
+            onPressed: () => Navigator.pop(context),
+          ),
+          const SizedBox(width: 8),
           Text(
             _selectedIndex < navItems.length ? navItems[_selectedIndex].label : 'ড্যাশবোর্ড',
             style: GoogleFonts.hindSiliguri(

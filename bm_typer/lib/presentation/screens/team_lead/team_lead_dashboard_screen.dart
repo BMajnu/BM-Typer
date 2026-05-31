@@ -10,10 +10,12 @@ class TeamLeadDashboardScreen extends ConsumerStatefulWidget {
   const TeamLeadDashboardScreen({super.key});
 
   @override
-  ConsumerState<TeamLeadDashboardScreen> createState() => _TeamLeadDashboardScreenState();
+  ConsumerState<TeamLeadDashboardScreen> createState() =>
+      _TeamLeadDashboardScreenState();
 }
 
-class _TeamLeadDashboardScreenState extends ConsumerState<TeamLeadDashboardScreen> {
+class _TeamLeadDashboardScreenState
+    extends ConsumerState<TeamLeadDashboardScreen> {
   int _selectedIndex = 0;
   OrgMemberModel? _selectedMember;
   Map<String, dynamic>? _selectedMemberDetails;
@@ -36,9 +38,10 @@ class _TeamLeadDashboardScreenState extends ConsumerState<TeamLeadDashboardScree
             _buildSidebar(colorScheme)
           else
             _buildMiniRail(colorScheme),
-
-          VerticalDivider(thickness: 1, width: 1, color: colorScheme.outline.withOpacity(0.2)),
-
+          VerticalDivider(
+              thickness: 1,
+              width: 1,
+              color: colorScheme.outline.withOpacity(0.2)),
           Expanded(
             child: Column(
               children: [
@@ -79,7 +82,8 @@ class _TeamLeadDashboardScreenState extends ConsumerState<TeamLeadDashboardScree
                         color: Colors.white.withOpacity(0.2),
                         borderRadius: BorderRadius.circular(12),
                       ),
-                      child: const Icon(Icons.groups_rounded, color: Colors.white, size: 24),
+                      child: const Icon(Icons.groups_rounded,
+                          color: Colors.white, size: 24),
                     ),
                     const SizedBox(width: 12),
                     Expanded(
@@ -106,7 +110,8 @@ class _TeamLeadDashboardScreenState extends ConsumerState<TeamLeadDashboardScree
                     children: [
                       Icon(Icons.visibility, size: 14, color: Colors.white),
                       SizedBox(width: 6),
-                      Text('শুধুমাত্র দেখুন', style: TextStyle(fontSize: 12, color: Colors.white)),
+                      Text('শুধুমাত্র দেখুন',
+                          style: TextStyle(fontSize: 12, color: Colors.white)),
                     ],
                   ),
                 ),
@@ -126,21 +131,29 @@ class _TeamLeadDashboardScreenState extends ConsumerState<TeamLeadDashboardScree
                 return Padding(
                   padding: const EdgeInsets.only(bottom: 6),
                   child: Material(
-                    color: isSelected ? Colors.orange.shade100 : Colors.transparent,
+                    color: isSelected
+                        ? Colors.orange.shade100
+                        : Colors.transparent,
                     borderRadius: BorderRadius.circular(12),
                     child: ListTile(
                       leading: Icon(
                         item.icon,
-                        color: isSelected ? Colors.orange.shade900 : colorScheme.onSurface.withOpacity(0.6),
+                        color: isSelected
+                            ? Colors.orange.shade900
+                            : colorScheme.onSurface.withOpacity(0.6),
                       ),
                       title: Text(
                         item.label,
                         style: GoogleFonts.hindSiliguri(
-                          fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-                          color: isSelected ? Colors.orange.shade900 : colorScheme.onSurface,
+                          fontWeight:
+                              isSelected ? FontWeight.bold : FontWeight.normal,
+                          color: isSelected
+                              ? Colors.orange.shade900
+                              : colorScheme.onSurface,
                         ),
                       ),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12)),
                       onTap: () => setState(() => _selectedIndex = index),
                     ),
                   ),
@@ -157,12 +170,14 @@ class _TeamLeadDashboardScreenState extends ConsumerState<TeamLeadDashboardScree
               child: ElevatedButton.icon(
                 onPressed: () => Navigator.pushNamed(context, '/practice'),
                 icon: Icon(Icons.keyboard),
-                label: Text('প্র্যাকটিস করুন', style: GoogleFonts.hindSiliguri()),
+                label:
+                    Text('প্র্যাকটিস করুন', style: GoogleFonts.hindSiliguri()),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: Colors.green,
                   foregroundColor: Colors.white,
                   padding: EdgeInsets.symmetric(vertical: 12),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12)),
                 ),
               ),
             ),
@@ -171,7 +186,7 @@ class _TeamLeadDashboardScreenState extends ConsumerState<TeamLeadDashboardScree
 
           // Org Admin Dashboard Button (Only for Owners)
           _buildOrgAdminButton(context),
-          
+
           const SizedBox(height: 8),
 
           // Back Button
@@ -185,7 +200,8 @@ class _TeamLeadDashboardScreenState extends ConsumerState<TeamLeadDashboardScree
                 label: Text('ফিরে যান', style: GoogleFonts.hindSiliguri()),
                 style: OutlinedButton.styleFrom(
                   padding: EdgeInsets.symmetric(vertical: 12),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12)),
                 ),
               ),
             ),
@@ -202,10 +218,13 @@ class _TeamLeadDashboardScreenState extends ConsumerState<TeamLeadDashboardScree
       labelType: NavigationRailLabelType.all,
       backgroundColor: colorScheme.surface,
       selectedIconTheme: IconThemeData(color: Colors.orange.shade900),
-      destinations: _navItems.map((item) => NavigationRailDestination(
-        icon: Icon(item.icon),
-        label: Text(item.label, style: GoogleFonts.hindSiliguri(fontSize: 10)),
-      )).toList(),
+      destinations: _navItems
+          .map((item) => NavigationRailDestination(
+                icon: Icon(item.icon),
+                label: Text(item.label,
+                    style: GoogleFonts.hindSiliguri(fontSize: 10)),
+              ))
+          .toList(),
     );
   }
 
@@ -215,13 +234,22 @@ class _TeamLeadDashboardScreenState extends ConsumerState<TeamLeadDashboardScree
       padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
       decoration: BoxDecoration(
         color: colorScheme.surface,
-        border: Border(bottom: BorderSide(color: colorScheme.outline.withOpacity(0.1))),
+        border: Border(
+            bottom: BorderSide(color: colorScheme.outline.withOpacity(0.1))),
       ),
       child: Row(
         children: [
+          // Back button to return to typing dashboard
+          IconButton(
+            icon: const Icon(Icons.arrow_back_rounded),
+            tooltip: 'টাইপিং ড্যাশবোর্ডে ফিরুন',
+            onPressed: () => Navigator.pop(context),
+          ),
+          const SizedBox(width: 8),
           Text(
             _navItems[_selectedIndex].label,
-            style: GoogleFonts.hindSiliguri(fontSize: 24, fontWeight: FontWeight.bold),
+            style: GoogleFonts.hindSiliguri(
+                fontSize: 24, fontWeight: FontWeight.bold),
           ),
           const Spacer(),
           // Read-Only Badge
@@ -237,7 +265,8 @@ class _TeamLeadDashboardScreenState extends ConsumerState<TeamLeadDashboardScree
               children: [
                 Icon(Icons.visibility, size: 16, color: Colors.blue),
                 SizedBox(width: 6),
-                Text('শুধুমাত্র দেখুন', style: TextStyle(fontSize: 12, color: Colors.blue)),
+                Text('শুধুমাত্র দেখুন',
+                    style: TextStyle(fontSize: 12, color: Colors.blue)),
               ],
             ),
           ),
@@ -255,13 +284,18 @@ class _TeamLeadDashboardScreenState extends ConsumerState<TeamLeadDashboardScree
                 CircleAvatar(
                   radius: 16,
                   backgroundColor: Colors.orange,
-                  backgroundImage: user?.photoUrl != null ? NetworkImage(user!.photoUrl!) : null,
-                  child: user?.photoUrl == null 
-                    ? Text(user?.name[0].toUpperCase() ?? 'U', style: TextStyle(color: Colors.white, fontSize: 14))
-                    : null,
+                  backgroundImage: user?.photoUrl != null
+                      ? NetworkImage(user!.photoUrl!)
+                      : null,
+                  child: user?.photoUrl == null
+                      ? Text(user?.name[0].toUpperCase() ?? 'U',
+                          style: TextStyle(color: Colors.white, fontSize: 14))
+                      : null,
                 ),
                 const SizedBox(width: 8),
-                Text(user?.name ?? 'Team Lead', style: GoogleFonts.hindSiliguri(fontWeight: FontWeight.w500)),
+                Text(user?.name ?? 'Team Lead',
+                    style:
+                        GoogleFonts.hindSiliguri(fontWeight: FontWeight.w500)),
               ],
             ),
           ),
@@ -300,7 +334,8 @@ class _TeamLeadDashboardScreenState extends ConsumerState<TeamLeadDashboardScree
           data: (members) {
             print('🔍 TeamLeadDashboard: Got ${members.length} members');
             if (members.isEmpty) {
-              return _buildEmptyState(colorScheme, 'কোনো সদস্য পাওয়া যায়নি', Icons.people_outline);
+              return _buildEmptyState(colorScheme, 'কোনো সদস্য পাওয়া যায়নি',
+                  Icons.people_outline);
             }
 
             if (isMobile) {
@@ -309,8 +344,12 @@ class _TeamLeadDashboardScreenState extends ConsumerState<TeamLeadDashboardScree
 
             return Row(
               children: [
-                Expanded(flex: 35, child: _buildMembersList(members, colorScheme)),
-                VerticalDivider(width: 1, thickness: 1, color: colorScheme.outline.withOpacity(0.2)),
+                Expanded(
+                    flex: 35, child: _buildMembersList(members, colorScheme)),
+                VerticalDivider(
+                    width: 1,
+                    thickness: 1,
+                    color: colorScheme.outline.withOpacity(0.2)),
                 Expanded(flex: 65, child: _buildMemberDetailPanel(colorScheme)),
               ],
             );
@@ -322,7 +361,8 @@ class _TeamLeadDashboardScreenState extends ConsumerState<TeamLeadDashboardScree
     );
   }
 
-  Widget _buildEmptyState(ColorScheme colorScheme, String message, IconData icon) {
+  Widget _buildEmptyState(
+      ColorScheme colorScheme, String message, IconData icon) {
     return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
@@ -333,16 +373,20 @@ class _TeamLeadDashboardScreenState extends ConsumerState<TeamLeadDashboardScree
               color: colorScheme.primaryContainer.withOpacity(0.3),
               shape: BoxShape.circle,
             ),
-            child: Icon(icon, size: 64, color: colorScheme.primary.withOpacity(0.5)),
+            child: Icon(icon,
+                size: 64, color: colorScheme.primary.withOpacity(0.5)),
           ),
           const SizedBox(height: 24),
-          Text(message, style: GoogleFonts.hindSiliguri(fontSize: 18, color: colorScheme.onSurface.withOpacity(0.7))),
+          Text(message,
+              style: GoogleFonts.hindSiliguri(
+                  fontSize: 18, color: colorScheme.onSurface.withOpacity(0.7))),
         ],
       ),
     );
   }
 
-  Widget _buildMembersList(List<OrgMemberModel> members, ColorScheme colorScheme) {
+  Widget _buildMembersList(
+      List<OrgMemberModel> members, ColorScheme colorScheme) {
     return ListView.builder(
       padding: EdgeInsets.all(12),
       itemCount: members.length,
@@ -362,7 +406,9 @@ class _TeamLeadDashboardScreenState extends ConsumerState<TeamLeadDashboardScree
               title: Row(
                 children: [
                   Expanded(
-                    child: Text(member.name, style: GoogleFonts.hindSiliguri(fontWeight: FontWeight.w600)),
+                    child: Text(member.name,
+                        style: GoogleFonts.hindSiliguri(
+                            fontWeight: FontWeight.w600)),
                   ),
                   if (member.isTeamLead)
                     Container(
@@ -374,24 +420,30 @@ class _TeamLeadDashboardScreenState extends ConsumerState<TeamLeadDashboardScree
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          Icon(Icons.star, size: 12, color: Colors.orange.shade700),
+                          Icon(Icons.star,
+                              size: 12, color: Colors.orange.shade700),
                           SizedBox(width: 4),
-                          Text('টিম লিড', style: TextStyle(fontSize: 10, color: Colors.orange.shade700)),
+                          Text('টিম লিড',
+                              style: TextStyle(
+                                  fontSize: 10, color: Colors.orange.shade700)),
                         ],
                       ),
                     ),
                 ],
               ),
-              subtitle: Text(member.email, style: TextStyle(fontSize: 12, color: colorScheme.outline)),
+              subtitle: Text(member.email,
+                  style: TextStyle(fontSize: 12, color: colorScheme.outline)),
               trailing: member.isActive
                   ? Container(
                       padding: EdgeInsets.all(4),
-                      decoration: BoxDecoration(color: Colors.green.shade50, shape: BoxShape.circle),
+                      decoration: BoxDecoration(
+                          color: Colors.green.shade50, shape: BoxShape.circle),
                       child: Icon(Icons.check, size: 14, color: Colors.green),
                     )
                   : Container(
                       padding: EdgeInsets.all(4),
-                      decoration: BoxDecoration(color: Colors.red.shade50, shape: BoxShape.circle),
+                      decoration: BoxDecoration(
+                          color: Colors.red.shade50, shape: BoxShape.circle),
                       child: Icon(Icons.block, size: 14, color: Colors.red),
                     ),
               onTap: () => _selectMember(member),
@@ -417,11 +469,13 @@ class _TeamLeadDashboardScreenState extends ConsumerState<TeamLeadDashboardScree
         child: CircleAvatar(
           radius: 22,
           backgroundColor: bgColor,
-          backgroundImage: url != null && url.isNotEmpty ? NetworkImage(url) : null,
+          backgroundImage:
+              url != null && url.isNotEmpty ? NetworkImage(url) : null,
           child: url == null || url.isEmpty
               ? Text(
                   member.name.isNotEmpty ? member.name[0].toUpperCase() : '?',
-                  style: TextStyle(color: textColor, fontWeight: FontWeight.bold),
+                  style:
+                      TextStyle(color: textColor, fontWeight: FontWeight.bold),
                 )
               : null,
         ),
@@ -433,28 +487,33 @@ class _TeamLeadDashboardScreenState extends ConsumerState<TeamLeadDashboardScree
     }
 
     return FutureBuilder<Map<String, dynamic>?>(
-      future: ref.read(organizationServiceProvider).getMemberDetails(member.userId),
+      future:
+          ref.read(organizationServiceProvider).getMemberDetails(member.userId),
       builder: (context, snapshot) {
         String? fetchedUrl;
         if (snapshot.hasData && snapshot.data != null) {
-          fetchedUrl = snapshot.data!['profile']?['photoUrl'] ?? snapshot.data!['photoUrl'];
+          fetchedUrl = snapshot.data!['profile']?['photoUrl'] ??
+              snapshot.data!['photoUrl'];
         }
         return buildCircle(fetchedUrl);
       },
     );
   }
 
-  Widget _buildMemberDetailPanel(ColorScheme colorScheme, {bool isMobile = false}) {
+  Widget _buildMemberDetailPanel(ColorScheme colorScheme,
+      {bool isMobile = false}) {
     if (_selectedMember == null) {
-      return _buildEmptyState(colorScheme, 'পারফরম্যান্স দেখতে একজন সদস্য নির্বাচন করুন', Icons.person_search);
+      return _buildEmptyState(colorScheme,
+          'পারফরম্যান্স দেখতে একজন সদস্য নির্বাচন করুন', Icons.person_search);
     }
 
     final member = _selectedMember!;
-    
+
     // Attempt to get fresh photo URL if details are loaded
     String? displayPhotoUrl = member.photoUrl;
     if (_selectedMemberDetails != null) {
-      final profile = _selectedMemberDetails!['profile'] as Map<String, dynamic>?;
+      final profile =
+          _selectedMemberDetails!['profile'] as Map<String, dynamic>?;
       if (profile != null && profile['photoUrl'] != null) {
         displayPhotoUrl = profile['photoUrl'];
       }
@@ -508,31 +567,49 @@ class _TeamLeadDashboardScreenState extends ConsumerState<TeamLeadDashboardScree
                   child: CircleAvatar(
                     radius: 48,
                     backgroundColor: Colors.white,
-                    backgroundImage: displayPhotoUrl != null && displayPhotoUrl!.isNotEmpty
-                        ? NetworkImage(displayPhotoUrl)
-                        : null,
+                    backgroundImage:
+                        displayPhotoUrl != null && displayPhotoUrl!.isNotEmpty
+                            ? NetworkImage(displayPhotoUrl)
+                            : null,
                     child: displayPhotoUrl == null || displayPhotoUrl!.isEmpty
-                        ? Text(member.name.isNotEmpty ? member.name[0].toUpperCase() : '?',
-                            style: TextStyle(fontSize: 36, color: Colors.orange, fontWeight: FontWeight.bold))
+                        ? Text(
+                            member.name.isNotEmpty
+                                ? member.name[0].toUpperCase()
+                                : '?',
+                            style: TextStyle(
+                                fontSize: 36,
+                                color: Colors.orange,
+                                fontWeight: FontWeight.bold))
                         : null,
                   ),
                 ),
                 const SizedBox(width: 24),
-                
+
                 // Info
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(member.name, style: GoogleFonts.hindSiliguri(fontSize: 28, fontWeight: FontWeight.bold)),
+                      Text(member.name,
+                          style: GoogleFonts.hindSiliguri(
+                              fontSize: 28, fontWeight: FontWeight.bold)),
                       const SizedBox(height: 8),
-                      _buildInfoRow(Icons.email_outlined, member.email, colorScheme),
-                      _buildInfoRow(Icons.calendar_today_outlined, 'যোগদান: ${DateFormat('dd MMM yyyy').format(member.joinedAt)}', colorScheme),
+                      _buildInfoRow(
+                          Icons.email_outlined, member.email, colorScheme),
+                      _buildInfoRow(
+                          Icons.calendar_today_outlined,
+                          'যোগদান: ${DateFormat('dd MMM yyyy').format(member.joinedAt)}',
+                          colorScheme),
                       const SizedBox(height: 12),
                       Chip(
-                        avatar: Icon(member.isActive ? Icons.check_circle : Icons.block, size: 16, color: member.isActive ? Colors.green : Colors.red),
+                        avatar: Icon(
+                            member.isActive ? Icons.check_circle : Icons.block,
+                            size: 16,
+                            color: member.isActive ? Colors.green : Colors.red),
                         label: Text(member.isActive ? 'সক্রিয়' : 'নিষ্ক্রিয়'),
-                        backgroundColor: member.isActive ? Colors.green.shade50 : Colors.red.shade50,
+                        backgroundColor: member.isActive
+                            ? Colors.green.shade50
+                            : Colors.red.shade50,
                       ),
                     ],
                   ),
@@ -544,7 +621,9 @@ class _TeamLeadDashboardScreenState extends ConsumerState<TeamLeadDashboardScree
           const SizedBox(height: 24),
 
           // Stats Section
-          Text('📊 পারফরম্যান্স', style: GoogleFonts.hindSiliguri(fontSize: 18, fontWeight: FontWeight.bold)),
+          Text('📊 পারফরম্যান্স',
+              style: GoogleFonts.hindSiliguri(
+                  fontSize: 18, fontWeight: FontWeight.bold)),
           const SizedBox(height: 16),
 
           if (_isLoadingDetails)
@@ -552,7 +631,8 @@ class _TeamLeadDashboardScreenState extends ConsumerState<TeamLeadDashboardScree
           else if (_selectedMemberDetails != null)
             _buildStatsGrid(_selectedMemberDetails!, colorScheme)
           else
-            Text('স্ট্যাটস লোড হচ্ছে...', style: TextStyle(color: colorScheme.outline)),
+            Text('স্ট্যাটস লোড হচ্ছে...',
+                style: TextStyle(color: colorScheme.outline)),
 
           const SizedBox(height: 32),
 
@@ -582,7 +662,8 @@ class _TeamLeadDashboardScreenState extends ConsumerState<TeamLeadDashboardScree
     );
   }
 
-  Widget _buildStatsGrid(Map<String, dynamic> details, ColorScheme colorScheme) {
+  Widget _buildStatsGrid(
+      Map<String, dynamic> details, ColorScheme colorScheme) {
     final profile = details['profile'] as Map<String, dynamic>? ?? {};
     final stats = profile['stats'] as Map<String, dynamic>? ?? {};
 
@@ -597,17 +678,28 @@ class _TeamLeadDashboardScreenState extends ConsumerState<TeamLeadDashboardScree
       spacing: 16,
       runSpacing: 16,
       children: [
-        _buildStatCard('সর্বোচ্চ WPM', '$highestWpm', Icons.speed_rounded, Colors.blue, colorScheme),
-        _buildStatCard('নির্ভুলতা', '${avgAccuracy is num ? avgAccuracy.toStringAsFixed(1) : avgAccuracy}%', Icons.check_circle_outline, Colors.green, colorScheme),
-        _buildStatCard('XP পয়েন্ট', '$xpPoints', Icons.star_rounded, Colors.amber, colorScheme),
-        _buildStatCard('লেভেল', '$level', Icons.trending_up_rounded, Colors.purple, colorScheme),
-        _buildStatCard('স্ট্রিক', '$streakCount দিন', Icons.local_fire_department_rounded, Colors.orange, colorScheme),
-        _buildStatCard('মোট সেশন', '$totalSessions', Icons.history_rounded, Colors.teal, colorScheme),
+        _buildStatCard('সর্বোচ্চ WPM', '$highestWpm', Icons.speed_rounded,
+            Colors.blue, colorScheme),
+        _buildStatCard(
+            'নির্ভুলতা',
+            '${avgAccuracy is num ? avgAccuracy.toStringAsFixed(1) : avgAccuracy}%',
+            Icons.check_circle_outline,
+            Colors.green,
+            colorScheme),
+        _buildStatCard('XP পয়েন্ট', '$xpPoints', Icons.star_rounded,
+            Colors.amber, colorScheme),
+        _buildStatCard('লেভেল', '$level', Icons.trending_up_rounded,
+            Colors.purple, colorScheme),
+        _buildStatCard('স্ট্রিক', '$streakCount দিন',
+            Icons.local_fire_department_rounded, Colors.orange, colorScheme),
+        _buildStatCard('মোট সেশন', '$totalSessions', Icons.history_rounded,
+            Colors.teal, colorScheme),
       ],
     );
   }
 
-  Widget _buildStatCard(String label, String value, IconData icon, Color color, ColorScheme colorScheme) {
+  Widget _buildStatCard(String label, String value, IconData icon, Color color,
+      ColorScheme colorScheme) {
     return Container(
       width: 140,
       padding: const EdgeInsets.all(16),
@@ -641,11 +733,15 @@ class _TeamLeadDashboardScreenState extends ConsumerState<TeamLeadDashboardScree
           const SizedBox(height: 14),
           Text(
             value,
-            style: GoogleFonts.poppins(fontSize: 24, fontWeight: FontWeight.bold, color: color),
+            style: GoogleFonts.poppins(
+                fontSize: 24, fontWeight: FontWeight.bold, color: color),
           ),
           Text(
             label,
-            style: GoogleFonts.hindSiliguri(fontSize: 13, color: color.withOpacity(0.9), fontWeight: FontWeight.w600),
+            style: GoogleFonts.hindSiliguri(
+                fontSize: 13,
+                color: color.withOpacity(0.9),
+                fontWeight: FontWeight.w600),
           ),
         ],
       ),
@@ -662,7 +758,8 @@ class _TeamLeadDashboardScreenState extends ConsumerState<TeamLeadDashboardScree
           Flexible(
             child: Text(
               text,
-              style: TextStyle(fontSize: 13, color: colorScheme.onSurface.withOpacity(0.8)),
+              style: TextStyle(
+                  fontSize: 13, color: colorScheme.onSurface.withOpacity(0.8)),
               overflow: TextOverflow.ellipsis,
             ),
           ),
@@ -687,7 +784,9 @@ class _TeamLeadDashboardScreenState extends ConsumerState<TeamLeadDashboardScree
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text('📊 টিম ওভারভিউ', style: GoogleFonts.hindSiliguri(fontSize: 20, fontWeight: FontWeight.bold)),
+              Text('📊 টিম ওভারভিউ',
+                  style: GoogleFonts.hindSiliguri(
+                      fontSize: 20, fontWeight: FontWeight.bold)),
               const SizedBox(height: 20),
 
               // Summary Cards
@@ -695,9 +794,12 @@ class _TeamLeadDashboardScreenState extends ConsumerState<TeamLeadDashboardScree
                 spacing: 16,
                 runSpacing: 16,
                 children: [
-                  _buildSummaryCard('মোট সদস্য', '${members.length}', Icons.people_rounded, Colors.blue, colorScheme),
-                  _buildSummaryCard('সক্রিয়', '$activeCount', Icons.check_circle_rounded, Colors.green, colorScheme),
-                  _buildSummaryCard('নিষ্ক্রিয়', '$inactiveCount', Icons.remove_circle_rounded, Colors.red, colorScheme),
+                  _buildSummaryCard('মোট সদস্য', '${members.length}',
+                      Icons.people_rounded, Colors.blue, colorScheme),
+                  _buildSummaryCard('সক্রিয়', '$activeCount',
+                      Icons.check_circle_rounded, Colors.green, colorScheme),
+                  _buildSummaryCard('নিষ্ক্রিয়', '$inactiveCount',
+                      Icons.remove_circle_rounded, Colors.red, colorScheme),
                 ],
               ),
 
@@ -708,19 +810,24 @@ class _TeamLeadDashboardScreenState extends ConsumerState<TeamLeadDashboardScree
                 padding: EdgeInsets.all(24),
                 decoration: BoxDecoration(
                   gradient: LinearGradient(
-                    colors: [Colors.orange.shade50, Colors.orange.shade100.withOpacity(0.5)],
+                    colors: [
+                      Colors.orange.shade50,
+                      Colors.orange.shade100.withOpacity(0.5)
+                    ],
                   ),
                   borderRadius: BorderRadius.circular(16),
                   border: Border.all(color: Colors.orange.shade200),
                 ),
                 child: Column(
                   children: [
-                    Icon(Icons.lightbulb_outline, size: 48, color: Colors.orange),
+                    Icon(Icons.lightbulb_outline,
+                        size: 48, color: Colors.orange),
                     SizedBox(height: 16),
                     Text(
                       'স্বতন্ত্র সদস্যদের পারফরম্যান্স দেখতে "সদস্যরা" ট্যাবে গিয়ে একজনকে নির্বাচন করুন।',
                       textAlign: TextAlign.center,
-                      style: GoogleFonts.hindSiliguri(fontSize: 16, color: Colors.orange.shade800),
+                      style: GoogleFonts.hindSiliguri(
+                          fontSize: 16, color: Colors.orange.shade800),
                     ),
                   ],
                 ),
@@ -734,7 +841,8 @@ class _TeamLeadDashboardScreenState extends ConsumerState<TeamLeadDashboardScree
     );
   }
 
-  Widget _buildSummaryCard(String label, String value, IconData icon, Color color, ColorScheme colorScheme) {
+  Widget _buildSummaryCard(String label, String value, IconData icon,
+      Color color, ColorScheme colorScheme) {
     return Container(
       width: 180,
       padding: const EdgeInsets.all(24),
@@ -763,11 +871,13 @@ class _TeamLeadDashboardScreenState extends ConsumerState<TeamLeadDashboardScree
           const SizedBox(height: 16),
           Text(
             value,
-            style: GoogleFonts.poppins(fontSize: 32, fontWeight: FontWeight.bold, color: color),
+            style: GoogleFonts.poppins(
+                fontSize: 32, fontWeight: FontWeight.bold, color: color),
           ),
           Text(
             label,
-            style: GoogleFonts.hindSiliguri(fontSize: 14, color: Colors.grey.shade600),
+            style: GoogleFonts.hindSiliguri(
+                fontSize: 14, color: Colors.grey.shade600),
           ),
         ],
       ),
@@ -783,8 +893,10 @@ class _TeamLeadDashboardScreenState extends ConsumerState<TeamLeadDashboardScree
       _isLoadingDetails = true;
     });
 
-    final details = await ref.read(organizationServiceProvider).getMemberDetails(member.userId);
-    
+    final details = await ref
+        .read(organizationServiceProvider)
+        .getMemberDetails(member.userId);
+
     setState(() {
       _selectedMemberDetails = details;
       _isLoadingDetails = false;
@@ -794,11 +906,11 @@ class _TeamLeadDashboardScreenState extends ConsumerState<TeamLeadDashboardScree
   Widget _buildOrgAdminButton(BuildContext context) {
     final orgAsync = ref.watch(currentOrgProvider);
     final user = ref.watch(currentUserProvider);
-    
+
     return orgAsync.when(
       data: (org) {
         if (org == null || user == null) return const SizedBox.shrink();
-        
+
         // Check if user is the owner
         if (org.adminUserId == user.id) {
           return Padding(
@@ -808,12 +920,14 @@ class _TeamLeadDashboardScreenState extends ConsumerState<TeamLeadDashboardScree
               child: ElevatedButton.icon(
                 onPressed: () => Navigator.pushNamed(context, '/org_admin'),
                 icon: const Icon(Icons.admin_panel_settings_rounded),
-                label: Text('অর্গানাইজেশন ড্যাশবোর্ড', style: GoogleFonts.hindSiliguri()),
+                label: Text('অর্গানাইজেশন ড্যাশবোর্ড',
+                    style: GoogleFonts.hindSiliguri()),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: Colors.blue.shade700,
                   foregroundColor: Colors.white,
                   padding: const EdgeInsets.symmetric(vertical: 12),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12)),
                 ),
               ),
             ),
